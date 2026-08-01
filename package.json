@@ -4,7 +4,7 @@
   "main": "expo/AppEntry.js",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "start": "expo start --offline",
