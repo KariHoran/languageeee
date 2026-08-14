@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌸 Languageeee: Fanfiction & Language Cloud Ecosystem
+# Languageeee: Fanfiction & Language Cloud Ecosystem
 
 **Expo-приложение для изучения языков через чтение фанфиков и пользовательских текстов.**
 
@@ -29,7 +29,7 @@
 
 ---
 
-## 🧭 Что это на самом деле
+##  Что это на самом деле
 
 | | |
 |---|---|
@@ -46,7 +46,7 @@
 
 ---
 
-## ✨ О проекте
+##  О проекте
 
 **Languageeee** — интерактивная читалка, где каждое слово кликабельно: пиньинь, перевод, TTS, HSK-уровень, грамматика. Пользователь загружает `.txt`, выбирает историю из каталога или открывает публичную подборку по ссылке `/c/{slug}`, читает, собирает словарь и повторяет карточки по алгоритму **SM-2**.
 
@@ -54,9 +54,9 @@
 
 ---
 
-## 🚀 Возможности
+##  Возможности
 
-### 📖 Читалка (`ReaderScreen` / `ReaderPanel`)
+###  Читалка (`ReaderScreen` / `ReaderPanel`)
 
 - Сегментация текста через **`Intl.Segmenter('zh-CN', { granularity: 'word' })`** + **LMF/FMM** по словарям HSK и БКРС (`chineseTokenizer.ts`) — без лагов на планшетах.
 - Отдельные пайплайны токенизации для **en** и **ru** (`englishTokens.ts`).
@@ -64,38 +64,38 @@
 - Модальное окно слова: перевод, озвучка (`expo-speech`), коллекции, SRS-карточки, паттерны HSK-грамматики.
 - Параллельный перевод абзацев (lazy, по запросу).
 
-### 📚 Библиотека и каталог
+### Библиотека и каталог
 
 - **Моя библиотека** — загрузка текстов, папки-подборки, поиск с debounce.
 - **Каталог** — публичные истории с фильтрами (язык, HSK, категория, тег).
 - **Публичные подборки** — шаринг по URL `/c/{slug}`.
 
-### 🃏 Карточки и прогресс
+###  Карточки и прогресс
 
 - Flashcards с интервалами **SuperMemo-2** (`srsService.ts`).
 - Автосохранение позиции чтения: локально → Firestore с **debounce 800 ms** (`scheduleReadingProgressSync`).
 - Streak-трекер и аналитика активности по дням.
 
-### ☁️ Облако и auth
+###  Облако и auth
 
 - **Firebase Auth**: Email/Password + Google (redirect на web).
 - **Firestore sync**: книги, подборки, карточки, прогресс, sticky notes — merge с tombstones и conflict resolution (`cloudSyncService.ts`).
 - **Security Rules** + клиентский **RBAC** (`firestore.rules`, `rbac.ts`).
 
-### 📱 PWA (web)
+###  PWA (web)
 
 - Service Worker (`public/sw.js`) — precache shell, offline-first.
 - Web Manifest, иконки 192/512, установка на домашний экран.
 - Cache-заголовки настроены в `vercel.json`.
 
-### 🖥 Web-only extras
+###  Web-only extras
 
 - `MacDesktopShell` — dock, glass-окна, onboarding tour.
 - `LofiRadioPlayer`, `StickyNotes`, `StarryBackground`.
 
 ---
 
-## 🛠 Технический стек
+##  Технический стек
 
 | Слой | Реальные технологии |
 |------|---------------------|
@@ -121,7 +121,7 @@
 
 ---
 
-## 🏗 Архитектура
+##  Архитектура
 
 ### Два UI-слоя, один домен
 
@@ -183,7 +183,7 @@ flowchart TB
 
 ---
 
-## 📁 Структура репозитория
+##  Структура репозитория
 
 ```
 languageeee/
@@ -210,7 +210,7 @@ languageeee/
 
 ---
 
-## 🏁 Локальный запуск
+##  Локальный запуск
 
 ### Требования
 
@@ -264,7 +264,7 @@ npm run dev
 
 ---
 
-## 🎨 Design Tokens
+##  Design Tokens
 
 | Token | Value | Где |
 |-------|-------|-----|
@@ -274,7 +274,7 @@ npm run dev
 
 ---
 
-## 📄 Лицензия
+##  Лицензия
 
 Pet-project. All rights reserved.
 
