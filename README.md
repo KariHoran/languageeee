@@ -2,165 +2,210 @@
 
 # 🌸 Languageeee: Fanfiction & Language Cloud Ecosystem
 
-**Облачная платформа для изучения языков и чтения пользовательского контента с кросс-устройной синхронизацией в реальном времени.**
+**Expo-приложение для изучения языков через чтение фанфиков и пользовательских текстов.**
 
-Приложение превращает чтение фанфиков и новелл в интерактивный языковой тренажёр — **китайский**, **английский**, **русский** — с мгновенным разбором слов, идиом и грамматики прямо в тексте.
+Одна кодовая база на **React Native + React Native Web**: в браузере — десктопный shell с glassmorphism, на планшете/телефоне — нативные экраны. Данные живут локально (AsyncStorage) и синхронизируются в **Firebase Firestore** после входа.
 
 <br />
 
-![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![React Native](https://img.shields.io/badge/React_Native-0.79-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Expo](https://img.shields.io/badge/Expo_SDK-53-000020?style=for-the-badge&logo=expo&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Expo](https://img.shields.io/badge/Expo-53-000020?style=for-the-badge&logo=expo&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-11-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![PWA](https://img.shields.io/badge/PWA-Offline--first-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
 <br />
 
 **Dark Neon UI** · Deep Obsidian `#0D0D11` · Glassmorphism · Animated Starfield
 
-[Features](#-ключевые-возможности) ·
+[О проекте](#-что-это-на-самом-деле) ·
+[Features](#-возможности) ·
 [Stack](#-технический-стек) ·
-[Architecture](#-архитектурные-вызовы-и-решения) ·
-[Getting Started](#-локальный-запуск)
+[Architecture](#-архитектура) ·
+[Запуск](#-локальный-запуск)
 
 </div>
 
 ---
 
-## ✨ О проекте
+## 🧭 Что это на самом деле
 
-**Languageeee** — pet-проект уровня production-ready SPA: единая кодовая база на **Expo / React Native Web** для браузера, планшета и мобильных устройств. Пользователь загружает или выбирает историю из публичного каталога, читает с интерактивной сегментацией текста, сохраняет слова в коллекции и карточки SRS, а прогресс автоматически синхронизируется через **Firebase Firestore**.
+| | |
+|---|---|
+| **Тип** | Cross-platform **Expo 53** app (React Native 0.79 + React Native Web) |
+| **Сборка** | **Metro bundler** → статический экспорт (`expo export -p web`) → хостинг на **Vercel** |
+| **Backend** | Только **Firebase BaaS** (Auth + Firestore). Собственного API-сервера нет |
+| **UI по платформам** | `Platform.OS === 'web'` → `MacDesktopShell` · иначе → экраны в `src/screens/` |
+| **Языки изучения** | 🇨🇳 中文 · 🇬🇧 English · 🇷🇺 Русский |
+| **Язык интерфейса по умолчанию** | Русский (`DEFAULT_NATIVE_LANGUAGE = 'ru'`), переключается на zh / en |
+| **Без аккаунта** | Гостевой режим: книги и прогресс только локально, облако недоступно |
 
-Визуальный язык — **тёмная неоновая эстетика**: глубокий обсидиановый фон, стеклянные панели, мягкий розовый пиньинь `#FF6584` и анимированное звёздное небо на десктопе.
+> **Это не Next.js** и не классический React SPA с React Router.  
+> Это React Native-приложение, которое на web рендерится через `react-native-web` и деплоится как статика.
 
 ---
 
-## 🚀 Ключевые возможности
+## ✨ О проекте
 
-### 📖 Интерактивная читалка (E-reader)
+**Languageeee** — интерактивная читалка, где каждое слово кликабельно: пиньинь, перевод, TTS, HSK-уровень, грамматика. Пользователь загружает `.txt`, выбирает историю из каталога или открывает публичную подборку по ссылке `/c/{slug}`, читает, собирает словарь и повторяет карточки по алгоритму **SM-2**.
 
-- Локальная сегментация текста через **`Intl.Segmenter('zh-CN', { granularity: 'word' })`** — мгновенный разбор фраз и идиом (**成语**) без лагов на планшетах и мобильных устройствах.
-- Дополнительный **Longest-Match-First** по словарям HSK / БКРС для склейки известных лексем и корректной расклейки местоимений.
-- Нежно-розовый **пиньинь / транскрипция** поверх текста (`#FF6584`).
-- Модальное окно слова: перевод, TTS, добавление в коллекцию, SRS-карточки, грамматические паттерны HSK.
+Визуальный стиль — **тёмная неоновая эстетика**: фон `#0D0D11`, стеклянные панели, розовый пиньинь `#FF6584`, звёздное небо и lofi-радио на web.
 
-### ☁️ Облачный трекер прогресса
+---
 
-- Автосохранение позиции чтения в **Firebase Firestore** с **debounce 800 ms** — синхронизация между устройствами без гонок запросов (race conditions).
-- Локальный кэш в AsyncStorage / `localStorage` + flush при reconnect (offline-first).
+## 🚀 Возможности
 
-### 📚 Публичная библиотека и i18n
+### 📖 Читалка (`ReaderScreen` / `ReaderPanel`)
 
-- Каталог историй с фильтрами по языку, уровню HSK, категории и тегам.
-- Мультиязычная локализация интерфейса: **zh**, **en**, **ru** (`src/i18n/`).
+- Сегментация текста через **`Intl.Segmenter('zh-CN', { granularity: 'word' })`** + **LMF/FMM** по словарям HSK и БКРС (`chineseTokenizer.ts`) — без лагов на планшетах.
+- Отдельные пайплайны токенизации для **en** и **ru** (`englishTokens.ts`).
+- Пиньинь / транскрипция цветом `#FF6584`, переключение упрощённый ↔ традиционный (`opencc-js`).
+- Модальное окно слова: перевод, озвучка (`expo-speech`), коллекции, SRS-карточки, паттерны HSK-грамматики.
+- Параллельный перевод абзацев (lazy, по запросу).
 
-### 📱 PWA (Progressive Web App)
+### 📚 Библиотека и каталог
 
-- **Offline-first**: Service Worker, precache, установка на домашний экран как нативное приложение.
-- Отдельные cache-заголовки для `sw.js`, `manifest.json` и immutable assets (Vercel).
+- **Моя библиотека** — загрузка текстов, папки-подборки, поиск с debounce.
+- **Каталог** — публичные истории с фильтрами (язык, HSK, категория, тег).
+- **Публичные подборки** — шаринг по URL `/c/{slug}`.
 
-### 🎯 Геймификация и аналитика
+### 🃏 Карточки и прогресс
 
-- **Streak-трекер** ежедневной активности.
-- Аналитика продуктивности: уникальные слова, процент прочитанного, сессии чтения.
+- Flashcards с интервалами **SuperMemo-2** (`srsService.ts`).
+- Автосохранение позиции чтения: локально → Firestore с **debounce 800 ms** (`scheduleReadingProgressSync`).
+- Streak-трекер и аналитика активности по дням.
+
+### ☁️ Облако и auth
+
+- **Firebase Auth**: Email/Password + Google (redirect на web).
+- **Firestore sync**: книги, подборки, карточки, прогресс, sticky notes — merge с tombstones и conflict resolution (`cloudSyncService.ts`).
+- **Security Rules** + клиентский **RBAC** (`firestore.rules`, `rbac.ts`).
+
+### 📱 PWA (web)
+
+- Service Worker (`public/sw.js`) — precache shell, offline-first.
+- Web Manifest, иконки 192/512, установка на домашний экран.
+- Cache-заголовки настроены в `vercel.json`.
+
+### 🖥 Web-only extras
+
+- `MacDesktopShell` — dock, glass-окна, onboarding tour.
+- `LofiRadioPlayer`, `StickyNotes`, `StarryBackground`.
 
 ---
 
 ## 🛠 Технический стек
 
-| Слой | Технологии |
-|------|------------|
-| **Frontend** | React 19, Expo 53 (React Native Web), TypeScript, Tailwind CSS, Zustand |
-| **Backend & DB** | Firebase Authentication, Cloud Firestore, Security Rules |
-| **AI / NLP** | OpenAI / OpenRouter (lazy translation), `pinyin-pro`, `opencc-js`, `Intl.Segmenter` |
-| **DevOps** | Vercel CI/CD (`vercel-build` → `expo export -p web`), Node.js 24 |
-| **Platform APIs** | PWA (SW, Web Manifest), Expo Speech, AsyncStorage |
+| Слой | Реальные технологии |
+|------|---------------------|
+| **App framework** | Expo SDK 53, React 19, React Native 0.79, React Native Web |
+| **Язык** | TypeScript 5.8 |
+| **Стили (web)** | Tailwind CSS 3 → `global.generated.css`, PostCSS, Autoprefixer |
+| **Состояние** | Zustand 5 + persist (AsyncStorage / localStorage) |
+| **Backend** | Firebase 11: Authentication, Cloud Firestore, Security Rules |
+| **NLP / перевод** | `Intl.Segmenter`, `pinyin-pro`, `opencc-js`, OpenAI / OpenRouter (опционально), MyMemory / gtx proxy |
+| **Деплой** | Vercel: `npm run vercel-build` → `dist/` |
+| **Runtime** | Node.js 24.x |
+
+### npm-скрипты (из `package.json`)
+
+| Скрипт | Что делает |
+|--------|------------|
+| `npm run dev` | `expo start --web` |
+| `npm run web` | Tailwind build + `expo start --web --offline` |
+| `npm run export:web` | Production static export в `dist/` |
+| `npm run vercel-build` | То же, что `export:web` (CI на Vercel) |
+| `npm run android` / `ios` | Expo dev client (offline) |
+| `npm run firebase:rules` | Деплой Firestore rules |
 
 ---
 
-## 🏗 Архитектурные вызовы и решения
+## 🏗 Архитектура
 
-> Раздел для рекрутеров и code review — какие нетривиальные проблемы решались и как.
+### Два UI-слоя, один домен
 
-### 1. N+1 запросов перевода → Lazy Translation + кэш
+```
+App.tsx
+├── Platform.OS === 'web'  →  MacDesktopShell  →  src/web/*  (Tailwind, DOM helpers)
+└── Platform.OS !== 'web'  →  src/screens/*    (StyleSheet RN)
+         ↓
+    src/services/*  +  src/store/useAppStore.ts  (общая бизнес-логика)
+```
 
-**Проблема:** пословный перевод каждого токена при открытии абзаца генерировал лавину API-запросов.
+### Решённые инженерные задачи
 
-**Решение:**
+**1. N+1 запросов перевода**
 
-- Перевод по требованию (lazy) — только при клике на слово или явном запросе.
-- Двухуровневый **translation cache** (in-memory + persisted, до 500 записей) в `translationCache.ts`.
-- Батчинг и дедупликация в `translationService` / `nativeTranslationService`.
+Перевод — lazy (по клику), не при рендере абзаца. Кэш in-memory + persisted, до 500 записей (`translationCache.ts`).
 
-### 2. Посимвольный разбор на мобильных → нативная сегментация
+**2. Кривая сегментация китайского на мобильных**
 
-**Проблема:** fallback-алгоритмы на слабых движках рвали 成语 и склеивали「我是」「我要」.
+`Intl.Segmenter` + LMF по HSK/БКРС + расклейка местоимений「我/你/他» (`chineseTokenizer.ts`).
 
-**Решение:**
+**3. Гонки при sync прогресса чтения**
 
-- Приоритет **`Intl.Segmenter`** с locale-aware конфигом (`languageConfig.ts`).
-- FMM / LMF поверх сегментатора с лексиконом HSK и БКРС (`chineseTokenizer.ts`).
-- Отдельные пайплайны для **en** и **ru** (`englishTokens.ts`).
+Scroll не триггерит полный sync — только debounced push `readingProgress` в `users/{uid}/meta/sync` (800 ms).
 
-### 3. Race conditions при sync → debounced cloud writes
+**4. Доступ к данным в Firestore**
 
-**Проблема:** каждый scroll event мог триггерить полный upload в Firestore.
-
-**Решение:**
-
-- Лёгкий **`scheduleReadingProgressSync()`** с debounce 800 ms — пушит только `readingProgress` в `users/{uid}/meta/sync`.
-- Полная синхронизация сущностей (books, collections, flashcards) — отдельным merge-пайплайном с tombstones и conflict resolution.
-
-### 4. Security Rules + RBAC
-
-**Проблема:** пользовательские книги, коллекции и публичный каталог требуют строгого разграничения доступа.
-
-**Решение:**
-
-- Firestore Rules: `isPathOwner`, `isDocOwner`, `createWithOwnUserId`, `keepsOwnUserId`.
-- Клиентский RBAC-слой (`rbac.ts`) с каноническим `userId` / `authorId` и проверкой владельца до write-операций.
+Rules проверяют `userId === auth.uid`; клиент дублирует проверки через `rbac.ts` до write.
 
 ```mermaid
-flowchart LR
-  subgraph Client["Client (Expo Web / RN)"]
-    Reader["ReaderPanel / ReaderScreen"]
+flowchart TB
+  subgraph Expo["Expo App (Metro)"]
+    Web["MacDesktopShell\n(web)"]
+    Native["screens/*\n(iOS / Android / tablet)"]
     Store["Zustand + AsyncStorage"]
-    Cache["Translation Cache"]
+    Services["services/*"]
   end
 
-  subgraph Firebase["Firebase"]
+  subgraph Deploy["Vercel"]
+    Static["dist/ static files"]
+    SW["sw.js + manifest"]
+  end
+
+  subgraph Firebase["Firebase BaaS"]
     Auth["Authentication"]
     FS["Firestore"]
-    Rules["Security Rules + RBAC"]
+    Rules["Security Rules"]
   end
 
-  Reader -->|"Intl.Segmenter + HSK lexicon"| Reader
-  Reader -->|"lazy translate"| Cache
-  Cache -->|"cache miss"| API["OpenAI / OpenRouter"]
-  Store -->|"debounced progress sync"| FS
+  Web --> Store
+  Native --> Store
+  Store --> Services
+  Services --> FS
   Auth --> FS
   Rules --> FS
+  Expo -->|"expo export -p web"| Static
+  Static --> SW
 ```
 
 ---
 
-## 📁 Структура проекта
+## 📁 Структура репозитория
 
 ```
 languageeee/
-├── App.tsx                 # Entry point
+├── App.tsx                      # Entry: Platform.OS → web shell или RN screens
+├── app.config.js                # Expo config + EXPO_PUBLIC_FIREBASE_* в extra
+├── metro.config.js              # Metro (web compat, zustand ESM)
+├── vercel.json                  # Static hosting, SW headers, SPA rewrites
+├── firestore.rules              # Firestore Security Rules
+├── public/
+│   ├── sw.js                    # Service Worker
+│   └── manifest.json            # PWA manifest
+├── scripts/                     # Python: извлечение HSK из PDF, генерация TS
 ├── src/
-│   ├── screens/            # Mobile / tablet screens
-│   ├── web/                # Desktop shell (MacDesktopShell, ReaderPanel, …)
-│   ├── services/           # Firebase, sync, translation, tokenizer, SRS
-│   ├── store/              # Zustand global state
-│   ├── i18n/               # UI localization (zh / en / ru)
-│   ├── data/               # HSK words, grammar patterns, catalog
-│   └── styles/             # Tailwind + global CSS tokens
-├── public/                 # PWA manifest, service worker, icons
-├── firestore.rules         # Firestore Security Rules
-└── vercel.json             # Vercel deploy config
+│   ├── screens/                 # RN-экраны (tablet / mobile)
+│   ├── web/                     # Web-only UI (MacDesktopShell, ReaderPanel, …)
+│   ├── components/              # Общие компоненты (AuthStatusBar, HskAnalysis, …)
+│   ├── services/                # Auth, sync, tokenizer, translation, SRS, TTS
+│   ├── store/                   # Zustand store + persist
+│   ├── i18n/                    # UI-строки (zh / en / ru)
+│   ├── data/                    # HSK words, grammar JSON, zh-ru dict
+│   └── styles/                  # Tailwind source → generated CSS
+└── hsk3_words.json              # Исходные данные HSK
 ```
 
 ---
@@ -169,29 +214,28 @@ languageeee/
 
 ### Требования
 
-- **Node.js** 24.x
+- **Node.js** 24.x (см. `engines` в `package.json`)
 - **npm** 10+
-- (Опционально) аккаунт Firebase и API-ключ OpenAI / OpenRouter
 
 ### 1. Клонирование
 
 ```bash
-git clone https://github.com/<your-username>/languageeee.git
+git clone https://github.com/KariHoran/languageeee.git
 cd languageeee
 ```
 
-### 2. Установка зависимостей
+### 2. Зависимости
 
 ```bash
 npm install
 ```
 
-### 3. Переменные окружения
+### 3. `.env` (опционально, но нужен для облака)
 
-Создайте файл `.env` в корне проекта:
+Создайте `.env` в корне:
 
 ```env
-# Firebase (обязательно для облака и auth)
+# Firebase — без этого работает только гостевой локальный режим
 EXPO_PUBLIC_FIREBASE_API_KEY=
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=
@@ -199,49 +243,45 @@ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
 
-# AI-перевод и анализ (опционально)
+# AI-перевод (опционально)
 EXPO_PUBLIC_OPENAI_API_KEY=
 EXPO_PUBLIC_OPENROUTER_API_KEY=
 ```
 
-> Без Firebase-параметров приложение работает **локально** (AsyncStorage). Облачная синхронизация и авторизация будут недоступны.
+После изменения `.env` перезапустите с очисткой кэша:
 
-### 4. Запуск dev-сервера
+```bash
+npm run web:clear
+```
+
+### 4. Dev-сервер
 
 ```bash
 npm run dev
 ```
 
-Откройте URL из терминала Expo (обычно `http://localhost:8081`).
-
-### Дополнительные команды
-
-| Команда | Описание |
-|---------|----------|
-| `npm run web` | Web с пересборкой Tailwind CSS |
-| `npm run export:web` | Production-бандл в `dist/` |
-| `npm run firebase:rules` | Деплой Firestore Security Rules |
+Откройте URL из вывода Expo (обычно `http://localhost:8081`).
 
 ---
 
 ## 🎨 Design Tokens
 
-| Token | Value | Назначение |
-|-------|-------|------------|
-| `--bg-deep` | `#0D0D11` | Deep Obsidian — основной фон |
-| `--pinyin` | `#FF6584` | Пиньинь / акцент |
-| Glass panels | `backdrop-blur` + полупрозрачные границы | Glassmorphism UI |
+| Token | Value | Где |
+|-------|-------|-----|
+| Фон | `#0D0D11` | `app.json` splash, web theme |
+| Пиньинь | `#FF6584` | `src/styles/global.css`, `theme/y2k.ts` |
+| Glass | `backdrop-blur` + полупрозрачные бордеры | `src/web/GlassWindow.tsx`, `.glass` в CSS |
 
 ---
 
 ## 📄 Лицензия
 
-Pet-project для портфолио. All rights reserved.
+Pet-project. All rights reserved.
 
 ---
 
 <div align="center">
 
-**Built with 🌸 for language learners who read fanfiction**
+**🌸 Читай фанфики — учи язык**
 
 </div>
