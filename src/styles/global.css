@@ -1,0 +1,410 @@
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme tokens (light / dark) ── */
+html, body, #root {
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  /* iOS notch / home indicator */
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0
+    env(safe-area-inset-left, 0);
+}
+
+@media (max-width: 1023px) {
+  /* Стек пиньинь+иероглиф требует большего line-height, иначе розовый перекрывается */
+  .reader-hanzi {
+    font-size: calc(1.35rem * var(--reader-font-scale, 1));
+    line-height: calc(3.15rem * var(--reader-font-scale, 1));
+  }
+  .reader-hanzi.reader-pinyin-on {
+    line-height: calc(3.35rem * var(--reader-font-scale, 1));
+  }
+  .reader-en.reader-hanzi {
+    font-size: calc(1.05rem * var(--reader-font-scale, 1));
+    line-height: calc(2.45 * var(--reader-font-scale, 1));
+  }
+  .reader-en.reader-hanzi.reader-pinyin-on {
+    line-height: calc(2.75 * var(--reader-font-scale, 1));
+  }
+}
+
+/* Тач: кнопки и скролл без случайного зума/выделения */
+button,
+.dock-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+[data-theme='dark'] {
+  --app-bg: #0D0D11;
+  --card-bg: #1E1E28;
+  --surface-bg: #16161E;
+  --border: #2A2A3A;
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --accent: #8B5CF6;
+  --pinyin: #FF6584;
+  --cta: #D0FF00;
+  color: var(--text);
+  background: var(--app-bg);
+}
+
+[data-theme='light'] {
+  --app-bg: #F8F9FC;
+  --card-bg: #ffffff;
+  --surface-bg: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --text-muted: #4b5563;
+  --accent: #7c3aed;
+  --pinyin: #FF6584; /* жёстко розовый — не пропадает при смене темы */
+  --cta: #D0FF00;
+  color: var(--text);
+  background: var(--app-bg);
+}
+
+/* Default before JS hydrates */
+html:not([data-theme]) {
+  --app-bg: #F8F9FC;
+  --card-bg: #ffffff;
+  --surface-bg: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --text-muted: #4b5563;
+  --accent: #7c3aed;
+  --pinyin: #FF6584;
+  --cta: #D0FF00;
+  color: var(--text);
+  background: var(--app-bg);
+}
+
+ruby {
+  ruby-align: center;
+  ruby-position: over;
+}
+
+/* Word + pink pinyin stacked above (без blur/shadow на каждом слове) */
+.reader-word-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  vertical-align: bottom;
+  margin: 0 0.05em 0.15em;
+  line-height: 1.1;
+  row-gap: 0.06em;
+}
+
+.reader-word-surface {
+  display: inline;
+  line-height: 1.35;
+}
+
+/* Compact annotation above hanzi / EN */
+ruby rt,
+.reader-pinyin {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-size: 0.55em;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  color: #FF6584 !important;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+  margin-bottom: 0.1em;
+  white-space: nowrap;
+  /* Без text-shadow на каждом слове — сильно грузит GPU планшета */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Larger pinyin label inside WordModalGlass only */
+.word-modal-pinyin {
+  font-size: 1.125rem;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  color: #FF6584 !important;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 12px rgba(255, 101, 132, 0.35);
+}
+
+.reader-en.reader-hanzi {
+  font-size: calc(1.15rem * var(--reader-font-scale, 1));
+  line-height: calc(2.35 * var(--reader-font-scale, 1));
+  word-spacing: 0.06em;
+}
+
+.reader-en.reader-hanzi.reader-pinyin-on {
+  line-height: calc(2.65 * var(--reader-font-scale, 1));
+}
+
+.glass {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+.glass-titlebar {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 10px; }
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 40%, transparent) transparent; }
+
+@keyframes floatUp { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-4px); } }
+@keyframes shimmer { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: var(--star-opacity, 0.45);
+  }
+  50% {
+    opacity: calc(var(--star-opacity, 0.45) * 0.28);
+  }
+}
+
+.starry-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+
+.starry-bg__star {
+  position: absolute;
+  border-radius: 9999px;
+  background: #e8eefc;
+  /* Без box-shadow на каждой звезде */
+}
+
+.starry-bg__star--twinkle {
+  animation: star-twinkle var(--star-duration, 3.2s) ease-in-out infinite;
+  animation-delay: var(--star-delay, 0s);
+  will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starry-bg__star--twinkle {
+    animation: none;
+    opacity: var(--star-opacity, 0.4);
+    will-change: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .starry-bg__star--twinkle {
+    /* На планшетах реже обновляем яркость */
+    animation-duration: calc(var(--star-duration, 3.2s) * 1.6);
+  }
+}
+
+.neon-bg[data-theme='dark'],
+[data-theme='dark'] .neon-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(139, 92, 246, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(208, 255, 0, 0.06), transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 100%, rgba(139, 92, 246, 0.1), transparent 55%),
+    #0D0D11;
+}
+
+.neon-bg[data-theme='light'],
+[data-theme='light'] .neon-bg,
+.light-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 15% -5%, rgba(167, 139, 250, 0.2), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 90% 0%, rgba(208, 255, 0, 0.12), transparent 45%),
+    #F8F9FC;
+}
+
+.pastoral-bg {
+  background: var(--app-bg);
+}
+
+.grammar-mark-ba {
+  background: rgba(244, 114, 182, 0.28);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.grammar-mark-bei {
+  background: rgba(139, 92, 246, 0.28);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.grammar-mark-other {
+  background: rgba(251, 146, 60, 0.28);
+  border-bottom: 2px dashed rgba(234, 88, 12, 0.85);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* English grammar highlights */
+.grammar-mark-en-tense {
+  background: rgba(56, 189, 248, 0.28);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.grammar-mark-en-phrasal {
+  background: rgba(251, 146, 60, 0.3);
+  border-bottom: 2px dashed rgba(234, 88, 12, 0.9);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.grammar-mark-en-other {
+  background: rgba(236, 72, 153, 0.2);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.reader-hanzi {
+  font-size: calc(1.55rem * var(--reader-font-scale, 1));
+  line-height: calc(3.05rem * var(--reader-font-scale, 1));
+  color: var(--reader-text, var(--text));
+  font-weight: 500;
+}
+
+.reader-hanzi.reader-pinyin-on {
+  line-height: calc(3.25rem * var(--reader-font-scale, 1));
+}
+
+[data-theme='light'] .reader-hanzi { color: var(--reader-text, #111827); }
+[data-theme='dark'] .reader-hanzi { color: var(--reader-text, #ffffff); }
+
+/* E-reader page themes — только «страница» книги; chrome остаётся Dark Neon */
+.reader-page-dark {
+  --reader-text: #f4f4f8;
+  --reader-translation: rgba(244, 244, 248, 0.72);
+  --reader-muted: rgba(244, 244, 248, 0.55);
+  --reader-card-bg: rgba(30, 30, 40, 0.92);
+  --reader-card-border: #2a2a3a;
+  --reader-pinyin: #FF6584;
+  background: transparent;
+}
+.reader-page-light {
+  --reader-text: #0D0D11;
+  --reader-translation: rgba(30, 30, 40, 0.78);
+  --reader-muted: rgba(30, 30, 40, 0.5);
+  --reader-card-bg: #FFFFFF;
+  --reader-card-border: #E5E7EB;
+  --reader-pinyin: #E11D48;
+  background: #F8F9FA;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(42, 42, 58, 0.12);
+}
+.reader-page-sepia {
+  --reader-text: #5c4a32;
+  --reader-translation: rgba(92, 74, 50, 0.78);
+  --reader-muted: rgba(92, 74, 50, 0.6);
+  --reader-card-bg: #f3e6c8;
+  --reader-card-border: #e0cda8;
+  --reader-pinyin: #C0265A;
+  background: #efe0c0;
+  border-radius: 1rem;
+  padding: 0.75rem;
+}
+
+.reader-para-card {
+  background: var(--reader-card-bg);
+  border: 1px solid var(--reader-card-border);
+  color: var(--reader-text);
+  /* Без backdrop-filter на каждом абзаце — blur только у окон/модалок */
+}
+
+/* Пиньинь: розовый акцент; на светлой странице — чуть глубже + без glow */
+.reader-page-theme .reader-pinyin {
+  color: var(--reader-pinyin, #FF6584) !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.reader-page-dark .reader-pinyin {
+  /* Лёгкий акцент только в dark theme, без тяжёлого glow на каждое слово */
+  opacity: 0.95;
+}
+.reader-page-light .reader-pinyin,
+.reader-page-sepia .reader-pinyin {
+  text-shadow: none;
+}
+
+/* Грамматика на светлой странице — читаемые оранжевые пунктиры */
+.reader-page-light .grammar-mark-other,
+.reader-page-light .grammar-mark-en-phrasal {
+  background: rgba(251, 146, 60, 0.18);
+  border-bottom: 2px dashed #EA580C;
+}
+.reader-page-light .grammar-mark-ba {
+  background: rgba(244, 114, 182, 0.22);
+  border-bottom: 2px dashed #DB2777;
+}
+.reader-page-light .grammar-mark-bei {
+  background: rgba(139, 92, 246, 0.2);
+  border-bottom: 2px dashed #7C3AED;
+}
+.reader-page-light .grammar-mark-en-tense {
+  background: rgba(14, 165, 233, 0.16);
+  border-bottom: 2px dashed #0284C7;
+}
+.reader-page-light .grammar-mark-en-other {
+  background: rgba(236, 72, 153, 0.14);
+  border-bottom: 2px dashed #DB2777;
+}
+
+.reader-page-theme .reader-translation-line {
+  color: var(--reader-translation);
+}
+
+.reader-page-theme .reader-chrome-muted {
+  color: var(--reader-muted, rgba(244, 244, 248, 0.55));
+}
+
+.reader-page-theme .reader-word-hit:hover {
+  background: color-mix(in srgb, var(--reader-pinyin, #FF6584) 18%, transparent);
+}
+.reader-page-light .reader-word-hit:hover {
+  background: rgba(225, 29, 72, 0.1);
+}
+
+.dock-btn:hover {
+  animation: floatUp 2s ease-in-out infinite;
+}
+
+.reader-hanzi ruby,
+.reader-hanzi .reader-word-stack,
+.reader-hanzi .cursor-pointer {
+  cursor: pointer;
+}
+
+.btn-neon-primary {
+  background: #D0FF00;
+  color: #0D0D11;
+  font-weight: 700;
+}
+.btn-neon-primary:hover {
+  background: #b8e600;
+}
+.text-neon-accent {
+  color: var(--accent);
+}

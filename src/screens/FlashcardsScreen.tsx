@@ -1,0 +1,925 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import StarfieldBackground from '../components/StarfieldBackground';
+import {
+  DEFAULT_SESSION_SIZE,
+  getFlashcardSources,
+  getFlashcardsCount,
+  getReviewSession,
+  reviewFlashcard,
+  type DeckStats,
+} from '../services/flashcardsStore';
+import { getLearningLanguage } from '../services/onboardingService';
+import { useTheme } from '../theme/ThemeContext';
+import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
+import { getHskBadgeColors } from '../utils/hskColors';
+import { softShadow } from '../utils/shadow';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_TABLET = SCREEN_WIDTH >= 768;
+
+interface FlashcardsScreenProps {
+  onBack: () => void;
+}
+
+type DeckFilter = LearningLanguage | 'all';
+type Phase = 'hub' | 'session' | 'done';
+
+type SourceOpt = { bookId?: string; title: string; count: number };
+
+const GRADE_BUTTONS: Array<{
+  id: FlashcardGrade;
+  label: string;
+  hint: string;
+}> = [
+  { id: 'again', label: 'Снова', hint: '1д' },
+  { id: 'hard', label: 'Трудно', hint: 'сложнее' },
+  { id: 'good', label: 'Хорошо', hint: 'ок' },
+  { id: 'easy', label: 'Легко', hint: 'легко' },
+];
+
+/** SRS · сессия из 10 карточек + фильтры языка / книги */
+export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
+  const theme = useTheme();
+  const [phase, setPhase] = useState<Phase>('hub');
+  const [queue, setQueue] = useState<Flashcard[]>([]);
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [grading, setGrading] = useState(false);
+  const [stats, setStats] = useState<DeckStats>({
+    total: 0,
+    due: 0,
+    new: 0,
+    learning: 0,
+    learned: 0,
+  });
+  const [sessionDone, setSessionDone] = useState(0);
+  const [gradeCounts, setGradeCounts] = useState({
+    again: 0,
+    hard: 0,
+    good: 0,
+    easy: 0,
+  });
+  const [filter, setFilter] = useState<DeckFilter>('all');
+  const [filterReady, setFilterReady] = useState(false);
+  const [sources, setSources] = useState<SourceOpt[]>([]);
+  const [sourceKey, setSourceKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const lang = await getLearningLanguage();
+      setFilter(lang === 'en' ? 'en' : 'zh');
+      setFilterReady(true);
+    })();
+  }, []);
+
+  const reloadHub = useCallback(async () => {
+    if (!filterReady) return;
+    setLoading(true);
+    const src = await getFlashcardSources(filter);
+    setSources(src);
+    const selected =
+      sourceKey != null
+        ? src.find((s) => (s.bookId || s.title) === sourceKey) ?? null
+        : null;
+    if (sourceKey && !selected) {
+      setSourceKey(null);
+    }
+    const query = selected
+      ? {
+          sourceBookId: selected.bookId ?? null,
+          sourceTitle: selected.bookId ? null : selected.title,
+        }
+      : {};
+    const counts = await getFlashcardsCount(filter, query);
+    setStats(counts);
+    setLoading(false);
+  }, [filter, filterReady, sourceKey]);
+
+  useEffect(() => {
+    if (phase === 'hub') void reloadHub();
+  }, [phase, reloadHub]);
+
+  const startSession = async () => {
+    setLoading(true);
+    const selected =
+      sourceKey != null
+        ? sources.find((s) => (s.bookId || s.title) === sourceKey) ?? null
+        : null;
+    const query = selected
+      ? {
+          sourceBookId: selected.bookId ?? null,
+          sourceTitle: selected.bookId ? null : selected.title,
+        }
+      : {};
+    const cards = await getReviewSession({
+      language: filter,
+      limit: DEFAULT_SESSION_SIZE,
+      ...query,
+    });
+    setQueue(cards);
+    setIndex(0);
+    setRevealed(false);
+    setSessionDone(0);
+    setGradeCounts({ again: 0, hard: 0, good: 0, easy: 0 });
+    setLoading(false);
+    if (cards.length === 0) {
+      setPhase('hub');
+      return;
+    }
+    setPhase('session');
+  };
+
+  const current = queue[index] ?? null;
+  const isEnglish = (current?.language ?? 'zh') === 'en';
+  const isRussian = (current?.language ?? 'zh') === 'ru';
+
+  const handleGrade = async (grade: FlashcardGrade) => {
+    if (!current || grading) return;
+    setGrading(true);
+    try {
+      await reviewFlashcard(current.id || current.hanzi, grade, current.language);
+      setSessionDone((n) => n + 1);
+      const bucket =
+        grade === 'forgot'
+          ? 'again'
+          : grade === 'remembered'
+            ? 'good'
+            : grade;
+      setGradeCounts((g) => ({ ...g, [bucket]: g[bucket] + 1 }));
+      setRevealed(false);
+      if (index + 1 >= queue.length) {
+        setPhase('done');
+      } else {
+        setIndex((i) => i + 1);
+      }
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  if (loading || !filterReady) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.bg }]}
+        edges={['top', 'bottom']}
+      >
+        <ActivityIndicator
+          size="large"
+          color={theme.accent}
+          style={styles.loader}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      edges={['top', 'bottom']}
+    >
+      {theme.mode === 'midnight' ? <StarfieldBackground /> : null}
+      <View style={{ flex: 1, zIndex: 1 }}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Pressable
+              onPress={() => {
+                if (phase === 'session') {
+                  setPhase('hub');
+                  void reloadHub();
+                  return;
+                }
+                if (phase === 'done') {
+                  setPhase('hub');
+                  void reloadHub();
+                  return;
+                }
+                onBack();
+              }}
+              style={styles.backButton}
+            >
+              <Text style={[styles.backButtonText, { color: theme.accent }]}>
+                ←{' '}
+                {phase === 'hub'
+                  ? 'Назад'
+                  : phase === 'session'
+                    ? 'К колоде'
+                    : 'К колоде'}
+              </Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.brand, { color: theme.accentPink }]}>
+            🌸 SRS · интервалы
+          </Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {phase === 'session'
+              ? 'Сессия'
+              : phase === 'done'
+                ? 'Готово'
+                : 'Карточки'}
+          </Text>
+        </View>
+
+        {phase === 'hub' ? (
+          <ScrollView
+            contentContainerStyle={styles.hubScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+              К повторению: {stats.due} · Всего: {stats.total}
+            </Text>
+
+            <View style={styles.statRow}>
+              <StatChip
+                label="Новые"
+                value={stats.new}
+                color={theme.accentPink}
+                theme={theme}
+              />
+              <StatChip
+                label="На грани"
+                value={stats.learning}
+                color={theme.accent}
+                theme={theme}
+              />
+              <StatChip
+                label="Выученные"
+                value={stats.learned}
+                color={theme.success}
+                theme={theme}
+              />
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+              Язык
+            </Text>
+            <View style={styles.filterRow}>
+              {(
+                [
+                  { id: 'zh' as const, label: '中文' },
+                  { id: 'ru' as const, label: 'RU' },
+                  { id: 'en' as const, label: 'EN' },
+                  { id: 'all' as const, label: 'Все' },
+                ] as const
+              ).map((opt) => {
+                const active = filter === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => {
+                      setFilter(opt.id);
+                      setSourceKey(null);
+                    }}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accentPink : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(255,122,217,0.18)'
+                            : 'rgba(236,72,153,0.12)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accentPink : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {sources.length > 0 ? (
+              <>
+                <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+                  Книга / фанфик
+                </Text>
+                <View style={styles.filterRow}>
+                  <Pressable
+                    onPress={() => setSourceKey(null)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor:
+                          sourceKey == null ? theme.accentPink : theme.border,
+                        backgroundColor:
+                          sourceKey == null
+                            ? theme.mode === 'midnight'
+                              ? 'rgba(255,122,217,0.18)'
+                              : 'rgba(236,72,153,0.12)'
+                            : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color:
+                            sourceKey == null
+                              ? theme.accentPink
+                              : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      Все книги
+                    </Text>
+                  </Pressable>
+                  {sources.map((s) => {
+                    const key = s.bookId || s.title;
+                    const active = sourceKey === key;
+                    return (
+                      <Pressable
+                        key={key}
+                        onPress={() => setSourceKey(key)}
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor: active
+                              ? theme.accentPink
+                              : theme.border,
+                            backgroundColor: active
+                              ? theme.mode === 'midnight'
+                                ? 'rgba(255,122,217,0.18)'
+                                : 'rgba(236,72,153,0.12)'
+                              : 'transparent',
+                            maxWidth: 180,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            {
+                              color: active
+                                ? theme.accentPink
+                                : theme.textMuted,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {s.title} ({s.count})
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+
+            <Pressable
+              style={[
+                styles.sessionButton,
+                {
+                  backgroundColor:
+                    stats.due > 0 ? theme.accent : theme.border,
+                  opacity: stats.due > 0 ? 1 : 0.55,
+                },
+              ]}
+              disabled={stats.due <= 0}
+              onPress={() => void startSession()}
+            >
+              <Text style={styles.sessionButtonText}>
+                {stats.due > 0
+                  ? `Начать сессию · ${Math.min(DEFAULT_SESSION_SIZE, stats.due)} карточек`
+                  : 'Нечего повторять'}
+              </Text>
+            </Pressable>
+
+            {stats.due <= 0 ? (
+              <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
+                {filter === 'en'
+                  ? 'Добавьте английские слова из ридера (клик → «В карточки»).'
+                  : filter === 'zh'
+                    ? 'Добавьте слова из ридера — колода пока пуста.'
+                    : 'Добавьте слова из ридера или смените фильтр.'}
+              </Text>
+            ) : (
+              <Text style={[styles.emptyHint, { color: theme.textDim }]}>
+                Сначала карточки «на грани», затем новые. После ответа
+                интервал обновляется (SM-2).
+              </Text>
+            )}
+          </ScrollView>
+        ) : null}
+
+        {phase === 'done' ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyEmoji}>✨</Text>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              Сессия завершена
+            </Text>
+            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+              Повторено: {sessionDone}
+              {'\n'}
+              Снова {gradeCounts.again} · Трудно {gradeCounts.hard} · Хорошо{' '}
+              {gradeCounts.good} · Легко {gradeCounts.easy}
+            </Text>
+            <Pressable
+              style={[styles.sessionButton, { backgroundColor: theme.accent }]}
+              onPress={() => {
+                setPhase('hub');
+                void reloadHub();
+              }}
+            >
+              <Text style={styles.sessionButtonText}>К колоде</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.refreshButton,
+                { borderColor: theme.accent, marginTop: 12 },
+              ]}
+              onPress={() => void startSession()}
+            >
+              <Text style={[styles.refreshButtonText, { color: theme.accent }]}>
+                Ещё сессия
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {phase === 'session' && current ? (
+          <View style={styles.cardArea}>
+            <Text style={[styles.progress, { color: theme.textDim }]}>
+              {index + 1} / {queue.length}
+              {sessionDone > 0 ? ` · ответов ${sessionDone}` : ''}
+            </Text>
+
+            <Pressable
+              onPress={() => setRevealed(true)}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.gridPaper,
+                  borderColor: theme.accentViolet,
+                },
+                softShadow({
+                  color: theme.accentPink,
+                  y: 8,
+                  blur: 16,
+                  opacity: 0.2,
+                  elevation: 5,
+                }),
+              ]}
+            >
+              <View pointerEvents="none" style={styles.gridOverlay}>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <View
+                    key={`h-${i}`}
+                    style={[
+                      styles.gridH,
+                      {
+                        top: 24 + i * 28,
+                        borderColor:
+                          theme.mode === 'midnight'
+                            ? 'rgba(100,140,255,0.12)'
+                            : 'rgba(180,160,120,0.25)',
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.stickerTL}>⭐</Text>
+              <Text style={styles.stickerTR}>🎀</Text>
+              <Text style={styles.stickerBL}>🌸</Text>
+              <Text style={styles.stickerBR}>💿</Text>
+
+              {isEnglish ? (
+                <View
+                  style={[
+                    styles.langBadge,
+                    {
+                      backgroundColor:
+                        theme.mode === 'midnight'
+                          ? 'rgba(255,122,217,0.2)'
+                          : 'rgba(236,72,153,0.15)',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.langBadgeText, { color: theme.accentPink }]}
+                  >
+                    EN
+                  </Text>
+                </View>
+              ) : current.hskLevel != null ? (
+                <View
+                  style={[
+                    styles.hskBadge,
+                    {
+                      backgroundColor: getHskBadgeColors(current.hskLevel)
+                        .background,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.hskBadgeText,
+                      { color: getHskBadgeColors(current.hskLevel).text },
+                    ]}
+                  >
+                    HSK {current.hskLevel}
+                  </Text>
+                </View>
+              ) : null}
+
+              <Text
+                style={[
+                  isEnglish ? styles.surfaceEn : styles.hanzi,
+                  { color: theme.text },
+                ]}
+              >
+                {current.hanzi}
+              </Text>
+
+              {current.contextSentence ? (
+                <View
+                  style={[
+                    styles.contextBox,
+                    {
+                      backgroundColor: theme.stickerLavender,
+                      borderColor: theme.accentViolet,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.contextLabel, { color: theme.accent }]}>
+                    📖 из фанфика
+                    {current.sourceTitle ? ` · ${current.sourceTitle}` : ''}
+                  </Text>
+                  <Text style={[styles.contextQuote, { color: theme.text }]}>
+                    「{current.contextSentence}」
+                  </Text>
+                </View>
+              ) : (
+                <Text style={[styles.noContext, { color: theme.textDim }]}>
+                  Цитата появится у новых карточек из ридера
+                </Text>
+              )}
+
+              {revealed ? (
+                <View style={styles.answerBlock}>
+                  {!isEnglish && current.pinyin ? (
+                    <Text
+                      style={[
+                        styles.pinyin,
+                        {
+                          color:
+                            isRussian || theme.mode === 'midnight'
+                              ? '#FF6584'
+                              : theme.accentPink,
+                        },
+                      ]}
+                    >
+                      {current.pinyin}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.translation, { color: theme.text }]}>
+                    {current.translation || 'Перевод не указан'}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={[styles.hiddenHint, { color: theme.textDim }]}>
+                  Нажмите, чтобы увидеть ответ
+                </Text>
+              )}
+            </Pressable>
+
+            {!revealed ? (
+              <Pressable
+                style={[styles.revealButton, { backgroundColor: theme.accent }]}
+                onPress={() => setRevealed(true)}
+              >
+                <Text style={styles.revealButtonText}>Показать ответ</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.gradeRow}>
+                {GRADE_BUTTONS.map((btn) => {
+                  const isAgain = btn.id === 'again';
+                  const isHard = btn.id === 'hard';
+                  const isEasy = btn.id === 'easy';
+                  return (
+                    <Pressable
+                      key={btn.id}
+                      disabled={grading}
+                      onPress={() => void handleGrade(btn.id)}
+                      style={[
+                        styles.gradeButton,
+                        isAgain || isHard
+                          ? {
+                              backgroundColor: 'transparent',
+                              borderWidth: 1.5,
+                              borderColor: isAgain
+                                ? theme.danger
+                                : theme.accentViolet,
+                            }
+                          : {
+                              backgroundColor: isEasy
+                                ? theme.success
+                                : theme.accent,
+                            },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.gradeLabel,
+                          {
+                            color:
+                              isAgain
+                                ? theme.danger
+                                : isHard
+                                  ? theme.accentViolet
+                                  : '#0a1a12',
+                          },
+                        ]}
+                      >
+                        {btn.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.gradeHint,
+                          {
+                            color:
+                              isAgain || isHard
+                                ? theme.textDim
+                                : 'rgba(10,26,18,0.65)',
+                          },
+                        ]}
+                      >
+                        {btn.hint}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        ) : null}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  color,
+  theme,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View
+      style={[
+        styles.statChip,
+        {
+          borderColor: theme.border,
+          backgroundColor:
+            theme.mode === 'midnight'
+              ? 'rgba(255,255,255,0.04)'
+              : 'rgba(0,0,0,0.03)',
+        },
+      ]}
+    >
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  loader: { marginTop: 80 },
+  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  backButton: { marginBottom: 8 },
+  backButtonText: { fontSize: 15, fontWeight: '600' },
+  brand: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: IS_TABLET ? 28 : 24,
+    fontWeight: '800',
+  },
+  subtitle: { marginTop: 4, fontSize: 13 },
+  hubScroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  sectionLabel: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  statChip: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  statValue: { fontSize: 22, fontWeight: '900' },
+  statLabel: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  sessionButton: {
+    marginTop: 24,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  sessionButtonText: { color: '#0a1a12', fontSize: 16, fontWeight: '800' },
+  emptyHint: {
+    marginTop: 14,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    alignItems: 'center',
+  },
+  emptyEmoji: { fontSize: 40, marginBottom: 12 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 10 },
+  emptyText: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  refreshButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  refreshButtonText: { fontWeight: '700', fontSize: 15 },
+  cardArea: {
+    flex: 1,
+    paddingHorizontal: IS_TABLET ? 48 : 20,
+    paddingBottom: 100,
+    justifyContent: 'center',
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  progress: {
+    textAlign: 'center',
+    fontSize: 14,
+    marginBottom: 16,
+    fontWeight: '600',
+  },
+  card: {
+    borderRadius: 8,
+    borderWidth: 2,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    minHeight: 320,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  gridOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gridH: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    borderTopWidth: 1,
+  },
+  stickerTL: { position: 'absolute', top: 10, left: 12, fontSize: 18 },
+  stickerTR: { position: 'absolute', top: 10, right: 12, fontSize: 18 },
+  stickerBL: { position: 'absolute', bottom: 10, left: 12, fontSize: 16 },
+  stickerBR: { position: 'absolute', bottom: 10, right: 14, fontSize: 16 },
+  hskBadge: {
+    position: 'absolute',
+    top: 40,
+    right: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  hskBadgeText: { fontSize: 12, fontWeight: '700' },
+  langBadge: {
+    position: 'absolute',
+    top: 40,
+    right: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  langBadgeText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  hanzi: {
+    fontSize: IS_TABLET ? 68 : 52,
+    fontWeight: '800',
+    zIndex: 1,
+  },
+  surfaceEn: {
+    fontSize: IS_TABLET ? 44 : 36,
+    fontWeight: '800',
+    zIndex: 1,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  contextBox: {
+    marginTop: 18,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    maxWidth: '100%',
+    zIndex: 1,
+  },
+  contextLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  contextQuote: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  noContext: {
+    marginTop: 14,
+    fontSize: 12,
+    zIndex: 1,
+  },
+  hiddenHint: { marginTop: 22, fontSize: 14, zIndex: 1 },
+  answerBlock: { marginTop: 20, alignItems: 'center', gap: 8, zIndex: 1 },
+  pinyin: { fontSize: 22, fontWeight: '700' },
+  translation: {
+    fontSize: 19,
+    textAlign: 'center',
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  revealButton: {
+    marginTop: 24,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  revealButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  gradeRow: { flexDirection: 'row', gap: 8, marginTop: 20 },
+  gradeButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  gradeLabel: { fontSize: 13, fontWeight: '800' },
+  gradeHint: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+});

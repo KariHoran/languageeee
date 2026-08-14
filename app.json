@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Languageeee",
+    "slug": "languageeee",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D11"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.languageeee.app"
+    },
+    "android": {
+      "package": "com.languageeee.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Languageeee",
+      "shortName": "Languageeee",
+      "lang": "ru",
+      "themeColor": "#0D0D11",
+      "backgroundColor": "#0D0D11",
+      "description": "Интерактивная читалка фанфиков с пиньинем, словарём и облачным прогрессом",
+      "display": "standalone",
+      "startUrl": "/",
+      "orientation": "any"
+    }
+  }
+}

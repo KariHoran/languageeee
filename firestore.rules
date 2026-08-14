@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** Владелец пути users/{userId} */
+    function isPathOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Владелец документа: auth.uid === resource.data.userId
+     * (обязательное поле RBAC для books / collections / publicCollections).
+     */
+    function isDocOwner() {
+      return isSignedIn()
+        && resource.data.keys().hasAny(['userId'])
+        && resource.data.userId == request.auth.uid;
+    }
+
+    /** create: userId должен быть текущим auth.uid */
+    function createWithOwnUserId() {
+      return isSignedIn()
+        && request.resource.data.keys().hasAny(['userId'])
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    /** update: нельзя сменить владельца */
+    function keepsOwnUserId() {
+      return request.resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * Приватные данные: users/{uid}/…
+     * Профиль — только владелец пути.
+     */
+    match /users/{userId} {
+      allow read, write: if isPathOwner(userId);
+
+      /**
+       * Подборки (collections):
+       * - read: только авторизованные; свои или isPublic
+       * - create: auth + userId == auth.uid
+       * - update/delete: только владелец (userId)
+       */
+      match /collections/{collectionId} {
+        allow read: if isSignedIn()
+          && (
+            isPathOwner(userId)
+            || resource.data.isPublic == true
+          );
+
+        allow create: if isPathOwner(userId)
+          && createWithOwnUserId();
+
+        allow update: if isDocOwner() && keepsOwnUserId();
+
+        allow delete: if isDocOwner();
+      }
+
+      /**
+       * Фанфики / книги (books):
+       * - read/write только авторизованному владельцу пути
+       * - create с userId == auth.uid
+       * - update/delete строго по resource.data.userId
+       */
+      match /books/{bookId} {
+        allow read: if isSignedIn() && isPathOwner(userId);
+
+        allow create: if isPathOwner(userId)
+          && createWithOwnUserId();
+
+        allow update: if isDocOwner() && keepsOwnUserId();
+
+        allow delete: if isDocOwner();
+      }
+
+      // flashcards, meta/sync, tracks, …
+      match /{document=**} {
+        allow read, write: if isPathOwner(userId);
+      }
+    }
+
+    /**
+     * Публичный индекс подборок: publicCollections/{slug}
+     * - read: только авторизованные (+ isPublic или свой документ)
+     * - write/delete: только владелец (userId == auth.uid)
+     */
+    match /publicCollections/{slug} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.isPublic == true
+          || resource.data.userId == request.auth.uid
+        );
+
+      allow create: if createWithOwnUserId()
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true
+        && (
+          !request.resource.data.keys().hasAny(['ownerUserId'])
+          || request.resource.data.ownerUserId == request.auth.uid
+        )
+        && (
+          !request.resource.data.keys().hasAny(['authorId'])
+          || request.resource.data.authorId == request.auth.uid
+        );
+
+      allow update: if isDocOwner()
+        && keepsOwnUserId()
+        && request.resource.data.slug == slug;
+
+      allow delete: if isDocOwner();
+
+      match /books/{bookId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn()
+          && get(/databases/$(database)/documents/publicCollections/$(slug))
+               .data.userId == request.auth.uid;
+      }
+    }
+  }
+}

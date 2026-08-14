@@ -7,6 +7,9 @@
     "node": "24.x"
   },
   "scripts": {
+  "start": "expo start",
+  "dev": "expo start --web",
+  "build": "expo export -p web",
     "start": "expo start --offline",
     "android": "expo start --android --offline",
     "ios": "expo start --ios --offline",
@@ -14,7 +17,9 @@
     "web:clear": "npm run build:css && expo start --web --offline --clear",
     "build:css": "tailwindcss -i ./src/styles/global.css -o ./src/styles/global.generated.css --minify",
     "export:web": "npm run build:css && expo export -p web",
-    "vercel-build": "npm run export:web"
+    "vercel-build": "npm run export:web",
+    "build:pwa": "npm run export:web",
+    "firebase:rules": "npx firebase-tools deploy --only firestore:rules"
   },
   "dependencies": {
     "@babel/core": "^7.25.2",

@@ -1,0 +1,53 @@
+# Vercel upload / build context — не слать тяжёлые локальные файлы на хостинг
+# (лимит ~100 MB на файл).
+
+# Сборка и кэш
+.expo/
+dist/
+web-build/
+.vercel/
+node_modules/
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+
+# Документы / датасеты (не нужны для веб-бандла)
+*.pdf
+*.PDF
+HSK.pdf
+*.epub
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# Аудио и видео — только через Firebase Storage / внешние URL
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.opus
+*.flac
+*.webm
+*.mp4
+*.mov
+*.avi
+*.mkv
+music/
+audio/
+sounds/
+media/
+uploads/
+tmp/
+temp/
+
+# Локальные IDE / ОС
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
