@@ -313,6 +313,16 @@ export function WordModalGlass({
                 >
                   HSK {word.hskLevel}
                 </Span>
+              ) : isChinese ? (
+                <Span
+                  className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    theme.isDark
+                      ? 'bg-[#2A2A3A] text-white/55'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  {t('word.hskUnlisted')}
+                </Span>
               ) : null}
               {isEnglish ? (
                 <Span

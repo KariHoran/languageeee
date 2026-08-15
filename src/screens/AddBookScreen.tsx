@@ -23,6 +23,7 @@ import {
 import {
   analyzeText,
   buildBookFromAnalysis,
+  estimateHskLevel,
   normalizeForHskAnalysis,
 } from '../services/hskLocalService';
 import {
@@ -90,6 +91,10 @@ export default function AddBookScreen({
   const [text, setText] = useState(initialText ?? '');
   const [sourceLanguage, setSourceLanguage] = useState<LearningLanguage>('zh');
   const [targetHskLevel, setTargetHskLevel] = useState<TargetHskLevel>(2);
+  /** Пользователь вручную нажал уровень HSK — больше не перезаписываем автооценкой. */
+  const [hskLevelTouched, setHskLevelTouched] = useState(false);
+  const [estimatedHskLevel, setEstimatedHskLevel] =
+    useState<TargetHskLevel | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>(
     initialCollectionId
@@ -135,10 +140,50 @@ export default function AddBookScreen({
     void getLearningLanguage().then((lang) => setSourceLanguage(lang));
   }, []);
 
+  /** Авто-оценка HSK для китайского текста (не для каталога). */
+  useEffect(() => {
+    if (!isChinese) {
+      setEstimatedHskLevel(null);
+      return;
+    }
+    const trimmed = text.trim();
+    if (!trimmed || !/[\u4e00-\u9fff]/.test(trimmed)) {
+      setEstimatedHskLevel(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      try {
+        const estimated = estimateHskLevel(trimmed);
+        if (cancelled) return;
+        setEstimatedHskLevel(estimated);
+        if (!hskLevelTouched) {
+          setTargetHskLevel((prev) =>
+            prev === estimated ? prev : estimated
+          );
+        }
+      } catch (err) {
+        console.warn('[AddBook] estimateHskLevel failed:', err);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [text, isChinese, hskLevelTouched]);
+
+  const hskMismatchHint =
+    isChinese &&
+    hskLevelTouched &&
+    estimatedHskLevel != null &&
+    Math.abs(estimatedHskLevel - targetHskLevel) >= 2;
+
   const handleSelectSourceLanguage = async (lang: LearningLanguage) => {
     setSourceLanguage(lang);
     clearAnalysis();
     setOriginalRussianText(undefined);
+    setHskLevelTouched(false);
+    setEstimatedHskLevel(null);
     await setLearningLanguage(lang);
   };
 
@@ -233,7 +278,14 @@ export default function AddBookScreen({
         const chineseText = normalizeForHskAnalysis(translated);
         setText(chineseText);
         setLoadingLabel(t('addBook.loading.analyzeHsk'));
-        setAnalysis(analyzeText(chineseText, targetHskLevel));
+        const level = hskLevelTouched
+          ? targetHskLevel
+          : estimateHskLevel(chineseText);
+        if (!hskLevelTouched) {
+          setTargetHskLevel(level);
+          setEstimatedHskLevel(level);
+        }
+        setAnalysis(analyzeText(chineseText, level));
       } else {
         setText(translated);
       }
@@ -342,7 +394,14 @@ export default function AddBookScreen({
         if (normalized !== trimmedText) {
           setText(normalized);
         }
-        setAnalysis(analyzeText(normalized, targetHskLevel));
+        const level = hskLevelTouched
+          ? targetHskLevel
+          : estimateHskLevel(normalized);
+        if (!hskLevelTouched) {
+          setTargetHskLevel(level);
+          setEstimatedHskLevel(level);
+        }
+        setAnalysis(analyzeText(normalized, level));
         setEnAnalysis(null);
       }
     } catch (err) {
@@ -628,6 +687,7 @@ export default function AddBookScreen({
                     },
                   ]}
                   onPress={() => {
+                    setHskLevelTouched(true);
                     setTargetHskLevel(level);
                     clearAnalysis();
                   }}
@@ -645,6 +705,18 @@ export default function AddBookScreen({
                 </Pressable>
               ))}
             </View>
+            {hskMismatchHint ? (
+              <Text
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  lineHeight: 16,
+                  color: theme.textMuted,
+                }}
+              >
+                {t('addBook.hskMismatchHint', { estimated: estimatedHskLevel! })}
+              </Text>
+            ) : null}
           </>
         ) : null}
 

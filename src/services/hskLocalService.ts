@@ -366,7 +366,9 @@ export function analyzeText(text: string, targetLevel: TargetHskLevel): HskAnaly
     if (word.isAboveTarget) aboveTargetCount += 1;
   }
 
-  console.log('Segmented tokens:', tokens);
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log('Segmented tokens:', tokens);
+  }
 
   return {
     targetLevel,
@@ -375,6 +377,52 @@ export function analyzeText(text: string, targetLevel: TargetHskLevel): HskAnaly
     knownCount,
     grammar: detectGrammarPoints(normalized) as GrammarPoint[],
   };
+}
+
+/**
+ * Оценка целевого HSK по словарному составу текста (readability).
+ * Минимальный L ∈ 1..6, при котором ≥90% китайских токенов имеют уровень ≤ L.
+ * OOV / HSK 7–9 → сложнее 6; одиночные OOV-иероглифы не штрафуют покрытие.
+ */
+export function estimateHskLevel(text: string): TargetHskLevel {
+  const raw = text?.trim() ?? '';
+  if (!raw || !CHINESE_CHAR_RE.test(raw)) return 2;
+
+  ensurePinyinDict();
+  const data = loadHskData();
+  getLexiconIndex();
+  const normalized = toSimplified(raw).normalize('NFC');
+  const segments = segmentChineseText(normalized, {
+    isLexeme: createLexiconPredicate(),
+  });
+
+  /** Эффективные уровни: 1..6 или 7 (= сложнее HSK6). */
+  const scored: number[] = [];
+
+  for (const seg of segments) {
+    if (!seg.isChinese) continue;
+    const hanzi = seg.text;
+    const entry = data.map.get(hanzi);
+    if (entry) {
+      const lv = normalizeHskLevel(entry.level);
+      scored.push(lv >= 7 ? 7 : lv);
+      continue;
+    }
+    // Одиночный OOV — часто частица / имя; не штрафуем
+    if ([...hanzi].length <= 1) continue;
+    scored.push(7);
+  }
+
+  if (scored.length === 0) return 2;
+
+  const COVERAGE = 0.9;
+  for (let L = 1; L <= 6; L += 1) {
+    const covered = scored.filter((lv) => lv <= L).length;
+    if (covered / scored.length >= COVERAGE) {
+      return L as TargetHskLevel;
+    }
+  }
+  return 6;
 }
 
 export interface BuildBookOptions {

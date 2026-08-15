@@ -544,13 +544,34 @@ function GrammarAccordionItem({
 function GrammarAccordion({
   grammar,
   nativeLanguage,
+  chineseTokenCount,
 }: {
   grammar: GrammarPoint[];
   nativeLanguage: NativeLanguage;
+  /** Сколько китайских слов в абзаце — для пустого состояния. */
+  chineseTokenCount: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useI18n();
-  if (grammar.length === 0) return null;
+  const theme = useTheme();
+
+  if (grammar.length === 0) {
+    if (chineseTokenCount <= 15) return null;
+    return (
+      <Text
+        style={{
+          marginTop: 6,
+          fontSize: 11,
+          lineHeight: 15,
+          fontWeight: '500',
+          color: theme.textDim,
+          opacity: 0.85,
+        }}
+      >
+        {t('reader.noGrammarDetected')}
+      </Text>
+    );
+  }
 
   const headerLabel = `${expanded ? '▼' : '▶'} ${t('reader.grammarToggle', {
     n: grammar.length,
@@ -903,7 +924,15 @@ function ParallelParagraphRow({
         </View>
       </View>
 
-      <GrammarAccordion grammar={grammarPoints} nativeLanguage={nativeLanguage} />
+      <GrammarAccordion
+        grammar={grammarPoints}
+        nativeLanguage={nativeLanguage}
+        chineseTokenCount={
+          paragraph.words?.filter((w) =>
+            /[\u4e00-\u9fff]/.test(w.hanzi || '')
+          ).length ?? 0
+        }
+      />
     </View>
   );
 }

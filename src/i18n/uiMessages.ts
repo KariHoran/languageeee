@@ -184,6 +184,7 @@ export type UiMessageKey =
   | 'word.translateLabel'
   | 'word.dictRu'
   | 'word.serviceUnavailable'
+  | 'word.hskUnlisted'
   | 'tour.welcomeTitle'
   | 'tour.welcomeBody'
   | 'tour.libraryTitle'
@@ -498,6 +499,7 @@ export type UiMessageKey =
   | 'addBook.placeholder.ru'
   | 'addBook.translateFromTo'
   | 'addBook.hskLevel'
+  | 'addBook.hskMismatchHint'
   | 'addBook.collection'
   | 'addBook.createCollection'
   | 'addBook.analyzeEn'
@@ -551,6 +553,7 @@ export type UiMessageKey =
   | 'reader.ttsParagraph'
   | 'reader.grammarBadge'
   | 'reader.grammarToggle'
+  | 'reader.noGrammarDetected'
   | 'reader.targetHskNotebook'
   | 'reader.sourceParallel'
   | 'reader.showNativeTranslation'
@@ -742,6 +745,7 @@ const ru: Dictionary = {
   'word.dictRu': 'BKRS · русский',
   'word.serviceUnavailable':
     'Сервис перевода недоступен. Попробуйте ещё раз.',
+  'word.hskUnlisted': 'вне HSK',
   'tour.welcomeTitle': 'Добро пожаловать в languageeee',
   'tour.welcomeBody':
     'Учите языки через фанфики: читайте оригинал, смотрите перевод и собирайте слова в колоду.',
@@ -1123,6 +1127,8 @@ const ru: Dictionary = {
     'Вставьте текст на русском (изучаемый) или на родном для перевода…',
   'addBook.translateFromTo': 'Перевести с {from} → {to}',
   'addBook.hskLevel': 'Целевой уровень HSK',
+  'addBook.hskMismatchHint':
+    'Похоже, текст сложнее выбранного уровня (≈HSK {estimated})',
   'addBook.collection': 'Подборка',
   'addBook.createCollection': '+ Создать новую подборку',
   'addBook.analyzeEn': 'Разобрать английский текст',
@@ -1184,6 +1190,7 @@ const ru: Dictionary = {
   'reader.ttsParagraph': 'Озвучить абзац',
   'reader.grammarBadge': 'Грамматика',
   'reader.grammarToggle': 'Грамматика ({n})',
+  'reader.noGrammarDetected': 'Явных грамматических конструкций не распознано',
   'reader.targetHskNotebook': 'Целевой HSK {n} · notebook mode',
   'reader.sourceParallel': 'Источник: оригинальный параллельный текст',
   'reader.showNativeTranslation': 'Показать / скрыть перевод',
@@ -1374,6 +1381,7 @@ const en: Dictionary = {
   'word.dictRu': 'BKRS · Russian',
   'word.serviceUnavailable':
     'Translation service unavailable. Please try again.',
+  'word.hskUnlisted': 'not in HSK',
   'tour.welcomeTitle': 'Welcome to languageeee',
   'tour.welcomeBody':
     'Learn languages through fanfic: read the original, check translations, and collect words into a deck.',
@@ -1754,6 +1762,8 @@ const en: Dictionary = {
     'Paste Russian study text, or native text to translate…',
   'addBook.translateFromTo': 'Translate from {from} → {to}',
   'addBook.hskLevel': 'Target HSK level',
+  'addBook.hskMismatchHint':
+    'This text looks harder than the selected level (≈HSK {estimated})',
   'addBook.collection': 'Collection',
   'addBook.createCollection': '+ Create new collection',
   'addBook.analyzeEn': 'Analyze English text',
@@ -1815,6 +1825,7 @@ const en: Dictionary = {
   'reader.ttsParagraph': 'Speak paragraph',
   'reader.grammarBadge': 'Grammar',
   'reader.grammarToggle': 'Grammar ({n})',
+  'reader.noGrammarDetected': 'No clear grammar patterns detected',
   'reader.targetHskNotebook': 'Target HSK {n} · notebook mode',
   'reader.sourceParallel': 'Source: original parallel text',
   'reader.showNativeTranslation': 'Show / hide translation',
@@ -1999,6 +2010,7 @@ const zh: Dictionary = {
   'word.translateLabel': '翻译',
   'word.dictRu': 'BKRS · 俄语',
   'word.serviceUnavailable': '翻译服务不可用，请重试。',
+  'word.hskUnlisted': '不在 HSK',
   'tour.welcomeTitle': '欢迎来到 languageeee',
   'tour.welcomeBody':
     '通过小说学语言：读原文、看译文，并把单词收入卡组。',
@@ -2374,6 +2386,8 @@ const zh: Dictionary = {
     '粘贴俄语学习文本，或母语文本以便翻译…',
   'addBook.translateFromTo': '从 {from} 翻译 → {to}',
   'addBook.hskLevel': '目标 HSK 等级',
+  'addBook.hskMismatchHint':
+    '这段文字似乎比所选等级更难（≈HSK {estimated}）',
   'addBook.collection': '合集',
   'addBook.createCollection': '+ 新建合集',
   'addBook.analyzeEn': '分析英语文本',
@@ -2435,6 +2449,7 @@ const zh: Dictionary = {
   'reader.ttsParagraph': '朗读段落',
   'reader.grammarBadge': '语法',
   'reader.grammarToggle': '语法 ({n})',
+  'reader.noGrammarDetected': '未识别到明显语法结构',
   'reader.targetHskNotebook': '目标 HSK {n} · notebook mode',
   'reader.sourceParallel': '来源：原始平行译文',
   'reader.showNativeTranslation': '显示 / 隐藏译文',
