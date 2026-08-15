@@ -22,6 +22,19 @@ export function canPromptPwaInstall(): boolean {
   return deferredPrompt != null;
 }
 
+/** Уже запущено как установленное приложение (домашний экран). */
+export function isPwaInstalled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
+  } catch {
+    /* ignore */
+  }
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  return nav.standalone === true;
+}
+
 export function subscribePwaInstallAvailability(
   listener: InstallListener
 ): () => void {

@@ -107,6 +107,19 @@ export type UiMessageKey =
   | 'settings.installTitle'
   | 'settings.installHint'
   | 'settings.installUnavailable'
+  | 'install.title'
+  | 'install.subtitle'
+  | 'install.downloadCta'
+  | 'install.showHow'
+  | 'install.busy'
+  | 'install.androidTitle'
+  | 'install.androidStep1'
+  | 'install.androidStep2'
+  | 'install.androidStep3'
+  | 'install.manualTitle'
+  | 'install.manualBody'
+  | 'install.alreadyTitle'
+  | 'install.alreadyBody'
   | 'catalog.importFail'
   | 'reader.pageLight'
   | 'reader.pageDark'
@@ -853,10 +866,26 @@ const ru: Dictionary = {
   'mini.uploadTimeout':
     'Загрузка заняла слишком много времени. Файл мог сохраниться локально — обновите список или выберите файл поменьше.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
-  'settings.installTitle': 'Установить приложение',
-  'settings.installHint': 'PWA на домашний экран — офлайн и быстрее',
+  'settings.installTitle': 'Скачать приложение',
+  'settings.installHint': 'С вашего сайта — без Google Play',
   'settings.installUnavailable':
-    'Установка сейчас недоступна. Откройте сайт в Chrome/Edge или уже установили приложение.',
+    'Откройте сайт в Chrome на Android: меню ⋮ → «Установить приложение».',
+  'install.title': 'Скачать приложение',
+  'install.subtitle':
+    'Ставится прямо с этого сайта на Android (Chrome). Без Google Play. Иконка на домашнем экране, офлайн после первого открытия.',
+  'install.downloadCta': 'Скачать / установить',
+  'install.showHow': 'Как скачать на Android',
+  'install.busy': 'Устанавливаем…',
+  'install.androidTitle': 'Если кнопки установки нет',
+  'install.androidStep1': 'Откройте сайт в Chrome на телефоне',
+  'install.androidStep2': 'Меню ⋮ → «Установить приложение» или «На главный экран»',
+  'install.androidStep3': 'Подтвердите — Languageeee появится как обычное приложение',
+  'install.manualTitle': 'Скачать с сайта',
+  'install.manualBody':
+    'В Chrome на Android: меню ⋮ → «Установить приложение» (или «Добавить на главный экран»). Это и есть скачивание с сайта — без Play Store.',
+  'install.alreadyTitle': 'Приложение уже установлено',
+  'install.alreadyBody':
+    'Вы открыли Languageeee с домашнего экрана. Обновления приходят автоматически с сайта.',
   'catalog.importFail': 'Не удалось добавить текст в библиотеку',
   'library.newCategory': 'Новая категория',
   'library.newCategoryPlaceholder': 'Например: Избранное',
@@ -1420,10 +1449,26 @@ const en: Dictionary = {
   'mini.uploadTimeout':
     'Upload took too long. The file may already be saved locally — refresh the list or pick a smaller file.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
-  'settings.installTitle': 'Install app',
-  'settings.installHint': 'PWA on your home screen — offline and faster',
+  'settings.installTitle': 'Download app',
+  'settings.installHint': 'From this site — no Google Play',
   'settings.installUnavailable':
-    'Install is unavailable right now. Use Chrome/Edge, or the app is already installed.',
+    'On Android Chrome: menu ⋮ → “Install app”.',
+  'install.title': 'Download app',
+  'install.subtitle':
+    'Install straight from this site on Android (Chrome). No Google Play. Home-screen icon; works offline after the first visit.',
+  'install.downloadCta': 'Download / install',
+  'install.showHow': 'How to download on Android',
+  'install.busy': 'Installing…',
+  'install.androidTitle': 'If the install button is missing',
+  'install.androidStep1': 'Open the site in Chrome on your phone',
+  'install.androidStep2': 'Menu ⋮ → “Install app” or “Add to Home screen”',
+  'install.androidStep3': 'Confirm — Languageeee appears like a normal app',
+  'install.manualTitle': 'Download from the site',
+  'install.manualBody':
+    'In Chrome on Android: menu ⋮ → “Install app” (or “Add to Home screen”). That installs from this site — no Play Store.',
+  'install.alreadyTitle': 'App already installed',
+  'install.alreadyBody':
+    'You opened Languageeee from the home screen. Updates come automatically from the site.',
   'catalog.importFail': 'Could not add this text to your library',
   'library.newCategory': 'New category',
   'library.newCategoryPlaceholder': 'e.g. Favorites',
@@ -1981,10 +2026,26 @@ const zh: Dictionary = {
   'mini.upload': '+ 上传文件（最大 {n} MB）',
   'mini.uploadTimeout': '上传超时。文件可能已保存在本地 — 请刷新列表或选择更小的文件。',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
-  'settings.installTitle': '安装应用',
-  'settings.installHint': '安装为 PWA，可离线更快打开',
+  'settings.installTitle': '下载应用',
+  'settings.installHint': '直接从本站安装，无需 Google Play',
   'settings.installUnavailable':
-    '当前无法安装。请用 Chrome/Edge 打开，或应用已安装。',
+    '请在 Android 的 Chrome 中打开：菜单 ⋮ →「安装应用」。',
+  'install.title': '下载应用',
+  'install.subtitle':
+    '在 Android（Chrome）上直接从本站安装，无需 Google Play。主屏幕图标，首次打开后可离线使用。',
+  'install.downloadCta': '下载 / 安装',
+  'install.showHow': '如何在 Android 下载',
+  'install.busy': '安装中…',
+  'install.androidTitle': '如果没有安装按钮',
+  'install.androidStep1': '用手机 Chrome 打开本站',
+  'install.androidStep2': '菜单 ⋮ →「安装应用」或「添加到主屏幕」',
+  'install.androidStep3': '确认后 Languageeee 会像普通应用一样出现',
+  'install.manualTitle': '从网站下载',
+  'install.manualBody':
+    'Android Chrome：菜单 ⋮ →「安装应用」（或「添加到主屏幕」）。这就是从本站安装，无需 Play Store。',
+  'install.alreadyTitle': '应用已安装',
+  'install.alreadyBody':
+    '你正从主屏幕打开 Languageeee。更新会从网站自动获取。',
   'catalog.importFail': '无法将文本加入图书馆',
   'library.newCategory': '新建分类',
   'library.newCategoryPlaceholder': '例如：收藏',
