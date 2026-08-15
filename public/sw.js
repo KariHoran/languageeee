@@ -1,7 +1,7 @@
 /* Languageeee PWA service worker — offline-first shell + static assets */
 /* eslint-disable no-restricted-globals */
 
-const CACHE_VERSION = 'languageeee-v6';
+const CACHE_VERSION = 'languageeee-v7';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -55,14 +55,27 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       caches.open(CACHE_VERSION).then((cache) =>
         Promise.all(
-          data.urls.map((url) =>
-            cache.add(url).catch(() => undefined)
-          )
+          data.urls
+            .filter((url) => typeof url === 'string' && isSameOriginCacheable(url))
+            .map((url) => cache.add(url).catch(() => undefined))
         )
       )
     );
   }
 });
+
+/** Только same-origin shell/assets — без чужих URL и без Firebase API. */
+function isSameOriginCacheable(urlString) {
+  try {
+    const url = new URL(urlString, self.location.origin);
+    if (url.origin !== self.location.origin) return false;
+    if (isFirebaseOrApi(url)) return false;
+    if (url.pathname.startsWith('/downloads/')) return false;
+    return true;
+  } catch (_e) {
+    return false;
+  }
+}
 
 /**
  * Background Sync: сеть вернулась → просим открытые вкладки сбросить очередь sync.

@@ -34,3 +34,12 @@ sounds/
 media/
 uploads/
 .env*
+
+# Android signing (never commit)
+signing.keystore
+signing-key-info.txt
+tmp-apk/
+public/downloads/*.apk
+!public/downloads/README.md
+
+

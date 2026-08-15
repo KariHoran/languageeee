@@ -1,10 +1,22 @@
 import { Platform } from 'react-native';
+import { showAlert } from './alert';
 import { sanitizeUserText } from './sanitizeUserText';
 
 const TEXT_ACCEPT = '.txt,.md,.pdf,text/plain,application/pdf';
+/** Лимит до чтения в память (защита от OOM в браузере). */
+export const BOOK_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
 function isPdfName(name: string): boolean {
   return /\.pdf$/i.test(name);
+}
+
+function assertUploadSize(file: File): void {
+  if (file.size > BOOK_UPLOAD_MAX_BYTES) {
+    const mb = (BOOK_UPLOAD_MAX_BYTES / (1024 * 1024)).toFixed(0);
+    throw new Error(
+      `Файл слишком большой (${(file.size / (1024 * 1024)).toFixed(1)} МБ). Максимум ${mb} МБ.`
+    );
+  }
 }
 
 /** Грубая попытка вытащить строки из PDF (без pdf.js). */
@@ -53,6 +65,7 @@ function extractTextFromPdfBytes(bytes: Uint8Array): string {
 }
 
 async function readFileAsText(file: File): Promise<string> {
+  assertUploadSize(file);
   if (isPdfName(file.name) || file.type === 'application/pdf') {
     const buf = await file.arrayBuffer();
     const extracted = extractTextFromPdfBytes(new Uint8Array(buf));
@@ -94,6 +107,10 @@ export function pickTextFileDetailed(): Promise<PickedFileResult | null> {
           resolve({ text, fileName: file.name });
         } catch (e) {
           console.error('[pickTextFile]', e);
+          showAlert(
+            'Ошибка',
+            e instanceof Error ? e.message : 'Не удалось прочитать файл'
+          );
           resolve(null);
         }
       };

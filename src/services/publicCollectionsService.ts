@@ -68,11 +68,28 @@ function sanitizeSlugPart(title: string): string {
   );
 }
 
-/** Уникальный slug для `/c/{slug}` */
+/** Криптостойкий суффикс для share-slug (без Math.random). */
+function randomSlugSuffix(length = 12): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(length);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  let out = '';
+  for (let i = 0; i < length; i += 1) {
+    out += alphabet[bytes[i]! % alphabet.length];
+  }
+  return out;
+}
+
+/** Уникальный slug для `/c/{slug}` (также decks / profiles). */
 export function generateShareSlug(title: string): string {
   const base = sanitizeSlugPart(title);
-  const suffix = Math.random().toString(36).slice(2, 8);
-  return `${base}-${suffix}`;
+  return `${base}-${randomSlugSuffix(12)}`;
 }
 
 export function publicCollectionUrl(slug: string): string {
