@@ -54,6 +54,10 @@ import {
 import { Button, Div, Span } from './dom';
 import { GlassWindow } from './GlassWindow';
 import { ReaderToast } from './ReaderToast';
+import {
+  ParagraphNoteChips,
+  ReaderNotebookPanel,
+} from './ReaderNotebookPanel';
 import { WordModalGlass } from './WordModalGlass';
 import { useWebTheme, type WebThemeClasses } from './webTheme';
 
@@ -331,7 +335,7 @@ export function ReaderPanel({
   chapterTitle,
   showPinyin: showPinyinProp = true,
   coverage = null,
-  onNotes,
+  onNotes: _onNotes,
   onBack,
   onDelete,
   onProgressChange,
@@ -366,6 +370,29 @@ export function ReaderPanel({
   const [activeParaIndex, setActiveParaIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [levelBannerDismissed, setLevelBannerDismissed] = useState(false);
+  const [notebookOpen, setNotebookOpen] = useState(false);
+  const [notebookEditId, setNotebookEditId] = useState<string | null>(null);
+
+  const stickyNotes = useAppStore((s) => s.stickyNotes);
+  const bookNotes = useMemo(
+    () => (book ? stickyNotes.filter((n) => n.bookId === book.id) : []),
+    [stickyNotes, book?.id]
+  );
+  const notesByParagraph = useMemo(() => {
+    const map = new Map<number, typeof bookNotes>();
+    for (const n of bookNotes) {
+      if (n.paragraphIndex < 0) continue;
+      const list = map.get(n.paragraphIndex) ?? [];
+      list.push(n);
+      map.set(n.paragraphIndex, list);
+    }
+    return map;
+  }, [bookNotes]);
+
+  const openNotebook = useCallback((editId?: string | null) => {
+    setNotebookEditId(editId ?? null);
+    setNotebookOpen(true);
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -374,6 +401,14 @@ export function ReaderPanel({
   const restoreDone = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoScrollRaf = useRef<number | null>(null);
+
+  const jumpToParagraph = useCallback((index: number) => {
+    const el = paraRefs.current[index];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setActiveParaIndex(index);
+    }
+  }, []);
 
   useEffect(() => ttsService.subscribeSpeaking(setIsPlaying), []);
   useEffect(() => () => ttsService.stop(), []);
@@ -391,6 +426,8 @@ export function ReaderPanel({
     setReadPercent(0);
     setActiveParaIndex(0);
     setLevelBannerDismissed(false);
+    setNotebookOpen(false);
+    setNotebookEditId(null);
   }, [book?.id, showPinyinProp]);
 
   // Закрытие панели настроек по клику снаружи / Escape
@@ -811,11 +848,24 @@ export function ReaderPanel({
         </Button>
         <Button
           type="button"
-          className={`px-2 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold ${theme.textMuted} ${theme.hover} transition`}
-          onClick={onNotes}
-          title={t('reader.notesTitle')}
+          className={`relative px-2 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition ${
+            notebookOpen || bookNotes.length > 0
+              ? theme.isDark
+                ? 'bg-[#D0FF00]/20 text-[#D0FF00]'
+                : 'bg-lime-100 text-lime-800'
+              : `${theme.textMuted} ${theme.hover}`
+          }`}
+          onClick={() => openNotebook()}
+          title={t('notebook.title')}
+          aria-label={t('notebook.title')}
+          aria-expanded={notebookOpen}
         >
           📝
+          {bookNotes.length > 0 ? (
+            <Span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full bg-[#8B5CF6] text-white text-[9px] font-bold flex items-center justify-center">
+              {bookNotes.length > 99 ? '99+' : bookNotes.length}
+            </Span>
+          ) : null}
         </Button>
         <Div className="relative" ref={settingsRef}>
           <Button
@@ -1056,12 +1106,51 @@ export function ReaderPanel({
                       })}
                     />
                   ) : null}
+
+                  <Div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      className={`text-[10px] font-bold rounded-lg px-2 py-1 transition ${
+                        theme.isDark
+                          ? 'bg-white/8 text-white/70 hover:bg-[#D0FF00]/15 hover:text-[#D0FF00]'
+                          : 'bg-black/5 text-gray-600 hover:bg-lime-50 hover:text-lime-800'
+                      }`}
+                      onClick={() => {
+                        setActiveParaIndex(para.index);
+                        openNotebook();
+                      }}
+                    >
+                      {t('notebook.addToParagraph')}
+                    </Button>
+                  </Div>
+
+                  <ParagraphNoteChips
+                    notes={notesByParagraph.get(para.index) ?? []}
+                    onOpen={(note) => openNotebook(note?.id ?? null)}
+                  />
                 </Div>
               );
             })}
           </Div>
         )}
       </GlassWindow>
+
+      <ReaderNotebookPanel
+        open={notebookOpen}
+        bookId={book?.id ?? null}
+        paragraphIndex={activeParaIndex}
+        paragraphPreview={
+          rendered[activeParaIndex]?.readingText ??
+          rendered[activeParaIndex]?.paragraph?.chineseText ??
+          ''
+        }
+        editNoteId={notebookEditId}
+        onClose={() => {
+          setNotebookOpen(false);
+          setNotebookEditId(null);
+        }}
+        onJumpToParagraph={jumpToParagraph}
+      />
 
       {selected ? (
         <WordModalGlass

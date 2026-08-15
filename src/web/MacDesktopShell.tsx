@@ -410,10 +410,6 @@ export default function MacDesktopShell() {
       : activeBook.title;
   }, [activeBook, t]);
 
-  const handleNotes = useCallback(() => {
-    showAlert(t('reader.notesTitle'), t('reader.notesBody'));
-  }, [t]);
-
   const handleDeleteBook = useCallback(
     (book: Book) => {
       if (!canEditBook(book)) {
@@ -727,7 +723,6 @@ export default function MacDesktopShell() {
                   book={activeBook}
                   chapterTitle={chapterTitle}
                   coverage={bookCoverage}
-                  onNotes={handleNotes}
                   onBack={() => goBack('library')}
                   onDelete={
                     activeBook && canEditBook(activeBook)

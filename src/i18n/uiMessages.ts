@@ -90,6 +90,18 @@ export type UiMessageKey =
   | 'reader.noBook'
   | 'reader.notesTitle'
   | 'reader.notesBody'
+  | 'notebook.title'
+  | 'notebook.subtitle'
+  | 'notebook.placeholder'
+  | 'notebook.attachParagraph'
+  | 'notebook.add'
+  | 'notebook.save'
+  | 'notebook.empty'
+  | 'notebook.general'
+  | 'notebook.jump'
+  | 'notebook.edit'
+  | 'notebook.delete'
+  | 'notebook.addToParagraph'
   | 'reader.pageLight'
   | 'reader.pageDark'
   | 'reader.pageSepia'
@@ -601,9 +613,21 @@ const ru: Dictionary = {
   'empty.genericDesc': 'Самое время начать — добавьте что-нибудь своё.',
   'empty.genericAction': 'Начать',
   'reader.noBook': 'Нет открытого фанфика',
-  'reader.notesTitle': 'Notes',
+  'reader.notesTitle': 'Блокнот',
   'reader.notesBody':
-    'Кликните по слову — откроется карточка с переводом на родной язык.',
+    'Пишите заметки к абзацам во время чтения — они сохраняются локально и в облаке.',
+  'notebook.title': 'Блокнот',
+  'notebook.subtitle': 'Заметок: {n}',
+  'notebook.placeholder': 'Мысль, перевод, вопрос…',
+  'notebook.attachParagraph': 'Привязать к абзацу §{n}',
+  'notebook.add': 'Добавить',
+  'notebook.save': 'Сохранить',
+  'notebook.empty': 'Пока пусто — напишите первую заметку к тексту.',
+  'notebook.general': 'Общая заметка',
+  'notebook.jump': 'К абзацу',
+  'notebook.edit': 'Изменить',
+  'notebook.delete': 'Удалить',
+  'notebook.addToParagraph': '+ заметка',
   'reader.pageLight': 'Светлый',
   'reader.pageDark': 'Тёмный',
   'reader.pageSepia': 'Сепия',
@@ -1152,9 +1176,21 @@ const en: Dictionary = {
   'empty.genericDesc': 'A good time to start — add something of your own.',
   'empty.genericAction': 'Start',
   'reader.noBook': 'No fanfic open',
-  'reader.notesTitle': 'Notes',
+  'reader.notesTitle': 'Notebook',
   'reader.notesBody':
-    'Click a word — a card opens with a translation into your native language.',
+    'Write notes on paragraphs while reading — they sync locally and to the cloud.',
+  'notebook.title': 'Notebook',
+  'notebook.subtitle': 'Notes: {n}',
+  'notebook.placeholder': 'Thought, gloss, question…',
+  'notebook.attachParagraph': 'Attach to paragraph §{n}',
+  'notebook.add': 'Add',
+  'notebook.save': 'Save',
+  'notebook.empty': 'Empty so far — add your first note on the text.',
+  'notebook.general': 'General note',
+  'notebook.jump': 'Go to paragraph',
+  'notebook.edit': 'Edit',
+  'notebook.delete': 'Delete',
+  'notebook.addToParagraph': '+ note',
   'reader.pageLight': 'Light',
   'reader.pageDark': 'Dark',
   'reader.pageSepia': 'Sepia',
@@ -1698,8 +1734,20 @@ const zh: Dictionary = {
   'empty.genericDesc': '现在开始吧——添加你自己的内容。',
   'empty.genericAction': '开始',
   'reader.noBook': '未打开小说',
-  'reader.notesTitle': '笔记',
-  'reader.notesBody': '点击单词即可打开母语释义卡片。',
+  'reader.notesTitle': '笔记本',
+  'reader.notesBody': '阅读时可为段落写笔记——保存在本地并同步到云端。',
+  'notebook.title': '笔记本',
+  'notebook.subtitle': '笔记：{n}',
+  'notebook.placeholder': '想法、释义、问题…',
+  'notebook.attachParagraph': '关联到第 {n} 段',
+  'notebook.add': '添加',
+  'notebook.save': '保存',
+  'notebook.empty': '还没有笔记——为文本写下第一条。',
+  'notebook.general': '总笔记',
+  'notebook.jump': '跳到段落',
+  'notebook.edit': '编辑',
+  'notebook.delete': '删除',
+  'notebook.addToParagraph': '+ 笔记',
   'reader.pageLight': '浅色',
   'reader.pageDark': '深色',
   'reader.pageSepia': '羊皮纸',
