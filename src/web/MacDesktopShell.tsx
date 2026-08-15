@@ -47,6 +47,7 @@ import { OfflineBanner } from './OfflineBanner';
 import { OnboardingTour } from './OnboardingTour';
 import { ProgressPanel } from './ProgressPanel';
 import { PublicCollectionPanel } from './PublicCollectionPanel';
+import { PublicDeckPanel } from './PublicDeckPanel';
 import { ReaderPanel } from './ReaderPanel';
 import { StarryBackground } from './StarryBackground';
 import { applyDocumentTheme, useWebTheme } from './webTheme';
@@ -64,9 +65,20 @@ function parseShareSlugFromPath(): string | null {
   }
 }
 
+function parseDeckSlugFromPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  const m = window.location.pathname.match(/^\/d\/([^/]+)\/?$/i);
+  if (!m?.[1]) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
 function clearSharePath() {
   if (typeof window === 'undefined') return;
-  if (/^\/c\//i.test(window.location.pathname)) {
+  if (/^\/c\//i.test(window.location.pathname) || /^\/d\//i.test(window.location.pathname)) {
     window.history.replaceState({}, '', '/');
   }
 }
@@ -110,6 +122,9 @@ export default function MacDesktopShell() {
   );
   const [shareSlug, setShareSlug] = useState<string | null>(() =>
     parseShareSlugFromPath()
+  );
+  const [deckSlug, setDeckSlug] = useState<string | null>(() =>
+    parseDeckSlugFromPath()
   );
 
   const theme = useWebTheme();
@@ -266,14 +281,35 @@ export default function MacDesktopShell() {
   }, []);
 
   useEffect(() => {
-    const onPop = () => setShareSlug(parseShareSlugFromPath());
+    const onPop = () => {
+      setShareSlug(parseShareSlugFromPath());
+      setDeckSlug(parseDeckSlugFromPath());
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  const refreshCardsDue = useCallback(async () => {
+    try {
+      const lang = useAppStore.getState().learningLanguage;
+      const counts = await getFlashcardsCount(lang);
+      setCardsDue(counts.due);
+      setWordsLearned(counts.total);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'flashcards') {
+      void refreshCardsDue();
+    }
+  }, [tab, refreshCardsDue]);
+
   const closePublicShare = useCallback(() => {
     clearSharePath();
     setShareSlug(null);
+    setDeckSlug(null);
     setTab('home');
   }, []);
 
@@ -283,6 +319,7 @@ export default function MacDesktopShell() {
     const path = `/c/${encodeURIComponent(clean)}`;
     window.history.pushState({}, '', path);
     setShareSlug(clean);
+    setDeckSlug(null);
   }, []);
 
   const handleOpenPublicBook = useCallback(
@@ -463,16 +500,22 @@ export default function MacDesktopShell() {
         {theme.isDark ? <StarryBackground /> : null}
         <Div className="relative z-10 h-full">
           <View style={styles.legacyFill}>
-            <FlashcardsScreen onBack={() => goBack('home')} />
+            <FlashcardsScreen
+              onBack={() => {
+                void refreshCardsDue();
+                goBack('home');
+              }}
+            />
           </View>
         </Div>
         <BottomDock
           active="flashcards"
           flashcardsDue={cardsDue}
           onSelect={(t) => {
-            if (shareSlug) {
+            if (shareSlug || deckSlug) {
               clearSharePath();
               setShareSlug(null);
+              setDeckSlug(null);
             }
             setTab(t);
           }}
@@ -558,6 +601,17 @@ export default function MacDesktopShell() {
               onOpenBook={handleOpenPublicBook}
               onClose={closePublicShare}
               onAddedToLibrary={() => void reloadLibrary()}
+            />
+          </Div>
+        ) : deckSlug ? (
+          <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            <PublicDeckPanel
+              slug={deckSlug}
+              onClose={closePublicShare}
+              onImported={() => {
+                void refreshCardsDue();
+                void reloadLibrary();
+              }}
             />
           </Div>
         ) : tab === 'home' || tab === 'explore' || tab === 'library' ? (
@@ -795,9 +849,10 @@ export default function MacDesktopShell() {
         active={dockTab}
         flashcardsDue={cardsDue}
         onSelect={(t) => {
-          if (shareSlug) {
+          if (shareSlug || deckSlug) {
             clearSharePath();
             setShareSlug(null);
+            setDeckSlug(null);
           }
           setTab(t);
         }}

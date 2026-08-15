@@ -28,11 +28,13 @@ import {
   exportFlashcardsAnki,
   exportFlashcardsCsv,
 } from '../services/flashcardsExport';
+import { publishPublicDeck } from '../services/publicDecksService';
+import { getAuthState } from '../services/authService';
 import { getLearningLanguage } from '../services/onboardingService';
 import { ttsService } from '../services/ttsService';
 import { useTheme } from '../theme/ThemeContext';
 import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
-import { showConfirm } from '../utils/alert';
+import { showAlert, showConfirm } from '../utils/alert';
 import { getHskBadgeColors } from '../utils/hskColors';
 import { softShadow } from '../utils/shadow';
 
@@ -233,6 +235,39 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       await exportFlashcardsCsv(cards);
     } else {
       await exportFlashcardsAnki(cards);
+    }
+  };
+
+  const handleShareDeck = async () => {
+    const auth = getAuthState();
+    const loggedIn =
+      auth.status === 'authenticated' &&
+      auth.user != null &&
+      !auth.user.isAnonymous;
+    if (!loggedIn) {
+      showAlert(t('alert.error'), t('flashcards.shareLoginRequired'));
+      return;
+    }
+    try {
+      const query = sourceQueryFromKey(sources, sourceKey);
+      const cards = await getFlashcards(filter, query);
+      const title =
+        sources.find((s) => (s.bookId || s.title) === sourceKey)?.title ||
+        t('flashcards.title.hub');
+      const { url } = await publishPublicDeck({
+        title,
+        language: filter,
+        cards,
+      });
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+      showAlert(t('flashcards.shareCopied'), url);
+    } catch (e) {
+      showAlert(
+        t('alert.error'),
+        e instanceof Error ? e.message : t('flashcards.shareFail')
+      );
     }
   };
 
@@ -698,6 +733,22 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   ]}
                 >
                   {t('flashcards.exportAnki')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.accentPink },
+                ]}
+                onPress={() => void handleShareDeck()}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.accentPink },
+                  ]}
+                >
+                  {t('flashcards.shareDeck')}
                 </Text>
               </Pressable>
             </View>

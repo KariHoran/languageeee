@@ -346,6 +346,15 @@ export type UiMessageKey =
   | 'flashcards.searchPlaceholder'
   | 'flashcards.exportCsv'
   | 'flashcards.exportAnki'
+  | 'flashcards.shareDeck'
+  | 'flashcards.shareImport'
+  | 'flashcards.shareNotFound'
+  | 'flashcards.shareFail'
+  | 'flashcards.shareCopied'
+  | 'flashcards.shareImported'
+  | 'flashcards.shareImportedBody'
+  | 'flashcards.shareMeta'
+  | 'flashcards.shareLoginRequired'
   | 'flashcards.modeLabel'
   | 'flashcards.mode.recognition'
   | 'flashcards.mode.recall'
@@ -830,6 +839,15 @@ const ru: Dictionary = {
   'flashcards.searchPlaceholder': 'Поиск по слову или переводу…',
   'flashcards.exportCsv': 'Экспорт CSV',
   'flashcards.exportAnki': 'Экспорт Anki (TSV)',
+  'flashcards.shareDeck': 'Поделиться колодой',
+  'flashcards.shareImport': 'Добавить в свою колоду',
+  'flashcards.shareNotFound': 'Колода не найдена или недоступна.',
+  'flashcards.shareFail': 'Не удалось поделиться колодой.',
+  'flashcards.shareCopied': 'Ссылка скопирована',
+  'flashcards.shareImported': 'Колода импортирована',
+  'flashcards.shareImportedBody': 'Добавлено: {added}. Пропущено: {skipped}.',
+  'flashcards.shareMeta': '{n} карточек · {lang}',
+  'flashcards.shareLoginRequired': 'Войдите в аккаунт, чтобы делиться колодой.',
   'flashcards.modeLabel': 'Режим',
   'flashcards.mode.recognition': 'Узнать',
   'flashcards.mode.recall': 'Вспомнить',
@@ -1327,6 +1345,15 @@ const en: Dictionary = {
   'flashcards.searchPlaceholder': 'Search word or translation…',
   'flashcards.exportCsv': 'Export CSV',
   'flashcards.exportAnki': 'Export Anki (TSV)',
+  'flashcards.shareDeck': 'Share deck',
+  'flashcards.shareImport': 'Add to my deck',
+  'flashcards.shareNotFound': 'Deck not found or unavailable.',
+  'flashcards.shareFail': 'Could not share the deck.',
+  'flashcards.shareCopied': 'Link copied',
+  'flashcards.shareImported': 'Deck imported',
+  'flashcards.shareImportedBody': 'Added: {added}. Skipped: {skipped}.',
+  'flashcards.shareMeta': '{n} cards · {lang}',
+  'flashcards.shareLoginRequired': 'Sign in to share a deck.',
   'flashcards.modeLabel': 'Mode',
   'flashcards.mode.recognition': 'Recognize',
   'flashcards.mode.recall': 'Recall',
@@ -1815,6 +1842,15 @@ const zh: Dictionary = {
   'flashcards.searchPlaceholder': '搜索单词或翻译…',
   'flashcards.exportCsv': '导出 CSV',
   'flashcards.exportAnki': '导出 Anki (TSV)',
+  'flashcards.shareDeck': '分享卡组',
+  'flashcards.shareImport': '加入我的卡组',
+  'flashcards.shareNotFound': '卡组不存在或不可用。',
+  'flashcards.shareFail': '无法分享卡组。',
+  'flashcards.shareCopied': '链接已复制',
+  'flashcards.shareImported': '卡组已导入',
+  'flashcards.shareImportedBody': '已添加：{added}。跳过：{skipped}。',
+  'flashcards.shareMeta': '{n} 张卡片 · {lang}',
+  'flashcards.shareLoginRequired': '请登录后再分享卡组。',
   'flashcards.modeLabel': '模式',
   'flashcards.mode.recognition': '认词',
   'flashcards.mode.recall': '回忆',

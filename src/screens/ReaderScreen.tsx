@@ -380,7 +380,7 @@ function GrammarPopover({
     void (async () => {
       try {
         const { hasFlashcard } = await import('../services/flashcardsStore');
-        const ok = await hasFlashcard(point.structure, 'zh');
+        const ok = await hasFlashcard(point.structure, 'zh', 'grammar');
         if (!cancelled) setGrammarInDeck(ok);
       } catch {
         if (!cancelled) setGrammarInDeck(false);
@@ -464,10 +464,24 @@ function GrammarAccordionItem({
   index: number;
   nativeLanguage: NativeLanguage;
 }) {
+  const { t } = useI18n();
   const explanation = useLocalizedGrammarExplanation(
     point.explanation,
     nativeLanguage
   );
+  const [inDeck, setInDeck] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void hasFlashcard(point.structure, 'zh', 'grammar').then((v) => {
+      if (!cancelled) setInDeck(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [point.structure]);
+
   return (
     <View key={`${point.structure}-${index}`} style={styles.grammarItem}>
       <View style={styles.grammarItemHeader}>
@@ -484,6 +498,45 @@ function GrammarAccordionItem({
       {point.example ? (
         <Text style={styles.grammarExample}>{point.example}</Text>
       ) : null}
+      <Pressable
+        disabled={busy || inDeck}
+        onPress={() => {
+          void (async () => {
+            setBusy(true);
+            try {
+              await addFlashcard({
+                hanzi: point.structure,
+                translation: explanation || point.explanation || '',
+                language: 'zh',
+                kind: 'grammar',
+                hskLevel: point.hskLevel,
+                contextSentence: point.example,
+              });
+              setInDeck(true);
+            } finally {
+              setBusy(false);
+            }
+          })();
+        }}
+        style={{
+          marginTop: 8,
+          alignSelf: 'flex-start',
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          borderRadius: 8,
+          backgroundColor: inDeck ? '#e5e7eb' : '#D0FF00',
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: '700',
+            color: inDeck ? '#9ca3af' : '#0D0D11',
+          }}
+        >
+          {inDeck ? t('flashcards.grammarAdded') : t('flashcards.addGrammar')}
+        </Text>
+      </Pressable>
     </View>
   );
 }

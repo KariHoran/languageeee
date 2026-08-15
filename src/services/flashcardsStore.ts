@@ -465,10 +465,15 @@ export async function getFlashcard(
 
 export async function hasFlashcard(
   hanzi: string,
-  language?: LearningLanguage
+  language?: LearningLanguage,
+  kind: 'word' | 'grammar' = 'word'
 ): Promise<boolean> {
   const map = await loadMap();
   const lang = inferFlashcardLanguage(hanzi, language);
+  if (kind === 'grammar') {
+    const id = flashcardStorageId(hanzi, lang, 'grammar');
+    return Boolean(id && map[id]);
+  }
   return Boolean(findExisting(map, hanzi, lang));
 }
 
