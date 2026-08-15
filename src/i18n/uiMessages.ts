@@ -389,6 +389,9 @@ export type UiMessageKey =
   | 'catalog.publicDecks'
   | 'catalog.noPublicDecks'
   | 'catalog.deckCardsCount'
+  | 'catalog.filters'
+  | 'catalog.filtersActive'
+  | 'catalog.hideFilters'
   | 'addBook.screenSubtitle.en'
   | 'addBook.screenSubtitle.zh'
   | 'addBook.screenSubtitle.ru'
@@ -899,6 +902,9 @@ const ru: Dictionary = {
   'catalog.publicDecks': "Публичные колоды",
   'catalog.noPublicDecks': "Пока нет публичных колод",
   'catalog.deckCardsCount': "{n} карточек",
+  'catalog.filters': 'Фильтры',
+  'catalog.filtersActive': 'Фильтры · {n}',
+  'catalog.hideFilters': 'Скрыть фильтры',
   'addBook.screenSubtitle.en':
     'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
   'addBook.screenSubtitle.zh':
@@ -1422,6 +1428,9 @@ const en: Dictionary = {
   'catalog.publicDecks': "Public decks",
   'catalog.noPublicDecks': "No public decks yet",
   'catalog.deckCardsCount': "{n} cards",
+  'catalog.filters': 'Filters',
+  'catalog.filtersActive': 'Filters · {n}',
+  'catalog.hideFilters': 'Hide filters',
   'addBook.screenSubtitle.en':
     'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
   'addBook.screenSubtitle.zh':
@@ -1936,6 +1945,9 @@ const zh: Dictionary = {
   'catalog.publicDecks': "公开卡组",
   'catalog.noPublicDecks': "暂无公开卡组",
   'catalog.deckCardsCount': "{n} 张卡片",
+  'catalog.filters': '筛选',
+  'catalog.filtersActive': '筛选 · {n}',
+  'catalog.hideFilters': '收起筛选',
   'addBook.screenSubtitle.en':
     '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
   'addBook.screenSubtitle.zh':

@@ -87,7 +87,7 @@ function Chip({
   return (
     <Button
       type="button"
-      className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold border transition ${
+      className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold border transition ${
         active
           ? 'bg-[#D0FF00] border-[#D0FF00] text-[#0D0D11]'
           : theme.isDark
@@ -131,6 +131,7 @@ export function StoriesPage({
   const [publicDecks, setPublicDecks] = useState<PublicDeckDoc[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
   const [publicError, setPublicError] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [progressByCatalogId, setProgressByCatalogId] = useState<
     Record<string, { percent: number }>
   >({});
@@ -240,6 +241,12 @@ export function StoriesPage({
     }
   };
 
+  const activeFilterCount =
+    (language !== 'all' && language !== preferredLanguage ? 1 : 0) +
+    (level !== 'all' ? 1 : 0) +
+    (category !== 'all' ? 1 : 0) +
+    (tag !== 'all' ? 1 : 0);
+
   const shellBg = theme.isDark ? 'bg-[#0D0D11]' : theme.card;
   const glassCard = theme.isDark
     ? GLASS_CARD
@@ -254,7 +261,7 @@ export function StoriesPage({
       key={`stories-ui-${uiLang}`}
     >
       <Div
-        className={`px-3 py-2.5 flex items-center gap-3 border-b ${
+        className={`px-3 py-2 flex items-center gap-2 border-b ${
           theme.isDark
             ? 'bg-[#1E1E28]/80 border-[#2A2A3A] backdrop-blur-md'
             : theme.titlebar
@@ -263,7 +270,7 @@ export function StoriesPage({
         {onBack ? (
           <Button
             type="button"
-            className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${theme.accent} ${theme.hover} transition font-bold text-lg`}
+            className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${theme.accent} ${theme.hover} transition font-bold text-base`}
             onClick={onBack}
             title={t('action.back')}
             aria-label={t('action.back')}
@@ -273,7 +280,7 @@ export function StoriesPage({
         ) : null}
         <Span
           className={`flex-1 text-center text-sm font-semibold ${theme.accent} font-['Comfortaa'] ${
-            onBack ? 'pr-8' : ''
+            onBack ? 'pr-7' : ''
           }`}
         >
           {t('stories.pageTitle')}
@@ -281,231 +288,120 @@ export function StoriesPage({
       </Div>
 
       <Div
-        className={`px-4 pt-3 pb-2 space-y-2.5 border-b ${
+        className={`px-3 pt-2 pb-2 space-y-1.5 border-b shrink-0 ${
           theme.isDark ? 'border-[#2A2A3A]/80' : 'border-gray-100'
         }`}
       >
-        <Div className={`text-xs ${theme.textMuted}`}>{t('catalog.subtitle')}</Div>
-
-        <Div className="flex gap-2 overflow-x-auto pb-0.5">
-          {SHELF_TABS.map((tab) => (
-            <Chip
-              key={tab.id}
-              active={shelfTab === tab.id}
-              label={t(tab.labelKey)}
-              onClick={() => setShelfTab(tab.id)}
-            />
-          ))}
-        </Div>
-
-        <Input
-          type="search"
-          value={query}
-          onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
-          placeholder={t('catalog.searchPlaceholder')}
-          className={`w-full rounded-xl px-3 py-2 text-sm outline-none border ${
-            theme.isDark
-              ? 'bg-[#1E1E28]/80 border-[#2A2A3A] text-white placeholder:text-white/35 backdrop-blur-md focus:border-[#8B5CF6]/50'
-              : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
-          }`}
-          aria-label={t('catalog.searchAria')}
-        />
-        {query !== debouncedQuery ? (
-          <Div className={`text-[10px] ${theme.textMuted}`}>
-            {t('catalog.searching')}
-          </Div>
-        ) : null}
-
-        <Div className="flex gap-2 overflow-x-auto pb-0.5">
-          {languageOptions.map((opt) => (
-            <Chip
-              key={opt.id}
-              active={language === opt.id}
-              label={opt.label}
-              onClick={() => setLanguage(opt.id)}
-            />
-          ))}
-        </Div>
-        <Div className="flex gap-2 overflow-x-auto pb-0.5">
-          {levelOptions.map((opt) => (
-            <Chip
-              key={opt.id}
-              active={level === opt.id}
-              label={opt.label}
-              onClick={() => setLevel(opt.id)}
-            />
-          ))}
-        </Div>
-        <Div className="flex gap-2 overflow-x-auto pb-0.5">
-          {categoryOptions.map((opt) => (
-            <Chip
-              key={opt.id}
-              active={category === opt.id}
-              label={opt.label}
-              onClick={() => setCategory(opt.id)}
-            />
-          ))}
-        </Div>
-        {tagOptions.length > 0 ? (
-          <Div className="flex gap-2 overflow-x-auto pb-0.5">
-            <Chip
-              active={tag === 'all'}
-              label={t('catalog.allTags')}
-              onClick={() => setTag('all')}
-            />
-            {tagOptions.map((tagId) => (
+        <Div className="flex items-center gap-2">
+          <Div className="flex gap-1.5 overflow-x-auto flex-1 min-w-0 pb-0.5">
+            {SHELF_TABS.map((tab) => (
               <Chip
-                key={tagId}
-                active={tag === tagId}
-                label={catalogTagLabel(tagId, uiLang)}
-                onClick={() => setTag(tag === tagId ? 'all' : tagId)}
+                key={tab.id}
+                active={shelfTab === tab.id}
+                label={t(tab.labelKey)}
+                onClick={() => setShelfTab(tab.id)}
               />
             ))}
           </Div>
-        ) : null}
-        {onOpenMyLibrary ? (
+          {onOpenMyLibrary ? (
+            <Button
+              type="button"
+              className={`shrink-0 text-[10px] font-bold ${theme.textMuted} ${theme.hover} px-1.5 py-1 rounded-lg`}
+              onClick={onOpenMyLibrary}
+            >
+              → {t('catalog.myLibrary')}
+            </Button>
+          ) : null}
+        </Div>
+
+        <Div className="flex items-center gap-1.5">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
+            placeholder={t('catalog.searchPlaceholder')}
+            className={`flex-1 min-w-0 rounded-lg px-2.5 py-1.5 text-xs outline-none border ${
+              theme.isDark
+                ? 'bg-[#1E1E28]/80 border-[#2A2A3A] text-white placeholder:text-white/35 backdrop-blur-md focus:border-[#8B5CF6]/50'
+                : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
+            }`}
+            aria-label={t('catalog.searchAria')}
+          />
           <Button
             type="button"
-            className={`w-full rounded-2xl text-xs py-2 font-bold transition ${theme.hover} ${theme.textMuted}`}
-            onClick={onOpenMyLibrary}
+            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold border transition ${
+              filtersOpen || activeFilterCount > 0
+                ? 'bg-[#D0FF00]/15 border-[#D0FF00]/40 text-[#D0FF00]'
+                : theme.isDark
+                  ? 'border-[#2A2A3A] text-white/60'
+                  : 'border-gray-200 text-gray-500'
+            }`}
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
           >
-            {t('catalog.myLibrary')}
+            {filtersOpen
+              ? t('catalog.hideFilters')
+              : activeFilterCount > 0
+                ? t('catalog.filtersActive', { n: activeFilterCount })
+                : t('catalog.filters')}
           </Button>
+        </Div>
+
+        {filtersOpen ? (
+          <Div className="space-y-1.5 pt-0.5">
+            <Div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {languageOptions.map((opt) => (
+                <Chip
+                  key={opt.id}
+                  active={language === opt.id}
+                  label={opt.label}
+                  onClick={() => setLanguage(opt.id)}
+                />
+              ))}
+            </Div>
+            <Div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {levelOptions.map((opt) => (
+                <Chip
+                  key={opt.id}
+                  active={level === opt.id}
+                  label={opt.label}
+                  onClick={() => setLevel(opt.id)}
+                />
+              ))}
+            </Div>
+            <Div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {categoryOptions.map((opt) => (
+                <Chip
+                  key={opt.id}
+                  active={category === opt.id}
+                  label={opt.label}
+                  onClick={() => setCategory(opt.id)}
+                />
+              ))}
+            </Div>
+            {tagOptions.length > 0 ? (
+              <Div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                <Chip
+                  active={tag === 'all'}
+                  label={t('catalog.allTags')}
+                  onClick={() => setTag('all')}
+                />
+                {tagOptions.map((tagId) => (
+                  <Chip
+                    key={tagId}
+                    active={tag === tagId}
+                    label={catalogTagLabel(tagId, uiLang)}
+                    onClick={() => setTag(tag === tagId ? 'all' : tagId)}
+                  />
+                ))}
+              </Div>
+            ) : null}
+          </Div>
         ) : null}
       </Div>
 
-      <Div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <Div className="space-y-2.5">
-          <Div
-            className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
-          >
-            {t('catalog.publicCollections')}
-          </Div>
-          {publicLoading ? (
-            <Div className={`text-sm py-4 ${theme.textMuted}`}>
-              {t('catalog.loadingCollections')}
-            </Div>
-          ) : publicError ? (
-            <Div className={`text-sm py-2 ${theme.textMuted}`}>
-              {t('catalog.loadCollectionsFail')}
-            </Div>
-          ) : publicCols.length === 0 ? (
-            <Div className={`text-sm py-2 ${theme.textMuted}`}>
-              {t('catalog.noPublicCollections')}
-              {query.trim() ? t('catalog.noPublicCollectionsQuery') : ''}.
-            </Div>
-          ) : (
-            <Div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {publicCols.map((col) => {
-                const isMine = isPublicCollectionOwner(col);
-                return (
-                  <Button
-                    key={col.slug}
-                    type="button"
-                    className={`${glassCard} text-left p-3.5 hover:border-[#8B5CF6]/50 transition`}
-                    onClick={() => onOpenPublicCollection?.(col.slug)}
-                    disabled={!onOpenPublicCollection}
-                  >
-                    <Div className="flex items-start gap-3">
-                      <Div
-                        className="w-10 h-10 rounded-xl shrink-0"
-                        style={{ background: col.color || '#8B5CF6' }}
-                      />
-                      <Div className="min-w-0 flex-1 space-y-1">
-                        <Div className="flex flex-wrap gap-1.5 mb-0.5">
-                          <Span className={BADGE_PUBLIC}>
-                            {t('catalog.badgePublic')}
-                          </Span>
-                          {isMine ? (
-                            <Span className={BADGE_OWNER}>
-                              {t('catalog.badgeOwner')}
-                            </Span>
-                          ) : null}
-                        </Div>
-                        <HighlightText
-                          text={col.title}
-                          query={debouncedQuery}
-                          className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
-                        />
-                        {col.description ? (
-                          <HighlightText
-                            text={col.description}
-                            query={debouncedQuery}
-                            className={`text-xs line-clamp-2 block ${theme.textMuted}`}
-                          />
-                        ) : null}
-                        <Div
-                          className={`text-[10px] font-semibold ${theme.textMuted}`}
-                        >
-                          {catalogTextsCountLabel(col.books?.length ?? 0, uiLang)}
-                          {' · '}
-                          {isMine
-                            ? t('catalog.youAreAuthor')
-                            : t('catalog.readOnly')}
-                        </Div>
-                      </Div>
-                    </Div>
-                  </Button>
-                );
-              })}
-            </Div>
-          )}
-        </Div>
-
-        <Div className="space-y-2.5">
-          <Div
-            className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
-          >
-            {t('catalog.publicDecks')}
-          </Div>
-          {publicLoading ? (
-            <Div className={`text-sm py-2 ${theme.textMuted}`}>…</Div>
-          ) : publicDecks.length === 0 ? (
-            <Div className={`text-sm py-2 ${theme.textMuted}`}>
-              {t('catalog.noPublicDecks')}
-              {query.trim() ? t('catalog.noPublicCollectionsQuery') : ''}.
-            </Div>
-          ) : (
-            <Div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {publicDecks.map((deck) => (
-                <Button
-                  key={deck.slug}
-                  type="button"
-                  className={`${glassCard} text-left p-3.5 hover:border-[#D0FF00]/40 transition`}
-                  onClick={() => onOpenPublicDeck?.(deck.slug)}
-                  disabled={!onOpenPublicDeck}
-                >
-                  <Div className="flex items-start gap-3">
-                    <Div className="w-10 h-10 rounded-xl shrink-0 bg-[#D0FF00]/20 flex items-center justify-center text-lg">
-                      🃏
-                    </Div>
-                    <Div className="min-w-0 flex-1 space-y-1">
-                      <Span className={BADGE_PUBLIC}>
-                        {t('catalog.badgePublic')}
-                      </Span>
-                      <HighlightText
-                        text={deck.title}
-                        query={debouncedQuery}
-                        className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
-                      />
-                      <Div
-                        className={`text-[10px] font-semibold ${theme.textMuted}`}
-                      >
-                        {t('catalog.deckCardsCount', {
-                          n: deck.cardCount || deck.cards.length,
-                        })}
-                        {' · '}
-                        {String(deck.language || 'all').toUpperCase()}
-                      </Div>
-                    </Div>
-                  </Div>
-                </Button>
-              ))}
-            </Div>
-          )}
-        </Div>
-
-        <Div className="space-y-2.5">
+      <Div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <Div className="space-y-2">
           <Div
             className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
           >
@@ -533,6 +429,109 @@ export function StoriesPage({
             />
           </Div>
         </Div>
+
+        {!publicLoading && publicCols.length > 0 ? (
+          <Div className="space-y-2">
+            <Div
+              className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
+            >
+              {t('catalog.publicCollections')}
+            </Div>
+            <Div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {publicCols.map((col) => {
+                const isMine = isPublicCollectionOwner(col);
+                return (
+                  <Button
+                    key={col.slug}
+                    type="button"
+                    className={`${glassCard} text-left p-2.5 hover:border-[#8B5CF6]/50 transition`}
+                    onClick={() => onOpenPublicCollection?.(col.slug)}
+                    disabled={!onOpenPublicCollection}
+                  >
+                    <Div className="flex items-start gap-2.5">
+                      <Div
+                        className="w-8 h-8 rounded-lg shrink-0"
+                        style={{ background: col.color || '#8B5CF6' }}
+                      />
+                      <Div className="min-w-0 flex-1 space-y-0.5">
+                        <Div className="flex flex-wrap gap-1">
+                          <Span className={BADGE_PUBLIC}>
+                            {t('catalog.badgePublic')}
+                          </Span>
+                          {isMine ? (
+                            <Span className={BADGE_OWNER}>
+                              {t('catalog.badgeOwner')}
+                            </Span>
+                          ) : null}
+                        </Div>
+                        <HighlightText
+                          text={col.title}
+                          query={debouncedQuery}
+                          className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
+                        />
+                        <Div
+                          className={`text-[10px] font-semibold ${theme.textMuted}`}
+                        >
+                          {catalogTextsCountLabel(col.books?.length ?? 0, uiLang)}
+                          {' · '}
+                          {isMine
+                            ? t('catalog.youAreAuthor')
+                            : t('catalog.readOnly')}
+                        </Div>
+                      </Div>
+                    </Div>
+                  </Button>
+                );
+              })}
+            </Div>
+          </Div>
+        ) : null}
+
+        {!publicLoading && publicDecks.length > 0 ? (
+          <Div className="space-y-2">
+            <Div
+              className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
+            >
+              {t('catalog.publicDecks')}
+            </Div>
+            <Div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {publicDecks.map((deck) => (
+                <Button
+                  key={deck.slug}
+                  type="button"
+                  className={`${glassCard} text-left p-2.5 hover:border-[#D0FF00]/40 transition`}
+                  onClick={() => onOpenPublicDeck?.(deck.slug)}
+                  disabled={!onOpenPublicDeck}
+                >
+                  <Div className="flex items-start gap-2.5">
+                    <Div className="w-8 h-8 rounded-lg shrink-0 bg-[#D0FF00]/20 flex items-center justify-center text-sm">
+                      🃏
+                    </Div>
+                    <Div className="min-w-0 flex-1 space-y-0.5">
+                      <Span className={BADGE_PUBLIC}>
+                        {t('catalog.badgePublic')}
+                      </Span>
+                      <HighlightText
+                        text={deck.title}
+                        query={debouncedQuery}
+                        className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
+                      />
+                      <Div
+                        className={`text-[10px] font-semibold ${theme.textMuted}`}
+                      >
+                        {t('catalog.deckCardsCount', {
+                          n: deck.cardCount || deck.cards.length,
+                        })}
+                        {' · '}
+                        {String(deck.language || 'all').toUpperCase()}
+                      </Div>
+                    </Div>
+                  </Div>
+                </Button>
+              ))}
+            </Div>
+          </Div>
+        ) : null}
       </Div>
 
       {selected ? (
