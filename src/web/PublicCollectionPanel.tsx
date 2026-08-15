@@ -10,7 +10,10 @@ import {
 } from '../services/publicCollectionsService';
 import { saveBook } from '../services/storageService';
 import type { Book, PublicCollectionDoc } from '../types';
-import { formatBookTitleLine } from '../utils/bookTitle';
+import {
+  formatBookTitleLine,
+  resolveBookDisplayTitles,
+} from '../utils/bookTitle';
 import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
 import { useWebTheme } from './webTheme';
@@ -206,17 +209,33 @@ export function PublicCollectionPanel({
                 {(doc.books ?? []).map((b) => {
                   const busy = busyId === b.id;
                   return (
-                    <Div key={b.id} className={`${glass} p-3.5 flex flex-col gap-2`}>
-                      <Div className={`font-bold text-sm font-['Comfortaa'] ${theme.text} line-clamp-2`}>
-                        {b.title}
-                      </Div>
-                      {b.russianTitle &&
-                      lang === 'ru' &&
-                      b.russianTitle !== b.title ? (
-                        <Div className={`text-[11px] ${theme.textMuted} line-clamp-1`}>
-                          {b.russianTitle}
-                        </Div>
-                      ) : null}
+                    <Div
+                      key={`${b.id}-${lang}`}
+                      className={`${glass} p-3.5 flex flex-col gap-2`}
+                      data-ui-lang={lang}
+                    >
+                      {(() => {
+                        const { original, native } = resolveBookDisplayTitles(
+                          b,
+                          lang
+                        );
+                        return (
+                          <>
+                            <Div
+                              className={`font-bold text-sm font-['Comfortaa'] ${theme.text} line-clamp-2`}
+                            >
+                              {original}
+                            </Div>
+                            {native ? (
+                              <Div
+                                className={`text-[11px] ${theme.textMuted} line-clamp-1`}
+                              >
+                                {native}
+                              </Div>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       <Div className="flex flex-wrap gap-1.5">
                         <Span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${

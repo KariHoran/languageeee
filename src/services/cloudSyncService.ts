@@ -876,11 +876,13 @@ export async function applyLocalSnapshot(snapshot: SyncSnapshot): Promise<void> 
         ? snapshot.prefs.nativeLanguage
         : undefined;
     const { syncLanguagePairFromStore } = await import('./onboardingService');
-    const { useAppStore } = await import('../store/useAppStore');
-    const state = useAppStore.getState();
+    const { useAppStore: store } = await import('../store/useAppStore');
+    const state = store.getState();
+    // Snapshot уже должен содержать live-языки (overlayLiveLanguagePrefs на merge/push).
+    // Здесь не перечитываем prefs заново — на pull-replace нужен именно облачный снимок.
     const nextLearning = learning ?? state.learningLanguage;
     const nextNative = native ?? state.nativeLanguage;
-    useAppStore.setState({
+    store.setState({
       learningLanguage: nextLearning,
       nativeLanguage: nextNative,
     });
@@ -1522,6 +1524,8 @@ const SYNC_TIMEOUT_MS = 60_000;
 
 /** Один активный sync — параллельные merge/push схлопываются в один промис. */
 let syncInFlight: Promise<SyncState> | null = null;
+/** Пока шёл sync, пришёл ещё один запрос (смена языка и т.п.) — перезапустить после. */
+let syncRerunRequested = false;
 
 function preemptSyncForBootstrap(): void {
   const g = globalThis as unknown as {
@@ -1533,6 +1537,7 @@ function preemptSyncForBootstrap(): void {
   }
   syncEpoch += 1;
   syncInFlight = null;
+  syncRerunRequested = false;
   if (currentState.status === 'syncing') {
     setState({
       status: 'idle',
@@ -1543,11 +1548,30 @@ function preemptSyncForBootstrap(): void {
   }
 }
 
+/**
+ * Снимок мог быть собран до LanguageSwitcher: подставляем живые языки из Zustand,
+ * чтобы apply/write не откатывали nativeLanguage и не портили prefs.
+ */
+function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
+  const { learningLanguage, nativeLanguage } = useAppStore.getState();
+  return {
+    ...snapshot,
+    prefs: {
+      ...snapshot.prefs,
+      learningLanguage,
+      nativeLanguage,
+      streak: snapshot.prefs?.streak,
+      activityByDay: snapshot.prefs?.activityByDay,
+    },
+  };
+}
+
 async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
   // Вход в аккаунт: отменяем фоновый merge и делаем чистый pull
   if (mode === 'pull-replace') {
     preemptSyncForBootstrap();
   } else if (syncInFlight) {
+    syncRerunRequested = true;
     return syncInFlight;
   }
 
@@ -1661,7 +1685,9 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
             } else {
               const local = await loadLocalSnapshot();
               if (!isSyncEpochCurrent(epoch)) return;
-              const merged = mergeSnapshots(local, remote);
+              const merged = overlayLiveLanguagePrefs(
+                mergeSnapshots(local, remote)
+              );
               await applyLocalSnapshot(merged);
               try {
                 await syncHasCompletedOnboardingFromCloud(uid);
@@ -1672,7 +1698,7 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
               await writeRemoteSnapshot(uid, merged);
             }
           } else if (mode === 'push') {
-            const local = await loadLocalSnapshot();
+            const local = overlayLiveLanguagePrefs(await loadLocalSnapshot());
             if (!isSyncEpochCurrent(epoch)) return;
             console.log(
               '[cloudSync] push users/' + uid + ':',
@@ -1687,7 +1713,9 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
             if (!isSyncEpochCurrent(epoch)) return;
             const remote = await readRemoteSnapshot(uid);
             if (!isSyncEpochCurrent(epoch)) return;
-            const merged = mergeSnapshots(local, remote);
+            const merged = overlayLiveLanguagePrefs(
+              mergeSnapshots(local, remote)
+            );
             await applyLocalSnapshot(merged);
             if (!isSyncEpochCurrent(epoch)) return;
             await writeRemoteSnapshot(uid, merged);
@@ -1749,6 +1777,11 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
     return currentState;
   })().finally(() => {
     if (syncInFlight === run) syncInFlight = null;
+    if (syncRerunRequested) {
+      syncRerunRequested = false;
+      // Догнать изменения, пришедшие во время in-flight (в т.ч. setNativeLanguage)
+      void syncData();
+    }
   });
 
   syncInFlight = run;
@@ -1945,6 +1978,7 @@ export function cancelPendingSync(): void {
   }
   syncEpoch += 1;
   syncInFlight = null;
+  syncRerunRequested = false;
 
   // Не оставляем UI на вечной «Синхронизация…»
   if (currentState.status === 'syncing') {

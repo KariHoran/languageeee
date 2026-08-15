@@ -680,8 +680,9 @@ export const useAppStore = create<AppStore>()(
         radioVolume: state.radioVolume,
         readerFontScale: state.readerFontScale,
         readerPageTheme: state.readerPageTheme,
-        learningLanguage: state.learningLanguage,
-        nativeLanguage: state.nativeLanguage,
+        // Языки НЕ в persist: SoT = onboarding prefs (@languageeee/user_prefs).
+        // Иначе поздняя гидратация IndexedDB откатывала nativeLanguage после
+        // LanguageSwitcher (карточки каталога «не переключаются» / мигают).
         stickyNotes: state.stickyNotes,
         activeBookId: state.activeBookId,
         streakCurrent: state.streakCurrent,
@@ -689,6 +690,19 @@ export const useAppStore = create<AppStore>()(
         streakUpdatedAt: state.streakUpdatedAt,
         activityByDay: state.activityByDay,
       }),
+      // Старые снимки persist ещё содержат learning/native — игнорируем их.
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return currentState;
+        }
+        const raw = persistedState as Record<string, unknown>;
+        const {
+          learningLanguage: _dropLearn,
+          nativeLanguage: _dropNative,
+          ...rest
+        } = raw;
+        return { ...currentState, ...rest };
+      },
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('[useAppStore] rehydrate failed', error);
@@ -715,6 +729,7 @@ export const useAppStore = create<AppStore>()(
           ) {
             state.readerPageTheme = 'light';
           }
+          // Языки подтянет hydrateStoreLanguagesFromPrefs (App boot / post-rehydrate)
           state.learningLanguage = normalizeLearningLanguage(
             state.learningLanguage
           );

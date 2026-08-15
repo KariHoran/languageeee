@@ -1,7 +1,7 @@
 /* Languageeee PWA service worker — offline-first shell + static assets */
 /* eslint-disable no-restricted-globals */
 
-const CACHE_VERSION = 'languageeee-v4';
+const CACHE_VERSION = 'languageeee-v5';
 const PRECACHE = [
   '/',
   '/index.html',

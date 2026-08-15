@@ -188,6 +188,22 @@ function AppRoot() {
           ensureGuestOnboarding(),
           2500
         );
+        // Сначала дождаться Zustand persist (IndexedDB), иначе поздний rehydrate
+        // мог откатить nativeLanguage уже после hydrateLanguages / свитчера.
+        await withStepTimeout(
+          'persistHydrate',
+          new Promise<void>((resolve) => {
+            if (useAppStore.persist.hasHydrated()) {
+              resolve();
+              return;
+            }
+            const unsub = useAppStore.persist.onFinishHydration(() => {
+              unsub();
+              resolve();
+            });
+          }),
+          2500
+        );
         await withStepTimeout(
           'hydrateLanguages',
           hydrateStoreLanguagesFromPrefs(),
