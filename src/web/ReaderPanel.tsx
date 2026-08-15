@@ -20,6 +20,7 @@ import {
   pinyinFor,
 } from '../services/hskLocalService';
 import { prefetchTranslationCache } from '../services/translationCache';
+import type { BookCoverage } from '../services/bookCoverageService';
 import {
   resolveReadingProgress,
   saveReadingProgress,
@@ -53,10 +54,16 @@ import {
 import { Button, Div, Span } from './dom';
 import { GlassWindow } from './GlassWindow';
 import { ReaderToast } from './ReaderToast';
+import {
+  ParagraphNoteChips,
+  ReaderNotebookPanel,
+} from './ReaderNotebookPanel';
 import { WordModalGlass } from './WordModalGlass';
 import { useWebTheme, type WebThemeClasses } from './webTheme';
 
 const PROGRESS_SAVE_DEBOUNCE_MS = 700;
+/** Сколько держать абзац в фокусе, прежде чем засчитать слова в «Эту неделю» */
+const WORD_CREDIT_DWELL_MS = 2500;
 /** Медленная автопрокрутка: px в секунду */
 const AUTO_SCROLL_PX_PER_SEC = 28;
 
@@ -315,6 +322,8 @@ interface ReaderPanelProps {
   book: Book | null;
   chapterTitle?: string;
   showPinyin?: boolean;
+  /** Уровень текста / % в карточках — видно и без боковой Progress-панели */
+  coverage?: BookCoverage | null;
   onNotes?: () => void;
   onBack?: () => void;
   onDelete?: () => void;
@@ -327,7 +336,8 @@ export function ReaderPanel({
   book,
   chapterTitle,
   showPinyin: showPinyinProp = true,
-  onNotes,
+  coverage = null,
+  onNotes: _onNotes,
   onBack,
   onDelete,
   onProgressChange,
@@ -361,6 +371,81 @@ export function ReaderPanel({
   const [readPercent, setReadPercent] = useState(0);
   const [activeParaIndex, setActiveParaIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [levelBannerDismissed, setLevelBannerDismissed] = useState(false);
+  const [notebookOpen, setNotebookOpen] = useState(false);
+  const [notebookEditId, setNotebookEditId] = useState<string | null>(null);
+  const [seedSelectedText, setSeedSelectedText] = useState('');
+  const [selectionQuote, setSelectionQuote] = useState<{
+    text: string;
+    paragraphIndex: number;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const stickyNotes = useAppStore((s) => s.stickyNotes);
+  const addStickyNote = useAppStore((s) => s.addStickyNote);
+  const bookNotes = useMemo(
+    () => (book ? stickyNotes.filter((n) => n.bookId === book.id) : []),
+    [stickyNotes, book?.id]
+  );
+  const notesByParagraph = useMemo(() => {
+    const map = new Map<number, typeof bookNotes>();
+    for (const n of bookNotes) {
+      if (n.paragraphIndex < 0) continue;
+      const list = map.get(n.paragraphIndex) ?? [];
+      list.push(n);
+      map.set(n.paragraphIndex, list);
+    }
+    return map;
+  }, [bookNotes]);
+
+  const openNotebook = useCallback((editId?: string | null, quote?: string) => {
+    setNotebookEditId(editId ?? null);
+    if (quote != null) setSeedSelectedText(quote);
+    setNotebookOpen(true);
+  }, []);
+
+  const handleTextSelection = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (typeof window === 'undefined') return;
+      const sel = window.getSelection();
+      const text = (sel?.toString() ?? '').trim();
+      if (!text || text.length > 200 || !sel || sel.rangeCount === 0) {
+        setSelectionQuote(null);
+        return;
+      }
+      let node: Node | null = sel.anchorNode;
+      let paraIndex = activeParaIndex;
+      while (node) {
+        if (node instanceof HTMLElement && node.dataset?.paraIndex != null) {
+          const n = Number(node.dataset.paraIndex);
+          if (Number.isFinite(n)) paraIndex = n;
+          break;
+        }
+        node = node.parentNode;
+      }
+      try {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        setSelectionQuote({
+          text: text.slice(0, 160),
+          paragraphIndex: paraIndex,
+          x: Math.min(
+            Math.max(rect.left + rect.width / 2, 72),
+            window.innerWidth - 72
+          ),
+          y: Math.max(rect.top - 8, 56),
+        });
+      } catch {
+        setSelectionQuote({
+          text: text.slice(0, 160),
+          paragraphIndex: paraIndex,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }
+    },
+    [activeParaIndex]
+  );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -369,6 +454,16 @@ export function ReaderPanel({
   const restoreDone = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoScrollRaf = useRef<number | null>(null);
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dwellTargetRef = useRef<number | null>(null);
+
+  const jumpToParagraph = useCallback((index: number) => {
+    const el = paraRefs.current[index];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setActiveParaIndex(index);
+    }
+  }, []);
 
   useEffect(() => ttsService.subscribeSpeaking(setIsPlaying), []);
   useEffect(() => () => ttsService.stop(), []);
@@ -383,8 +478,18 @@ export function ReaderPanel({
     setAutoScroll(false);
     lastSavedIndex.current = -1;
     restoreDone.current = null;
+    dwellTargetRef.current = null;
+    if (dwellTimer.current) {
+      clearTimeout(dwellTimer.current);
+      dwellTimer.current = null;
+    }
     setReadPercent(0);
     setActiveParaIndex(0);
+    setLevelBannerDismissed(false);
+    setNotebookOpen(false);
+    setNotebookEditId(null);
+    setSeedSelectedText('');
+    setSelectionQuote(null);
   }, [book?.id, showPinyinProp]);
 
   // Закрытие панели настроек по клику снаружи / Escape
@@ -455,12 +560,12 @@ export function ReaderPanel({
   );
 
   const persistProgress = useCallback(
-    (index: number) => {
+    (index: number, creditWords = false) => {
       if (!book || book.paragraphs.length === 0) return;
       setActiveParaIndex(index);
-      if (index === lastSavedIndex.current) return;
-      lastSavedIndex.current = index;
-      void saveReadingProgress(book, index).then((p) => {
+      if (!creditWords && index === lastSavedIndex.current) return;
+      if (!creditWords) lastSavedIndex.current = index;
+      void saveReadingProgress(book, index, { creditWords }).then((p) => {
         setReadPercent(p.percent);
         onProgressChange?.(p);
       });
@@ -488,8 +593,18 @@ export function ReaderPanel({
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       pendingIndexRef.current = null;
-      persistProgress(best);
+      persistProgress(best, false);
     }, PROGRESS_SAVE_DEBOUNCE_MS);
+
+    // Слова в статистику — только если абзац реально «подержали» в кадре
+    if (dwellTargetRef.current !== best) {
+      dwellTargetRef.current = best;
+      if (dwellTimer.current) clearTimeout(dwellTimer.current);
+      dwellTimer.current = setTimeout(() => {
+        dwellTimer.current = null;
+        persistProgress(best, true);
+      }, WORD_CREDIT_DWELL_MS);
+    }
   }, [rendered, persistProgress]);
 
   // Плавная автопрокрутка текста
@@ -559,17 +674,22 @@ export function ReaderPanel({
     };
   }, [book?.id, rendered.length, persistProgress, onProgressChange]);
 
-  // Flush отложенного save при размонтировании / смене книги
+  // Flush отложенного save при размонтировании / смене книги (только закладка, без слов)
   useEffect(() => {
     return () => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
       }
+      if (dwellTimer.current) {
+        clearTimeout(dwellTimer.current);
+        dwellTimer.current = null;
+      }
+      dwellTargetRef.current = null;
       const pending = pendingIndexRef.current;
       if (pending != null && book && pending !== lastSavedIndex.current) {
         pendingIndexRef.current = null;
-        void saveReadingProgress(book, pending);
+        void saveReadingProgress(book, pending, { creditWords: false });
       }
     };
   }, [book]);
@@ -805,11 +925,24 @@ export function ReaderPanel({
         </Button>
         <Button
           type="button"
-          className={`px-2 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold ${theme.textMuted} ${theme.hover} transition`}
-          onClick={onNotes}
-          title={t('reader.notesTitle')}
+          className={`relative px-2 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition ${
+            notebookOpen || bookNotes.length > 0
+              ? theme.isDark
+                ? 'bg-[#D0FF00]/20 text-[#D0FF00]'
+                : 'bg-lime-100 text-lime-800'
+              : `${theme.textMuted} ${theme.hover}`
+          }`}
+          onClick={() => openNotebook()}
+          title={t('notebook.title')}
+          aria-label={t('notebook.title')}
+          aria-expanded={notebookOpen}
         >
           📝
+          {bookNotes.length > 0 ? (
+            <Span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full bg-[#8B5CF6] text-white text-[9px] font-bold flex items-center justify-center">
+              {bookNotes.length > 99 ? '99+' : bookNotes.length}
+            </Span>
+          ) : null}
         </Button>
         <Div className="relative" ref={settingsRef}>
           <Button
@@ -890,7 +1023,38 @@ export function ReaderPanel({
                 ['--reader-font-scale' as string]: String(readerFontScale),
               } as React.CSSProperties
             }
+            onMouseUp={handleTextSelection}
           >
+            {coverage && !levelBannerDismissed ? (
+              <Div
+                className={`flex items-start justify-between gap-2 rounded-2xl px-3 py-2 text-[11px] border ${
+                  theme.isDark
+                    ? 'bg-[#1E1E28]/85 border-[#2A2A3A] text-white/90'
+                    : 'bg-white/90 border-gray-200 text-gray-800'
+                }`}
+              >
+                <Div>
+                  <Span className={`font-bold ${theme.accent}`}>
+                    {t('reader.levelFitTitle')}
+                  </Span>
+                  <Div className={`mt-0.5 leading-snug ${theme.textMuted}`}>
+                    {t('reader.levelFitBody', {
+                      label: coverage.recommendedLabel,
+                      known: coverage.knownPercent,
+                      unique: coverage.totalUniqueWords,
+                    })}
+                  </Div>
+                </Div>
+                <Button
+                  type="button"
+                  className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-lg ${theme.textMuted}`}
+                  onClick={() => setLevelBannerDismissed(true)}
+                  aria-label={t('action.close')}
+                >
+                  ×
+                </Button>
+              </Div>
+            ) : null}
             {readPercent > 0 || rendered.length > 0 ? (
               <Div className="reader-chrome-muted text-center text-[11px] font-semibold">
                 {t('reader.readProgressLine', {
@@ -1020,12 +1184,75 @@ export function ReaderPanel({
                       })}
                     />
                   ) : null}
+
+                  <Div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      className={`text-[10px] font-bold rounded-lg px-2 py-1 transition ${
+                        theme.isDark
+                          ? 'bg-white/8 text-white/70 hover:bg-[#D0FF00]/15 hover:text-[#D0FF00]'
+                          : 'bg-black/5 text-gray-600 hover:bg-lime-50 hover:text-lime-800'
+                      }`}
+                      onClick={() => {
+                        setActiveParaIndex(para.index);
+                        setSeedSelectedText('');
+                        openNotebook();
+                      }}
+                    >
+                      {t('notebook.addToParagraph')}
+                    </Button>
+                  </Div>
+
+                  <ParagraphNoteChips
+                    notes={notesByParagraph.get(para.index) ?? []}
+                    onOpen={(note) => {
+                      setSeedSelectedText('');
+                      openNotebook(note?.id ?? null);
+                    }}
+                  />
                 </Div>
               );
             })}
           </Div>
         )}
       </GlassWindow>
+
+      {selectionQuote ? (
+        <Button
+          type="button"
+          className="fixed z-[65] -translate-x-1/2 -translate-y-full rounded-full px-3 py-1.5 text-[11px] font-bold shadow-lg border bg-[#D0FF00] text-[#0D0D11] border-[#0D0D11]/20"
+          style={{ left: selectionQuote.x, top: selectionQuote.y }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setActiveParaIndex(selectionQuote.paragraphIndex);
+            openNotebook(null, selectionQuote.text);
+            setSelectionQuote(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        >
+          {t('notebook.fromSelection')}
+        </Button>
+      ) : null}
+
+      <ReaderNotebookPanel
+        open={notebookOpen}
+        bookId={book?.id ?? null}
+        bookTitle={book ? formatBookTitleLine(book, uiLang) : ''}
+        paragraphIndex={activeParaIndex}
+        paragraphPreview={
+          rendered[activeParaIndex]?.readingText ??
+          rendered[activeParaIndex]?.paragraph?.chineseText ??
+          ''
+        }
+        seedSelectedText={seedSelectedText}
+        editNoteId={notebookEditId}
+        onClose={() => {
+          setNotebookOpen(false);
+          setNotebookEditId(null);
+          setSeedSelectedText('');
+        }}
+        onJumpToParagraph={jumpToParagraph}
+      />
 
       {selected ? (
         <WordModalGlass
@@ -1036,6 +1263,22 @@ export function ReaderPanel({
           language={selected.tokenLanguage}
           nativeLanguage={nativeLanguage}
           onClose={() => setSelected(null)}
+          onAddToNotebook={
+            book
+              ? ({ selectedText, note }) => {
+                  addStickyNote({
+                    id: `note-${Date.now()}`,
+                    bookId: book.id,
+                    paragraphIndex: activeParaIndex,
+                    selectedText,
+                    note,
+                    color: '#dcc8ff',
+                    createdAt: Date.now(),
+                  });
+                  setToastMessage(t('word.addedToNotebook'));
+                }
+              : undefined
+          }
         />
       ) : null}
 

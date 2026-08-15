@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -6,21 +6,38 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StarfieldBackground from '../components/StarfieldBackground';
+import { useI18n } from '../i18n/useI18n';
+import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   DEFAULT_SESSION_SIZE,
+  addFlashcard,
   getFlashcardSources,
+  getFlashcards,
   getFlashcardsCount,
   getReviewSession,
+  markFlashcardKnown,
+  removeFlashcard,
   reviewFlashcard,
   type DeckStats,
 } from '../services/flashcardsStore';
+import {
+  exportFlashcardsAnki,
+  exportFlashcardsCsv,
+  pickAndImportAnkiFile,
+} from '../services/flashcardsExport';
+import { seedDemoDeck } from '../services/demoDeckService';
+import { publishPublicDeck } from '../services/publicDecksService';
+import { getAuthState } from '../services/authService';
 import { getLearningLanguage } from '../services/onboardingService';
+import { ttsService } from '../services/ttsService';
 import { useTheme } from '../theme/ThemeContext';
 import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
+import { showAlert, showConfirm } from '../utils/alert';
 import { getHskBadgeColors } from '../utils/hskColors';
 import { softShadow } from '../utils/shadow';
 
@@ -32,24 +49,77 @@ interface FlashcardsScreenProps {
 }
 
 type DeckFilter = LearningLanguage | 'all';
-type Phase = 'hub' | 'session' | 'done';
+type Phase = 'hub' | 'browse' | 'create' | 'session' | 'done';
+type StudyMode = 'recognition' | 'recall' | 'cloze' | 'listen';
+type QueueMode = 'default' | 'weak' | 'mixed';
 
 type SourceOpt = { bookId?: string; title: string; count: number };
 
-const GRADE_BUTTONS: Array<{
+type GradeButton = {
   id: FlashcardGrade;
   label: string;
   hint: string;
-}> = [
-  { id: 'again', label: 'Снова', hint: '1д' },
-  { id: 'hard', label: 'Трудно', hint: 'сложнее' },
-  { id: 'good', label: 'Хорошо', hint: 'ок' },
-  { id: 'easy', label: 'Легко', hint: 'легко' },
-];
+};
+
+function clozeFront(card: Flashcard): string {
+  const ctx = card.contextSentence?.trim();
+  if (!ctx || !card.hanzi) return '';
+  return ctx.split(card.hanzi).join('____');
+}
+
+function buildGradeButtons(
+  t: (key: UiMessageKey, vars?: Record<string, string | number>) => string
+): GradeButton[] {
+  return [
+    {
+      id: 'again',
+      label: t('flashcards.grade.again'),
+      hint: t('flashcards.grade.againHint'),
+    },
+    {
+      id: 'hard',
+      label: t('flashcards.grade.hard'),
+      hint: t('flashcards.grade.hardHint'),
+    },
+    {
+      id: 'good',
+      label: t('flashcards.grade.good'),
+      hint: t('flashcards.grade.goodHint'),
+    },
+    {
+      id: 'easy',
+      label: t('flashcards.grade.easy'),
+      hint: t('flashcards.grade.easyHint'),
+    },
+  ];
+}
+
+function sourceQueryFromKey(
+  sources: SourceOpt[],
+  sourceKey: string | null
+): { sourceBookId?: string | null; sourceTitle?: string | null } {
+  const selected =
+    sourceKey != null
+      ? sources.find((s) => (s.bookId || s.title) === sourceKey) ?? null
+      : null;
+  if (!selected) return {};
+  return {
+    sourceBookId: selected.bookId ?? null,
+    sourceTitle: selected.bookId ? null : selected.title,
+  };
+}
+
+function ttsLangForCard(card: Flashcard): 'zh-CN' | 'en-US' | 'ru-RU' {
+  if (card.language === 'en') return 'en-US';
+  if (card.language === 'ru') return 'ru-RU';
+  return 'zh-CN';
+}
 
 /** SRS · сессия из 10 карточек + фильтры языка / книги */
 export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const theme = useTheme();
+  const { t } = useI18n();
+  const gradeButtons = useMemo(() => buildGradeButtons(t), [t]);
   const [phase, setPhase] = useState<Phase>('hub');
   const [queue, setQueue] = useState<Flashcard[]>([]);
   const [index, setIndex] = useState(0);
@@ -59,6 +129,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [stats, setStats] = useState<DeckStats>({
     total: 0,
     due: 0,
+    dueTomorrow: 0,
     new: 0,
     learning: 0,
     learned: 0,
@@ -74,11 +145,25 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [filterReady, setFilterReady] = useState(false);
   const [sources, setSources] = useState<SourceOpt[]>([]);
   const [sourceKey, setSourceKey] = useState<string | null>(null);
+  const [studyMode, setStudyMode] = useState<StudyMode>('recognition');
+  const [queueMode, setQueueMode] = useState<QueueMode>('default');
+  const [deckCards, setDeckCards] = useState<Flashcard[]>([]);
+  const [browseQuery, setBrowseQuery] = useState('');
+  const [weakCount, setWeakCount] = useState(0);
+  const [createFront, setCreateFront] = useState('');
+  const [createBack, setCreateBack] = useState('');
+  const [createReading, setCreateReading] = useState('');
+  const [createContext, setCreateContext] = useState('');
+  const [createKind, setCreateKind] = useState<'word' | 'grammar'>('word');
+  const [createLang, setCreateLang] = useState<LearningLanguage>('zh');
+  const [createBusy, setCreateBusy] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const lang = await getLearningLanguage();
-      setFilter(lang === 'en' ? 'en' : 'zh');
+      const deckLang: DeckFilter = lang === 'en' ? 'en' : lang === 'ru' ? 'ru' : 'zh';
+      setFilter(deckLang);
+      setCreateLang(lang === 'en' || lang === 'ru' || lang === 'zh' ? lang : 'zh');
       setFilterReady(true);
     })();
   }, []);
@@ -103,6 +188,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       : {};
     const counts = await getFlashcardsCount(filter, query);
     setStats(counts);
+    const allForWeak = await getFlashcards(filter, query);
+    const { filterWeakCards } = await import('../services/flashcardsStore');
+    setWeakCount(filterWeakCards(allForWeak).length);
     setLoading(false);
   }, [filter, filterReady, sourceKey]);
 
@@ -110,21 +198,49 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     if (phase === 'hub') void reloadHub();
   }, [phase, reloadHub]);
 
-  const startSession = async () => {
+  const reloadBrowse = useCallback(async () => {
+    if (!filterReady) return;
+    const query = sourceQueryFromKey(sources, sourceKey);
+    const cards = await getFlashcards(filter, query);
+    setDeckCards(cards);
+  }, [filter, filterReady, sourceKey, sources]);
+
+  useEffect(() => {
+    if (phase === 'browse') void reloadBrowse();
+  }, [phase, reloadBrowse]);
+
+  const filteredBrowseCards = useMemo(() => {
+    const q = browseQuery.trim().toLowerCase();
+    if (!q) return deckCards;
+    return deckCards.filter((card) => {
+      const hay = [
+        card.hanzi,
+        card.translation,
+        card.pinyin,
+        card.sourceTitle,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [deckCards, browseQuery]);
+
+  const emptyHintKeyEarly: UiMessageKey =
+    filter === 'en'
+      ? 'flashcards.emptyHint.en'
+      : filter === 'zh'
+        ? 'flashcards.emptyHint.zh'
+        : 'flashcards.emptyHint.other';
+
+  const startSession = async (modeOverride?: QueueMode) => {
     setLoading(true);
-    const selected =
-      sourceKey != null
-        ? sources.find((s) => (s.bookId || s.title) === sourceKey) ?? null
-        : null;
-    const query = selected
-      ? {
-          sourceBookId: selected.bookId ?? null,
-          sourceTitle: selected.bookId ? null : selected.title,
-        }
-      : {};
+    const mode = modeOverride ?? queueMode;
+    const query = sourceQueryFromKey(sources, sourceKey);
     const cards = await getReviewSession({
       language: filter,
       limit: DEFAULT_SESSION_SIZE,
+      mode,
       ...query,
     });
     setQueue(cards);
@@ -135,14 +251,153 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     setLoading(false);
     if (cards.length === 0) {
       setPhase('hub');
+      showAlert(t('flashcards.nothingToReview'), t(emptyHintKeyEarly));
       return;
     }
     setPhase('session');
   };
 
+  const handleExport = async (kind: 'csv' | 'anki') => {
+    const query = sourceQueryFromKey(sources, sourceKey);
+    const cards = await getFlashcards(filter, query);
+    if (kind === 'csv') {
+      await exportFlashcardsCsv(cards);
+    } else {
+      await exportFlashcardsAnki(cards);
+    }
+  };
+
+  const handleShareDeck = async () => {
+    const auth = getAuthState();
+    const loggedIn =
+      auth.status === 'authenticated' &&
+      auth.user != null &&
+      !auth.user.isAnonymous;
+    if (!loggedIn) {
+      showAlert(t('alert.error'), t('flashcards.shareLoginRequired'));
+      return;
+    }
+    try {
+      const query = sourceQueryFromKey(sources, sourceKey);
+      const cards = await getFlashcards(filter, query);
+      const title =
+        sources.find((s) => (s.bookId || s.title) === sourceKey)?.title ||
+        t('flashcards.title.hub');
+      const { url } = await publishPublicDeck({
+        title,
+        language: filter,
+        cards,
+      });
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+      showAlert(t('flashcards.shareCopied'), url);
+    } catch (e) {
+      showAlert(
+        t('alert.error'),
+        e instanceof Error ? e.message : t('flashcards.shareFail')
+      );
+    }
+  };
+
+  const handleDemoDeck = async () => {
+    const lang = filter === 'all' ? 'zh' : filter;
+    const result = await seedDemoDeck(lang);
+    showAlert(
+      t('flashcards.demoDeck'),
+      t('flashcards.demoDeckDone', { n: result.added })
+    );
+    await reloadHub();
+  };
+
+  const resetCreateForm = () => {
+    setCreateFront('');
+    setCreateBack('');
+    setCreateReading('');
+    setCreateContext('');
+    setCreateKind('word');
+  };
+
+  const openCreate = () => {
+    resetCreateForm();
+    if (filter === 'en' || filter === 'zh' || filter === 'ru') {
+      setCreateLang(filter);
+    }
+    setPhase('create');
+  };
+
+  const handleCreateCard = async (stayOpen: boolean) => {
+    const front = createFront.trim();
+    const back = createBack.trim();
+    if (!front) {
+      showAlert(t('alert.error'), t('flashcards.createNeedFront'));
+      return;
+    }
+    if (!back) {
+      showAlert(t('alert.error'), t('flashcards.createNeedBack'));
+      return;
+    }
+    if (createBusy) return;
+    setCreateBusy(true);
+    try {
+      await addFlashcard({
+        hanzi: front,
+        translation: back,
+        pinyin: createReading.trim() || undefined,
+        contextSentence: createContext.trim() || undefined,
+        language: createLang,
+        kind: createKind,
+        sourceTitle: 'Manual',
+      });
+      if (stayOpen) {
+        resetCreateForm();
+        showAlert(t('flashcards.createOk'), t('flashcards.createSaveAnother'));
+      } else {
+        resetCreateForm();
+        setPhase('hub');
+        void reloadHub();
+        showAlert(t('flashcards.createOk'), front);
+      }
+    } catch (e) {
+      showAlert(
+        t('alert.error'),
+        e instanceof Error ? e.message : t('flashcards.createFail')
+      );
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
+  const handleImportAnki = async () => {
+    const result = await pickAndImportAnkiFile();
+    if (!result) return;
+    showAlert(
+      t('flashcards.importAnki'),
+      t('flashcards.importAnkiDone', {
+        added: result.added,
+        skipped: result.skipped,
+      })
+    );
+    await reloadHub();
+  };
+
   const current = queue[index] ?? null;
   const isEnglish = (current?.language ?? 'zh') === 'en';
   const isRussian = (current?.language ?? 'zh') === 'ru';
+
+  const effectiveMode: StudyMode = useMemo(() => {
+    if (!current) return studyMode;
+    if (studyMode === 'cloze' && !clozeFront(current)) return 'recognition';
+    return studyMode;
+  }, [current, studyMode]);
+
+  useEffect(() => {
+    if (phase !== 'session' || effectiveMode !== 'listen' || !current) return;
+    void ttsService.speak(current.hanzi, 0.9, ttsLangForCard(current));
+    return () => {
+      ttsService.stop();
+    };
+  }, [phase, effectiveMode, index, current?.id, current?.hanzi, current?.language]);
 
   const handleGrade = async (grade: FlashcardGrade) => {
     if (!current || grading) return;
@@ -168,6 +423,150 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     }
   };
 
+  // Клавиатура: Space = flip, 1–4 = Again/Hard/Good/Easy
+  useEffect(() => {
+    if (phase !== 'session' || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!revealed) setRevealed(true);
+        return;
+      }
+      if (!revealed || grading) return;
+      const map: Record<string, FlashcardGrade> = {
+        Digit1: 'again',
+        Numpad1: 'again',
+        Digit2: 'hard',
+        Numpad2: 'hard',
+        Digit3: 'good',
+        Numpad3: 'good',
+        Digit4: 'easy',
+        Numpad4: 'easy',
+      };
+      const grade = map[e.code];
+      if (grade) {
+        e.preventDefault();
+        void handleGrade(grade);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, revealed, grading, current?.id]);
+
+  const advanceAfterRemove = (fromIndex: number, nextQueue: Flashcard[]) => {
+    setRevealed(false);
+    if (nextQueue.length === 0) {
+      setQueue([]);
+      setIndex(0);
+      setPhase('done');
+      return;
+    }
+    if (fromIndex >= nextQueue.length) {
+      setQueue(nextQueue);
+      setIndex(0);
+      setPhase('done');
+      return;
+    }
+    setQueue(nextQueue);
+    setIndex(fromIndex);
+  };
+
+  const handleDelete = () => {
+    if (!current || grading) return;
+    const card = current;
+    const at = index;
+    showConfirm(
+      t('flashcards.deleteConfirm'),
+      t('flashcards.deleteConfirmBody', { word: card.hanzi }),
+      () => {
+        void (async () => {
+          setGrading(true);
+          try {
+            await removeFlashcard(card.id || card.hanzi, card.language);
+            const nextQueue = queue.filter((_, i) => i !== at);
+            advanceAfterRemove(at, nextQueue);
+          } finally {
+            setGrading(false);
+          }
+        })();
+      },
+      t('action.delete'),
+      t('action.cancel')
+    );
+  };
+
+  const handleMarkKnown = () => {
+    if (!current || grading) return;
+    const card = current;
+    const at = index;
+    showConfirm(
+      t('word.markKnown'),
+      t('word.knownRemoved'),
+      () => {
+        void (async () => {
+          setGrading(true);
+          try {
+            await markFlashcardKnown(card.id || card.hanzi, card.language);
+            const nextQueue = queue.filter((_, i) => i !== at);
+            advanceAfterRemove(at, nextQueue);
+          } finally {
+            setGrading(false);
+          }
+        })();
+      },
+      t('word.markKnown'),
+      t('action.cancel')
+    );
+  };
+
+  const handleBrowseDelete = (card: Flashcard) => {
+    showConfirm(
+      t('flashcards.deleteConfirm'),
+      t('flashcards.deleteConfirmBody', { word: card.hanzi }),
+      () => {
+        void (async () => {
+          await removeFlashcard(card.id || card.hanzi, card.language);
+          await reloadBrowse();
+        })();
+      },
+      t('action.delete'),
+      t('action.cancel')
+    );
+  };
+
+  const speakCurrent = () => {
+    if (!current) return;
+    void ttsService.speak(current.hanzi, 0.9, ttsLangForCard(current));
+  };
+
+  const titleKey: UiMessageKey =
+    phase === 'browse'
+      ? 'flashcards.browseTitle'
+      : phase === 'create'
+        ? 'flashcards.createTitle'
+        : phase === 'session'
+          ? 'flashcards.title.session'
+          : phase === 'done'
+            ? 'flashcards.title.done'
+            : 'flashcards.title.hub';
+
+  const emptyHintKey: UiMessageKey =
+    filter === 'en'
+      ? 'flashcards.emptyHint.en'
+      : filter === 'zh'
+        ? 'flashcards.emptyHint.zh'
+        : 'flashcards.emptyHint.other';
+
+  const studyModes: Array<{ id: StudyMode; labelKey: UiMessageKey }> = [
+    { id: 'recognition', labelKey: 'flashcards.mode.recognition' },
+    { id: 'recall', labelKey: 'flashcards.mode.recall' },
+    { id: 'cloze', labelKey: 'flashcards.mode.cloze' },
+    { id: 'listen', labelKey: 'flashcards.mode.listen' },
+  ];
+
   if (loading || !filterReady) {
     return (
       <SafeAreaView
@@ -183,6 +582,20 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     );
   }
 
+  const frontPrimary = (() => {
+    if (!current) return '';
+    if (effectiveMode === 'recall') {
+      return current.translation || t('flashcards.noTranslation');
+    }
+    if (effectiveMode === 'cloze') {
+      return clozeFront(current);
+    }
+    if (effectiveMode === 'listen') {
+      return '🔊 …';
+    }
+    return current.hanzi;
+  })();
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.bg }]}
@@ -194,12 +607,12 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
           <View style={styles.headerTop}>
             <Pressable
               onPress={() => {
-                if (phase === 'session') {
-                  setPhase('hub');
-                  void reloadHub();
-                  return;
-                }
-                if (phase === 'done') {
+                if (
+                  phase === 'session' ||
+                  phase === 'done' ||
+                  phase === 'browse' ||
+                  phase === 'create'
+                ) {
                   setPhase('hub');
                   void reloadHub();
                   return;
@@ -211,22 +624,16 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               <Text style={[styles.backButtonText, { color: theme.accent }]}>
                 ←{' '}
                 {phase === 'hub'
-                  ? 'Назад'
-                  : phase === 'session'
-                    ? 'К колоде'
-                    : 'К колоде'}
+                  ? t('flashcards.back')
+                  : t('flashcards.backToDeck')}
               </Text>
             </Pressable>
           </View>
           <Text style={[styles.brand, { color: theme.accentPink }]}>
-            🌸 SRS · интервалы
+            {t('flashcards.brand')}
           </Text>
           <Text style={[styles.title, { color: theme.text }]}>
-            {phase === 'session'
-              ? 'Сессия'
-              : phase === 'done'
-                ? 'Готово'
-                : 'Карточки'}
+            {t(titleKey)}
           </Text>
         </View>
 
@@ -236,24 +643,27 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             showsVerticalScrollIndicator={false}
           >
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-              К повторению: {stats.due} · Всего: {stats.total}
+              {t('flashcards.dueTotal', {
+                due: stats.due,
+                total: stats.total,
+              })}
             </Text>
 
             <View style={styles.statRow}>
               <StatChip
-                label="Новые"
+                label={t('flashcards.stat.new')}
                 value={stats.new}
                 color={theme.accentPink}
                 theme={theme}
               />
               <StatChip
-                label="На грани"
+                label={t('flashcards.stat.learning')}
                 value={stats.learning}
                 color={theme.accent}
                 theme={theme}
               />
               <StatChip
-                label="Выученные"
+                label={t('flashcards.stat.learned')}
                 value={stats.learned}
                 color={theme.success}
                 theme={theme}
@@ -261,7 +671,92 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             </View>
 
             <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-              Язык
+              {t('flashcards.modeLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {studyModes.map((opt) => {
+                const active = studyMode === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setStudyMode(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(100,200,180,0.18)'
+                            : 'rgba(16,185,129,0.12)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accent : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+              {t('flashcards.queueLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(
+                [
+                  { id: 'default' as const, labelKey: 'flashcards.queue.default' as UiMessageKey },
+                  {
+                    id: 'weak' as const,
+                    labelKey: 'flashcards.queue.weak' as UiMessageKey,
+                  },
+                  {
+                    id: 'mixed' as const,
+                    labelKey: 'flashcards.queue.mixed' as UiMessageKey,
+                  },
+                ] as const
+              ).map((opt) => {
+                const active = queueMode === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setQueueMode(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accentPink : theme.border,
+                        backgroundColor: active
+                          ? 'rgba(255,101,132,0.15)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accentPink : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.labelKey)}
+                      {opt.id === 'weak' && weakCount > 0 ? ` · ${weakCount}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+              {t('flashcards.langLabel')}
             </Text>
             <View style={styles.filterRow}>
               {(
@@ -269,7 +764,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   { id: 'zh' as const, label: '中文' },
                   { id: 'ru' as const, label: 'RU' },
                   { id: 'en' as const, label: 'EN' },
-                  { id: 'all' as const, label: 'Все' },
+                  { id: 'all' as const, label: t('flashcards.langAll') },
                 ] as const
               ).map((opt) => {
                 const active = filter === opt.id;
@@ -310,7 +805,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             {sources.length > 0 ? (
               <>
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-                  Книга / фанфик
+                  {t('flashcards.sourceLabel')}
                 </Text>
                 <View style={styles.filterRow}>
                   <Pressable
@@ -340,7 +835,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                         },
                       ]}
                     >
-                      Все книги
+                      {t('flashcards.allBooks')}
                     </Text>
                   </Pressable>
                   {sources.map((s) => {
@@ -385,6 +880,123 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               </>
             ) : null}
 
+            <View style={styles.hubActions}>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.accentPink },
+                ]}
+                onPress={openCreate}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.accentPink },
+                  ]}
+                >
+                  {t('flashcards.create')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.accent },
+                ]}
+                onPress={() => {
+                  setBrowseQuery('');
+                  setPhase('browse');
+                }}
+              >
+                <Text
+                  style={[styles.secondaryButtonText, { color: theme.accent }]}
+                >
+                  {t('flashcards.browse')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleExport('csv')}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.exportCsv')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleExport('anki')}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.exportAnki')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.accentPink },
+                ]}
+                onPress={() => void handleShareDeck()}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.accentPink },
+                  ]}
+                >
+                  {t('flashcards.shareDeck')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleImportAnki()}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.importAnki')}
+                </Text>
+              </Pressable>
+              {stats.total === 0 ? (
+                <Pressable
+                  style={[
+                    styles.secondaryButton,
+                    { borderColor: theme.accent },
+                  ]}
+                  onPress={() => void handleDemoDeck()}
+                >
+                  <Text
+                    style={[
+                      styles.secondaryButtonText,
+                      { color: theme.accent },
+                    ]}
+                  >
+                    {t('flashcards.demoDeck')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+
             <Pressable
               style={[
                 styles.sessionButton,
@@ -399,25 +1011,349 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             >
               <Text style={styles.sessionButtonText}>
                 {stats.due > 0
-                  ? `Начать сессию · ${Math.min(DEFAULT_SESSION_SIZE, stats.due)} карточек`
-                  : 'Нечего повторять'}
+                  ? t('flashcards.startSession', {
+                      n: Math.min(DEFAULT_SESSION_SIZE, stats.due),
+                    })
+                  : t('flashcards.nothingToReview')}
               </Text>
             </Pressable>
 
             {stats.due <= 0 ? (
               <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
-                {filter === 'en'
-                  ? 'Добавьте английские слова из ридера (клик → «В карточки»).'
-                  : filter === 'zh'
-                    ? 'Добавьте слова из ридера — колода пока пуста.'
-                    : 'Добавьте слова из ридера или смените фильтр.'}
+                {t(emptyHintKey)}
               </Text>
             ) : (
               <Text style={[styles.emptyHint, { color: theme.textDim }]}>
-                Сначала карточки «на грани», затем новые. После ответа
-                интервал обновляется (SM-2).
+                {t('flashcards.sessionHint')}
               </Text>
             )}
+          </ScrollView>
+        ) : null}
+
+        {phase === 'browse' ? (
+          <View style={styles.browseWrap}>
+            <TextInput
+              value={browseQuery}
+              onChangeText={setBrowseQuery}
+              placeholder={t('flashcards.searchPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                {
+                  borderColor: theme.accentPink,
+                  alignSelf: 'flex-start',
+                  marginBottom: 12,
+                },
+              ]}
+              onPress={openCreate}
+            >
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  { color: theme.accentPink },
+                ]}
+              >
+                {t('flashcards.create')}
+              </Text>
+            </Pressable>
+            {filteredBrowseCards.length === 0 ? (
+              <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
+                {t('flashcards.emptyBrowse')}
+              </Text>
+            ) : (
+              <ScrollView
+                contentContainerStyle={styles.browseList}
+                showsVerticalScrollIndicator={false}
+              >
+                {filteredBrowseCards.map((card) => (
+                  <View
+                    key={card.id || `${card.language}:${card.hanzi}`}
+                    style={[
+                      styles.browseRow,
+                      {
+                        borderColor: theme.border,
+                        backgroundColor:
+                          theme.mode === 'midnight'
+                            ? 'rgba(255,255,255,0.04)'
+                            : 'rgba(0,0,0,0.03)',
+                      },
+                    ]}
+                  >
+                    <View style={styles.browseRowText}>
+                      <Text
+                        style={[styles.browseHanzi, { color: theme.text }]}
+                        numberOfLines={1}
+                      >
+                        {card.hanzi}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.browseTranslation,
+                          { color: theme.textMuted },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {card.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleBrowseDelete(card)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('flashcards.delete')}
+                    >
+                      <Text
+                        style={[
+                          styles.deleteLinkText,
+                          { color: theme.danger },
+                        ]}
+                      >
+                        {t('flashcards.delete')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        ) : null}
+
+        {phase === 'create' ? (
+          <ScrollView
+            contentContainerStyle={styles.hubScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.langLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(['zh', 'en', 'ru'] as LearningLanguage[]).map((lang) => {
+                const active = createLang === lang;
+                const label =
+                  lang === 'zh'
+                    ? '中文'
+                    : lang === 'en'
+                      ? 'EN'
+                      : 'RU';
+                return (
+                  <Pressable
+                    key={lang}
+                    onPress={() => setCreateLang(lang)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accentPink : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(255,122,217,0.18)'
+                            : 'rgba(236,72,153,0.12)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accentPink : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createKindWord')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(
+                [
+                  { id: 'word' as const, key: 'flashcards.createKindWord' },
+                  {
+                    id: 'grammar' as const,
+                    key: 'flashcards.createKindGrammar',
+                  },
+                ] as const
+              ).map((opt) => {
+                const active = createKind === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setCreateKind(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(99,102,241,0.18)'
+                            : 'rgba(99,102,241,0.1)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accent : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.key)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createFront')}
+            </Text>
+            <TextInput
+              value={createFront}
+              onChangeText={setCreateFront}
+              placeholder={t('flashcards.createFrontPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              autoCapitalize="none"
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createBack')}
+            </Text>
+            <TextInput
+              value={createBack}
+              onChangeText={setCreateBack}
+              placeholder={t('flashcards.createBackPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            {createLang === 'zh' || createLang === 'ru' ? (
+              <>
+                <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+                  {t('flashcards.createReading')}
+                </Text>
+                <TextInput
+                  value={createReading}
+                  onChangeText={setCreateReading}
+                  placeholder={t('flashcards.createReadingPlaceholder')}
+                  placeholderTextColor={theme.textDim}
+                  autoCapitalize="none"
+                  style={[
+                    styles.searchInput,
+                    {
+                      color: theme.text,
+                      borderColor: theme.border,
+                      backgroundColor:
+                        theme.mode === 'midnight'
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(0,0,0,0.03)',
+                    },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createContext')}
+            </Text>
+            <TextInput
+              value={createContext}
+              onChangeText={setCreateContext}
+              placeholder={t('flashcards.createContextPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              multiline
+              style={[
+                styles.searchInput,
+                styles.createMultiline,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            <Pressable
+              style={[
+                styles.sessionButton,
+                {
+                  backgroundColor: theme.accent,
+                  opacity: createBusy ? 0.6 : 1,
+                  marginTop: 8,
+                },
+              ]}
+              disabled={createBusy}
+              onPress={() => void handleCreateCard(false)}
+            >
+              <Text style={styles.sessionButtonText}>
+                {t('flashcards.createSave')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                {
+                  borderColor: theme.border,
+                  alignSelf: 'center',
+                  marginTop: 10,
+                },
+              ]}
+              disabled={createBusy}
+              onPress={() => void handleCreateCard(true)}
+            >
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  { color: theme.textMuted },
+                ]}
+              >
+                {t('flashcards.createSaveAnother')}
+              </Text>
+            </Pressable>
           </ScrollView>
         ) : null}
 
@@ -425,13 +1361,16 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyEmoji}>✨</Text>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>
-              Сессия завершена
+              {t('flashcards.sessionDone')}
             </Text>
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              Повторено: {sessionDone}
-              {'\n'}
-              Снова {gradeCounts.again} · Трудно {gradeCounts.hard} · Хорошо{' '}
-              {gradeCounts.good} · Легко {gradeCounts.easy}
+              {t('flashcards.reviewedSummary', {
+                done: sessionDone,
+                again: gradeCounts.again,
+                hard: gradeCounts.hard,
+                good: gradeCounts.good,
+                easy: gradeCounts.easy,
+              })}
             </Text>
             <Pressable
               style={[styles.sessionButton, { backgroundColor: theme.accent }]}
@@ -440,7 +1379,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 void reloadHub();
               }}
             >
-              <Text style={styles.sessionButtonText}>К колоде</Text>
+              <Text style={styles.sessionButtonText}>
+                {t('flashcards.backToDeck')}
+              </Text>
             </Pressable>
             <Pressable
               style={[
@@ -450,7 +1391,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               onPress={() => void startSession()}
             >
               <Text style={[styles.refreshButtonText, { color: theme.accent }]}>
-                Ещё сессия
+                {t('flashcards.anotherSession')}
               </Text>
             </Pressable>
           </View>
@@ -459,9 +1400,62 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
         {phase === 'session' && current ? (
           <View style={styles.cardArea}>
             <Text style={[styles.progress, { color: theme.textDim }]}>
-              {index + 1} / {queue.length}
-              {sessionDone > 0 ? ` · ответов ${sessionDone}` : ''}
+              {t('flashcards.progress', {
+                i: index + 1,
+                total: queue.length,
+              })}
+              {sessionDone > 0
+                ? t('flashcards.progressWithAnswers', { n: sessionDone })
+                : ''}
             </Text>
+            <Text style={[styles.keyboardHint, { color: theme.textDim }]}>
+              {t('flashcards.keyboardHint')}
+            </Text>
+
+            <View style={styles.cardActions}>
+              <Pressable
+                onPress={handleMarkKnown}
+                disabled={grading}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('word.markKnown')}
+                style={styles.deleteLink}
+              >
+                <Text
+                  style={[styles.deleteLinkText, { color: theme.accent }]}
+                >
+                  {t('word.markKnown')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                disabled={grading}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('flashcards.delete')}
+                style={styles.deleteLink}
+              >
+                <Text style={[styles.deleteLinkText, { color: theme.danger }]}>
+                  {t('flashcards.delete')}
+                </Text>
+              </Pressable>
+              {effectiveMode === 'listen' ? (
+                <Pressable
+                  onPress={speakCurrent}
+                  disabled={grading}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('flashcards.speakCard')}
+                  style={styles.deleteLink}
+                >
+                  <Text
+                    style={[styles.deleteLinkText, { color: theme.accentPink }]}
+                  >
+                    {t('flashcards.speakCard')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             <Pressable
               onPress={() => setRevealed(true)}
@@ -544,14 +1538,18 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
 
               <Text
                 style={[
-                  isEnglish ? styles.surfaceEn : styles.hanzi,
+                  effectiveMode === 'recall' || effectiveMode === 'cloze'
+                    ? styles.surfaceEn
+                    : isEnglish
+                      ? styles.surfaceEn
+                      : styles.hanzi,
                   { color: theme.text },
                 ]}
               >
-                {current.hanzi}
+                {frontPrimary}
               </Text>
 
-              {current.contextSentence ? (
+              {effectiveMode === 'recognition' && current.contextSentence ? (
                 <View
                   style={[
                     styles.contextBox,
@@ -562,43 +1560,122 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   ]}
                 >
                   <Text style={[styles.contextLabel, { color: theme.accent }]}>
-                    📖 из фанфика
+                    📖 {t('flashcards.fromFanfic')}
                     {current.sourceTitle ? ` · ${current.sourceTitle}` : ''}
                   </Text>
                   <Text style={[styles.contextQuote, { color: theme.text }]}>
                     「{current.contextSentence}」
                   </Text>
                 </View>
-              ) : (
+              ) : effectiveMode === 'recognition' ? (
                 <Text style={[styles.noContext, { color: theme.textDim }]}>
-                  Цитата появится у новых карточек из ридера
+                  {t('flashcards.noContextYet')}
                 </Text>
-              )}
+              ) : null}
 
               {revealed ? (
                 <View style={styles.answerBlock}>
-                  {!isEnglish && current.pinyin ? (
-                    <Text
-                      style={[
-                        styles.pinyin,
-                        {
-                          color:
-                            isRussian || theme.mode === 'midnight'
-                              ? '#FF6584'
-                              : theme.accentPink,
-                        },
-                      ]}
-                    >
-                      {current.pinyin}
-                    </Text>
+                  {effectiveMode === 'recognition' ? (
+                    <>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
                   ) : null}
-                  <Text style={[styles.translation, { color: theme.text }]}>
-                    {current.translation || 'Перевод не указан'}
-                  </Text>
+
+                  {effectiveMode === 'recall' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {effectiveMode === 'cloze' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
+                  ) : null}
+
+                  {effectiveMode === 'listen' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
+                  ) : null}
                 </View>
               ) : (
                 <Text style={[styles.hiddenHint, { color: theme.textDim }]}>
-                  Нажмите, чтобы увидеть ответ
+                  {t('flashcards.tapToReveal')}
                 </Text>
               )}
             </Pressable>
@@ -608,11 +1685,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 style={[styles.revealButton, { backgroundColor: theme.accent }]}
                 onPress={() => setRevealed(true)}
               >
-                <Text style={styles.revealButtonText}>Показать ответ</Text>
+                <Text style={styles.revealButtonText}>
+                  {t('flashcards.showAnswer')}
+                </Text>
               </Pressable>
             ) : (
               <View style={styles.gradeRow}>
-                {GRADE_BUTTONS.map((btn) => {
+                {gradeButtons.map((btn) => {
                   const isAgain = btn.id === 'again';
                   const isHard = btn.id === 'hard';
                   const isEasy = btn.id === 'easy';
@@ -757,6 +1836,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
+  hubActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 20,
+  },
+  secondaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   statChip: {
     flex: 1,
@@ -780,6 +1875,43 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
+  browseWrap: {
+    flex: 1,
+    paddingHorizontal: 20,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  searchInput: {
+    marginTop: 8,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  createMultiline: {
+    minHeight: 88,
+    textAlignVertical: 'top',
+  },
+  browseList: {
+    paddingBottom: 100,
+    gap: 10,
+  },
+  browseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  browseRowText: { flex: 1, minWidth: 0 },
+  browseHanzi: { fontSize: 18, fontWeight: '800' },
+  browseTranslation: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -813,8 +1945,32 @@ const styles = StyleSheet.create({
   progress: {
     textAlign: 'center',
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 4,
     fontWeight: '600',
+  },
+  keyboardHint: {
+    textAlign: 'center',
+    fontSize: 11,
+    marginBottom: 8,
+    fontWeight: '600',
+    opacity: 0.85,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  deleteLink: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  deleteLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   card: {
     borderRadius: 8,

@@ -7,6 +7,10 @@ export type TourStepId =
   | 'welcome'
   | 'library'
   | 'click-word'
+  | 'cards'
+  | 'goals'
+  | 'notebook'
+  | 'install'
   | 'add-book'
   | 'language';
 
@@ -54,6 +58,30 @@ export function OnboardingTour({
         emoji: '👆',
         title: t('tour.clickWordTitle'),
         body: t('tour.clickWordBody'),
+      },
+      {
+        id: 'cards',
+        emoji: '🃏',
+        title: t('tour.cardsTitle'),
+        body: t('tour.cardsBody'),
+      },
+      {
+        id: 'goals',
+        emoji: '🎯',
+        title: t('tour.goalsTitle'),
+        body: t('tour.goalsBody'),
+      },
+      {
+        id: 'notebook',
+        emoji: '📝',
+        title: t('tour.notebookTitle'),
+        body: t('tour.notebookBody'),
+      },
+      {
+        id: 'install',
+        emoji: '📱',
+        title: t('tour.installTitle'),
+        body: t('tour.installBody'),
       },
       {
         id: 'add-book',

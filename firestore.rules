@@ -34,6 +34,18 @@ service cloud.firestore {
         && request.resource.data.userId == resource.data.userId;
     }
 
+    /** Родительская публичная подборка доступна для чтения */
+    function publicCollectionReadable(slug) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/publicCollections/$(slug)).data.isPublic == true;
+    }
+
+    function publicCollectionOwned(slug) {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/publicCollections/$(slug)).data.userId
+             == request.auth.uid;
+    }
+
     /**
      * Приватные данные: users/{uid}/…
      * Профиль — только владелец пути.
@@ -79,8 +91,20 @@ service cloud.firestore {
         allow delete: if isDocOwner();
       }
 
-      // flashcards, meta/sync, tracks, …
-      match /{document=**} {
+      // Явные подколлекции вместо catch-all (иначе OR обходит isDocOwner)
+      match /flashcards/{cardId} {
+        allow read, write: if isPathOwner(userId);
+      }
+
+      match /tracks/{trackId} {
+        allow read, write: if isPathOwner(userId);
+      }
+
+      match /meta/{metaId} {
+        allow read, write: if isPathOwner(userId);
+      }
+
+      match /sync/{syncId} {
         allow read, write: if isPathOwner(userId);
       }
     }
@@ -116,11 +140,71 @@ service cloud.firestore {
       allow delete: if isDocOwner();
 
       match /books/{bookId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isSignedIn()
-          && get(/databases/$(database)/documents/publicCollections/$(slug))
-               .data.userId == request.auth.uid;
+        allow read: if publicCollectionReadable(slug)
+          || publicCollectionOwned(slug);
+        allow create, update, delete: if publicCollectionOwned(slug);
       }
+    }
+
+    /**
+     * Публичные колоды карточек: publicDecks/{slug}
+     * read: авторизованные + isPublic (или свой документ)
+     * write: только владелец (create/update одинаково строгие по uid)
+     */
+    match /publicDecks/{slug} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.isPublic == true
+          || resource.data.userId == request.auth.uid
+        );
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
+
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
+
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    /**
+     * Публичные профили прогресса: publicProfiles/{slug}
+     * Без приватных книг — только стрик / слова / неделя.
+     */
+    match /publicProfiles/{slug} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.isPublic == true
+          || resource.data.userId == request.auth.uid
+        );
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
+
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
+
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
     }
   }
 }

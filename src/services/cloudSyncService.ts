@@ -13,13 +13,18 @@ import type {
   Flashcard as DomainFlashcard,
 } from '../types/domain';
 import { Book, Collection, CollectionWord, Flashcard, Word } from '../types';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, resetInflatedReadingStatsIfNeeded } from '../store/useAppStore';
 import type { StickyNote } from '../types/stickyNote';
-import { mergeActivityByDay, pruneActivityByDay } from './activityAnalytics';
+import { mergeActivityByDay, mergeActivityByDayWithEpoch, pruneActivityByDay } from './activityAnalytics';
 import { getCloudUid, isCloudUser, resolveFirestoreUid, type AuthUser } from './authService';
 import { GUEST_OWNER_ID, getDataOwnerId } from './dataOwner';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import { isNetworkOnline } from './networkStatusService';
+import {
+  clearOfflinePending,
+  markOfflinePending,
+} from './offlineSyncQueue';
+import { bookContentRichness } from './offlineLibraryService';
 import type { ReadingProgress } from './readingProgressStore';
 import type { UserTrack } from './userTracksStore';
 
@@ -98,6 +103,8 @@ export interface SyncSnapshot {
       string,
       { wordsRead: number; cardsReviewed: number; minutes: number; updatedAt: string }
     >;
+    /** Поколение сброса reading-счётчиков (words/minutes). */
+    activityEpoch?: number;
   };
   tombstones: SyncTombstone[];
   updatedAt: string;
@@ -371,7 +378,13 @@ function flashcardPayloadForCloud(card: Flashcard): Record<string, unknown> {
     pinyin: card.pinyin ?? '',
     translation: card.translation ?? '',
     hskLevel: card.hskLevel ?? null,
-    language: card.language === 'en' ? 'en' : 'zh',
+    language:
+      card.language === 'en' || card.language === 'ru' ? card.language : 'zh',
+    kind: card.kind === 'grammar' ? 'grammar' : 'word',
+    suspended: Boolean(card.suspended),
+    againCount: Math.max(0, Math.floor(Number(card.againCount) || 0)),
+    lastGrade: card.lastGrade ?? null,
+    lastReviewedAt: card.lastReviewedAt ?? null,
     contextSentence: card.contextSentence ?? null,
     sourceTitle: card.sourceTitle ?? null,
     sourceBookId: card.sourceBookId ?? null,
@@ -458,6 +471,59 @@ function bookTimestamp(item: {
     toMs(item.updatedAt),
     toMs(item.createdAt)
   );
+}
+
+/**
+ * Cloud meta часто новее по updatedAt, но paragraphs slim (words: []).
+ * Для офлайн-ридера оставляем более «богатый» локальный текст.
+ */
+function mergeBookPair(local?: Book, remote?: Book): Book | undefined {
+  if (!local) return remote;
+  if (!remote) return local;
+  const newer =
+    bookTimestamp(local) >= bookTimestamp(remote) ? local : remote;
+  const older = newer === local ? remote : local;
+  const newerRich = bookContentRichness(newer);
+  const olderRich = bookContentRichness(older);
+  if (olderRich > newerRich + 50) {
+    return {
+      ...newer,
+      paragraphs: older.paragraphs,
+      sourceText: older.sourceText?.trim()
+        ? older.sourceText
+        : newer.sourceText,
+    };
+  }
+  return newer;
+}
+
+function mergeBooksMaps(
+  local: Record<string, Book>,
+  remote: Record<string, Book>,
+  tombstones: SyncTombstone[]
+): Record<string, Book> {
+  const result: Record<string, Book> = {};
+  const ids = new Set([...Object.keys(local), ...Object.keys(remote)]);
+
+  for (const id of ids) {
+    const tomb = tombstones
+      .filter((t) => t.entity === 'book' && t.id === id)
+      .sort(
+        (a, b) =>
+          new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()
+      )[0];
+
+    const winner = mergeBookPair(local[id], remote[id]);
+    if (!winner) continue;
+
+    if (tomb && new Date(tomb.deletedAt).getTime() > bookTimestamp(winner)) {
+      continue;
+    }
+
+    result[id] = winner;
+  }
+
+  return result;
 }
 
 /** SRS: nextReviewDate / updatedAt — побеждает более свежий прогресс. */
@@ -662,13 +728,15 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
             : localStreak;
   }
 
-  const activityByDay = mergeActivityByDay(
+  const activityMerged = mergeActivityByDayWithEpoch(
     local.prefs?.activityByDay,
-    remote.prefs?.activityByDay
+    local.prefs?.activityEpoch ?? 0,
+    remote.prefs?.activityByDay,
+    remote.prefs?.activityEpoch ?? 0
   );
 
   return {
-    books: mergeRecords(local.books, remote.books, tombstones, 'book', bookTimestamp),
+    books: mergeBooksMaps(local.books, remote.books, tombstones),
     collections: mergeRecords(
       local.collections,
       remote.collections,
@@ -725,7 +793,8 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
       nativeLanguage:
         local.prefs?.nativeLanguage ?? remote.prefs?.nativeLanguage ?? 'ru',
       streak,
-      activityByDay,
+      activityByDay: activityMerged.activityByDay,
+      activityEpoch: activityMerged.activityEpoch,
     },
     tombstones,
     updatedAt: new Date().toISOString(),
@@ -782,6 +851,7 @@ export async function loadLocalSnapshot(): Promise<SyncSnapshot> {
   const activityByDay = pruneActivityByDay(
     useAppStore.getState().activityByDay ?? {}
   );
+  const activityEpoch = useAppStore.getState().activityEpoch ?? 0;
 
   return {
     books: ownedBooks,
@@ -793,7 +863,13 @@ export async function loadLocalSnapshot(): Promise<SyncSnapshot> {
     userTracks: ownedTracks,
     stickyNotes: readStickyNotesFromZustand(),
     domain: readDomainFromZustand(),
-    prefs: { learningLanguage, nativeLanguage, streak, activityByDay },
+    prefs: {
+      learningLanguage,
+      nativeLanguage,
+      streak,
+      activityByDay,
+      activityEpoch,
+    },
     tombstones,
     updatedAt: new Date().toISOString(),
   };
@@ -848,15 +924,32 @@ export async function applyLocalSnapshot(snapshot: SyncSnapshot): Promise<void> 
   if (snapshot.prefs?.streak) {
     const { setStreakFromCloud } = await import('./streakStore');
     await setStreakFromCloud(snapshot.prefs.streak);
-  } else {
-    useAppStore.getState().setActivityFromCloud({
-      streak: { current: 0, lastActiveDate: null, updatedAt: new Date().toISOString() },
-    });
   }
-  // После clear / replaceLocal — подставляем облачную карту как есть
-  useAppStore.setState({
-    activityByDay: pruneActivityByDay(snapshot.prefs?.activityByDay ?? {}),
-  });
+  // Нет prefs.streak — не обнуляем локальный стрик (гость / старый meta).
+  // Activity: epoch-aware merge, чтобы сброс words/minutes не затёрся pull-replace.
+  if (snapshot.prefs?.activityByDay || typeof snapshot.prefs?.activityEpoch === 'number') {
+    const current = useAppStore.getState();
+    const merged = mergeActivityByDayWithEpoch(
+      current.activityByDay,
+      current.activityEpoch ?? 0,
+      snapshot.prefs.activityByDay,
+      snapshot.prefs.activityEpoch ?? 0
+    );
+    useAppStore.setState({
+      activityByDay: merged.activityByDay,
+      activityEpoch: merged.activityEpoch,
+    });
+  } else if (snapshot.prefs) {
+    // prefs есть, но activity пустая — явная замена (pull-replace без истории)
+    const current = useAppStore.getState();
+    const localEpoch = current.activityEpoch ?? 0;
+    if (localEpoch <= 0) {
+      useAppStore.setState({ activityByDay: {}, activityEpoch: 0 });
+    }
+  }
+  // После pull-replace/merge облако может вернуть раздутые слова — сброс здесь,
+  // иначе миграция на гидрации уже отработала на пустом state до логина.
+  resetInflatedReadingStatsIfNeeded();
   if (snapshot.prefs?.learningLanguage === 'zh' ||
       snapshot.prefs?.learningLanguage === 'en' ||
       snapshot.prefs?.learningLanguage === 'ru' ||
@@ -876,11 +969,13 @@ export async function applyLocalSnapshot(snapshot: SyncSnapshot): Promise<void> 
         ? snapshot.prefs.nativeLanguage
         : undefined;
     const { syncLanguagePairFromStore } = await import('./onboardingService');
-    const { useAppStore } = await import('../store/useAppStore');
-    const state = useAppStore.getState();
+    const { useAppStore: store } = await import('../store/useAppStore');
+    const state = store.getState();
+    // Snapshot уже должен содержать live-языки (overlayLiveLanguagePrefs на merge/push).
+    // Здесь не перечитываем prefs заново — на pull-replace нужен именно облачный снимок.
     const nextLearning = learning ?? state.learningLanguage;
     const nextNative = native ?? state.nativeLanguage;
-    useAppStore.setState({
+    store.setState({
       learningLanguage: nextLearning,
       nativeLanguage: nextNative,
     });
@@ -1345,6 +1440,7 @@ function markSynced(uid: string, now: string) {
     userId: uid,
     error: undefined,
   });
+  void clearOfflinePending();
 }
 
 /**
@@ -1522,6 +1618,8 @@ const SYNC_TIMEOUT_MS = 60_000;
 
 /** Один активный sync — параллельные merge/push схлопываются в один промис. */
 let syncInFlight: Promise<SyncState> | null = null;
+/** Пока шёл sync, пришёл ещё один запрос (смена языка и т.п.) — перезапустить после. */
+let syncRerunRequested = false;
 
 function preemptSyncForBootstrap(): void {
   const g = globalThis as unknown as {
@@ -1533,6 +1631,7 @@ function preemptSyncForBootstrap(): void {
   }
   syncEpoch += 1;
   syncInFlight = null;
+  syncRerunRequested = false;
   if (currentState.status === 'syncing') {
     setState({
       status: 'idle',
@@ -1543,11 +1642,63 @@ function preemptSyncForBootstrap(): void {
   }
 }
 
+/**
+ * Снимок мог быть собран до LanguageSwitcher / trackActivity: подставляем
+ * живые языки и стрик из Zustand, чтобы apply/write не откатывали UI.
+ */
+function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
+  const {
+    learningLanguage,
+    nativeLanguage,
+    streakCurrent,
+    streakLastActiveDate,
+    streakUpdatedAt,
+    activityByDay,
+    activityEpoch,
+  } = useAppStore.getState();
+  const liveStreak = {
+    current: streakCurrent,
+    lastActiveDate: streakLastActiveDate,
+    updatedAt: streakUpdatedAt,
+  };
+  const snapStreak = snapshot.prefs?.streak;
+  // Не затираем больший remote/local current живым меньшим значением
+  let streak = liveStreak;
+  if (snapStreak) {
+    if (snapStreak.current > liveStreak.current) {
+      streak = snapStreak;
+    } else if (
+      snapStreak.current === liveStreak.current &&
+      toMs(snapStreak.updatedAt) > toMs(liveStreak.updatedAt)
+    ) {
+      streak = snapStreak;
+    }
+  }
+  const activityMerged = mergeActivityByDayWithEpoch(
+    activityByDay,
+    activityEpoch ?? 0,
+    snapshot.prefs?.activityByDay,
+    snapshot.prefs?.activityEpoch ?? 0
+  );
+  return {
+    ...snapshot,
+    prefs: {
+      ...snapshot.prefs,
+      learningLanguage,
+      nativeLanguage,
+      streak,
+      activityByDay: activityMerged.activityByDay,
+      activityEpoch: activityMerged.activityEpoch,
+    },
+  };
+}
+
 async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
   // Вход в аккаунт: отменяем фоновый merge и делаем чистый pull
   if (mode === 'pull-replace') {
     preemptSyncForBootstrap();
   } else if (syncInFlight) {
+    syncRerunRequested = true;
     return syncInFlight;
   }
 
@@ -1658,10 +1809,18 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
               } catch (err) {
                 console.warn('[cloudSync] hasCompletedOnboarding:', err);
               }
+              // pull-replace не пишет обратно — иначе раздутый activity остаётся в Firestore
+              if (!isSyncEpochCurrent(epoch)) return;
+              await writeRemoteSnapshot(
+                uid,
+                overlayLiveLanguagePrefs(await loadLocalSnapshot())
+              );
             } else {
               const local = await loadLocalSnapshot();
               if (!isSyncEpochCurrent(epoch)) return;
-              const merged = mergeSnapshots(local, remote);
+              const merged = overlayLiveLanguagePrefs(
+                mergeSnapshots(local, remote)
+              );
               await applyLocalSnapshot(merged);
               try {
                 await syncHasCompletedOnboardingFromCloud(uid);
@@ -1669,10 +1828,14 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
                 console.warn('[cloudSync] hasCompletedOnboarding:', err);
               }
               if (!isSyncEpochCurrent(epoch)) return;
-              await writeRemoteSnapshot(uid, merged);
+              // Пишем актуальное локальное (после apply + возможного сброса слов)
+              await writeRemoteSnapshot(
+                uid,
+                overlayLiveLanguagePrefs(await loadLocalSnapshot())
+              );
             }
           } else if (mode === 'push') {
-            const local = await loadLocalSnapshot();
+            const local = overlayLiveLanguagePrefs(await loadLocalSnapshot());
             if (!isSyncEpochCurrent(epoch)) return;
             console.log(
               '[cloudSync] push users/' + uid + ':',
@@ -1687,10 +1850,15 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
             if (!isSyncEpochCurrent(epoch)) return;
             const remote = await readRemoteSnapshot(uid);
             if (!isSyncEpochCurrent(epoch)) return;
-            const merged = mergeSnapshots(local, remote);
+            const merged = overlayLiveLanguagePrefs(
+              mergeSnapshots(local, remote)
+            );
             await applyLocalSnapshot(merged);
             if (!isSyncEpochCurrent(epoch)) return;
-            await writeRemoteSnapshot(uid, merged);
+            await writeRemoteSnapshot(
+              uid,
+              overlayLiveLanguagePrefs(await loadLocalSnapshot())
+            );
           }
 
           if (!isSyncEpochCurrent(epoch)) return;
@@ -1749,6 +1917,11 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
     return currentState;
   })().finally(() => {
     if (syncInFlight === run) syncInFlight = null;
+    if (syncRerunRequested) {
+      syncRerunRequested = false;
+      // Догнать изменения, пришедшие во время in-flight (в т.ч. setNativeLanguage)
+      void syncData();
+    }
   });
 
   syncInFlight = run;
@@ -1795,7 +1968,10 @@ export async function initCloudSync(options?: { autoSync?: boolean }): Promise<v
 export function scheduleSyncDebounced(): void {
   if (!isFirebaseConfigured()) return;
   // Офлайн: правки уже в AsyncStorage/IndexedDB — дошлём на `online`
-  if (!isNetworkOnline()) return;
+  if (!isNetworkOnline()) {
+    void markOfflinePending(['books', 'flashcards', 'other']);
+    return;
+  }
   const g = globalThis as unknown as {
     __languageeeeSyncTimer?: ReturnType<typeof setTimeout>;
   };
@@ -1821,7 +1997,10 @@ const READING_PROGRESS_DEBOUNCE_MS = 800;
  */
 export function scheduleReadingProgressSync(): void {
   if (!isFirebaseConfigured()) return;
-  if (!isNetworkOnline()) return;
+  if (!isNetworkOnline()) {
+    void markOfflinePending('progress');
+    return;
+  }
   const g = globalThis as unknown as {
     __languageeeeProgressTimer?: ReturnType<typeof setTimeout>;
   };
@@ -1945,6 +2124,7 @@ export function cancelPendingSync(): void {
   }
   syncEpoch += 1;
   syncInFlight = null;
+  syncRerunRequested = false;
 
   // Не оставляем UI на вечной «Синхронизация…»
   if (currentState.status === 'syncing') {

@@ -10,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useI18n } from '../i18n/useI18n';
+import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   getAuthState,
   login,
@@ -31,15 +33,19 @@ interface AuthModalProps {
 }
 
 /** Локальная проверка до запроса в Firebase. Возвращает текст ошибки или null. */
-function validateForm(email: string, password: string): string | null {
+function validateForm(
+  email: string,
+  password: string,
+  t: (key: UiMessageKey) => string
+): string | null {
   if (!email.trim()) {
-    return 'Введите Email.';
+    return t('auth.enterEmail');
   }
   if (!password) {
-    return 'Введите пароль.';
+    return t('auth.enterPassword');
   }
   if (password.length < 6) {
-    return 'Пароль должен быть не короче 6 символов.';
+    return t('auth.passwordTooShort');
   }
   return null;
 }
@@ -49,6 +55,7 @@ export default function AuthModal({
   onClose,
   onAuthenticated,
 }: AuthModalProps) {
+  const { t } = useI18n();
   const [auth, setAuth] = useState<AuthState>(getAuthState);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,7 +99,7 @@ export default function AuthModal({
 
   /** ВХОД — через authService.login */
   const submitLogin = async () => {
-    const validationError = validateForm(email, password);
+    const validationError = validateForm(email, password, t);
     if (validationError) {
       setError(validationError);
       return;
@@ -119,7 +126,7 @@ export default function AuthModal({
 
   /** РЕГИСТРАЦИЯ — через authService.register (+ онбординг в bootstrap) */
   const submitRegister = async () => {
-    const validationError = validateForm(email, password);
+    const validationError = validateForm(email, password, t);
     if (validationError) {
       setError(validationError);
       return;
@@ -161,7 +168,7 @@ export default function AuthModal({
         err.code === 'auth/redirect-pending' ||
         err.code === 'auth/redirect-operation-pending'
       ) {
-        setError('Перенаправление на Google…');
+        setError(t('auth.redirectingGoogle'));
         return;
       }
       console.error('[AuthModal] Google login error', {
@@ -192,7 +199,7 @@ export default function AuthModal({
         signOut(),
         new Promise<void>((_, reject) => {
           setTimeout(
-            () => reject(new Error('Выход занял слишком много времени')),
+            () => reject(new Error(t('auth.signOutTimeout'))),
             UI_TIMEOUT_MS
           );
         }),
@@ -222,10 +229,8 @@ export default function AuthModal({
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             {isLoggedIn ? (
               <>
-                <Text style={styles.title}>Аккаунт</Text>
-                <Text style={styles.subtitle}>
-                  Ваши фанфики и карточки синхронизируются между устройствами.
-                </Text>
+                <Text style={styles.title}>{t('auth.account')}</Text>
+                <Text style={styles.subtitle}>{t('auth.syncDevicesHint')}</Text>
                 <View style={styles.accountBlock}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
@@ -243,7 +248,9 @@ export default function AuthModal({
                     {busy ? (
                       <ActivityIndicator color="#b91c1c" />
                     ) : (
-                      <Text style={styles.secondaryDangerText}>Выйти</Text>
+                      <Text style={styles.secondaryDangerText}>
+                        {t('auth.signOut')}
+                      </Text>
                     )}
                   </Pressable>
                   <Pressable
@@ -256,12 +263,7 @@ export default function AuthModal({
                           syncData(),
                           new Promise<never>((_, reject) =>
                             setTimeout(
-                              () =>
-                                reject(
-                                  new Error(
-                                    'Синхронизация заняла слишком много времени'
-                                  )
-                                ),
+                              () => reject(new Error(t('auth.syncTimeout'))),
                               65000
                             )
                           ),
@@ -270,7 +272,7 @@ export default function AuthModal({
                         setError(
                           e instanceof Error
                             ? e.message
-                            : 'Ошибка синхронизации'
+                            : t('auth.syncError')
                         );
                       } finally {
                         setBusy(false);
@@ -278,19 +280,19 @@ export default function AuthModal({
                     }}
                     disabled={busy}
                   >
-                    <Text style={styles.syncNowText}>Синхронизировать сейчас</Text>
+                    <Text style={styles.syncNowText}>{t('auth.syncNow')}</Text>
                   </Pressable>
                 </View>
               </>
             ) : (
               <>
                 <Text style={styles.title}>
-                  {isLogin ? 'Вход' : 'Регистрация'}
+                  {isLogin ? t('auth.signIn') : t('auth.signUp')}
                 </Text>
                 <Text style={styles.subtitle}>
                   {isLogin
-                    ? 'Войдите в существующий аккаунт.'
-                    : 'Создайте новый аккаунт для синхронизации.'}
+                    ? t('auth.signInSubtitle')
+                    : t('auth.signUpSubtitle')}
                 </Text>
 
                 {/* Вкладки: isLogin = true → Вход, isLogin = false → Регистрация */}
@@ -301,7 +303,7 @@ export default function AuthModal({
                     disabled={busy}
                   >
                     <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>
-                      Вход
+                      {t('auth.signIn')}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -312,23 +314,25 @@ export default function AuthModal({
                     <Text
                       style={[styles.tabText, !isLogin && styles.tabTextActive]}
                     >
-                      Регистрация
+                      {t('auth.signUp')}
                     </Text>
                   </Pressable>
                 </View>
 
-                <View
-                  style={[
-                    styles.modeBadge,
-                    isLogin ? styles.modeBadgeLogin : styles.modeBadgeRegister,
-                  ]}
-                >
-                  <Text style={styles.modeBadgeText}>
-                    {isLogin
-                      ? 'Режим: Вход (signIn)'
-                      : 'Режим: Регистрация (createUser)'}
-                  </Text>
-                </View>
+                {__DEV__ ? (
+                  <View
+                    style={[
+                      styles.modeBadge,
+                      isLogin ? styles.modeBadgeLogin : styles.modeBadgeRegister,
+                    ]}
+                  >
+                    <Text style={styles.modeBadgeText}>
+                      {isLogin
+                        ? 'Режим: Вход (signIn)'
+                        : 'Режим: Регистрация (createUser)'}
+                    </Text>
+                  </View>
+                ) : null}
 
                 <TextInput
                   style={styles.input}
@@ -354,7 +358,7 @@ export default function AuthModal({
                     setPassword(v);
                     setError(null);
                   }}
-                  placeholder="Пароль (минимум 6 символов)"
+                  placeholder={t('auth.passwordPlaceholder')}
                   placeholderTextColor="#94a3b8"
                   secureTextEntry
                   textContentType={isLogin ? 'password' : 'newPassword'}
@@ -378,7 +382,9 @@ export default function AuthModal({
                     {busy ? (
                       <ActivityIndicator color="#fff" />
                     ) : (
-                      <Text style={styles.primaryButtonText}>Войти</Text>
+                      <Text style={styles.primaryButtonText}>
+                        {t('auth.submitSignIn')}
+                      </Text>
                     )}
                   </Pressable>
                 ) : (
@@ -391,7 +397,7 @@ export default function AuthModal({
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <Text style={styles.primaryButtonText}>
-                        Зарегистрироваться
+                        {t('auth.submitSignUp')}
                       </Text>
                     )}
                   </Pressable>
@@ -402,7 +408,9 @@ export default function AuthModal({
                   onPress={() => void submitGoogle()}
                   disabled={busy}
                 >
-                  <Text style={styles.googleButtonText}>🔵 Войти через Google</Text>
+                  <Text style={styles.googleButtonText}>
+                    {t('auth.googleSignIn')}
+                  </Text>
                 </Pressable>
 
                 <Pressable
@@ -411,9 +419,7 @@ export default function AuthModal({
                   disabled={busy}
                 >
                   <Text style={styles.switchModeText}>
-                    {isLogin
-                      ? 'Ещё нет аккаунта? Перейти к регистрации'
-                      : 'Уже есть аккаунт? Перейти ко входу'}
+                    {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
                   </Text>
                 </Pressable>
               </>
@@ -425,7 +431,7 @@ export default function AuthModal({
               disabled={busy}
             >
               <Text style={styles.guestButtonText}>
-                {isLoggedIn ? 'Закрыть' : 'Продолжить без входа'}
+                {isLoggedIn ? t('action.close') : t('auth.continueGuest')}
               </Text>
             </Pressable>
           </Pressable>

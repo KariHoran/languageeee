@@ -54,6 +54,8 @@ export type UiMessageKey =
   | 'sync.offline'
   | 'offline.title'
   | 'offline.hint'
+  | 'offline.hintPending'
+  | 'offline.hintPinned'
   | 'offline.dismiss'
   | 'addBook.title'
   | 'addBook.subtitle'
@@ -88,6 +90,43 @@ export type UiMessageKey =
   | 'reader.noBook'
   | 'reader.notesTitle'
   | 'reader.notesBody'
+  | 'notebook.title'
+  | 'notebook.subtitle'
+  | 'notebook.placeholder'
+  | 'notebook.attachParagraph'
+  | 'notebook.add'
+  | 'notebook.save'
+  | 'notebook.empty'
+  | 'notebook.general'
+  | 'notebook.jump'
+  | 'notebook.edit'
+  | 'notebook.delete'
+  | 'notebook.addToParagraph'
+  | 'notebook.export'
+  | 'notebook.fromSelection'
+  | 'notebook.toCards'
+  | 'notebook.toCardsOk'
+  | 'notebook.toCardsBatch'
+  | 'notebook.toCardsBatchBody'
+  | 'settings.installTitle'
+  | 'settings.installHint'
+  | 'settings.installUnavailable'
+  | 'install.title'
+  | 'install.subtitle'
+  | 'install.downloadCta'
+  | 'install.showHow'
+  | 'install.busy'
+  | 'install.androidTitle'
+  | 'install.androidStep1'
+  | 'install.androidStep2'
+  | 'install.androidStep3'
+  | 'install.manualTitle'
+  | 'install.manualBody'
+  | 'install.alreadyTitle'
+  | 'install.alreadyBody'
+  | 'install.apkCta'
+  | 'install.apkSoon'
+  | 'catalog.importFail'
   | 'reader.pageLight'
   | 'reader.pageDark'
   | 'reader.pageSepia'
@@ -137,12 +176,15 @@ export type UiMessageKey =
   | 'word.transFail'
   | 'word.addCard'
   | 'word.alreadyInCard'
+  | 'word.addToNotebook'
+  | 'word.addedToNotebook'
   | 'word.waitTranslate'
   | 'word.retry'
   | 'word.grammar'
   | 'word.translateLabel'
   | 'word.dictRu'
   | 'word.serviceUnavailable'
+  | 'word.hskUnlisted'
   | 'tour.welcomeTitle'
   | 'tour.welcomeBody'
   | 'tour.libraryTitle'
@@ -153,6 +195,14 @@ export type UiMessageKey =
   | 'tour.addBookBody'
   | 'tour.languageTitle'
   | 'tour.languageBody'
+  | 'tour.cardsTitle'
+  | 'tour.cardsBody'
+  | 'tour.goalsTitle'
+  | 'tour.goalsBody'
+  | 'tour.notebookTitle'
+  | 'tour.notebookBody'
+  | 'tour.installTitle'
+  | 'tour.installBody'
   | 'catalog.searchPlaceholder'
   | 'catalog.searchAria'
   | 'catalog.allTags'
@@ -217,6 +267,14 @@ export type UiMessageKey =
   | 'public.editHint'
   | 'public.texts'
   | 'public.emptyBooks'
+  | 'profile.title'
+  | 'profile.notFound'
+  | 'profile.loading'
+  | 'profile.goHome'
+  | 'profile.cardsInDeck'
+  | 'profile.weekLine'
+  | 'profile.activityTitle'
+  | 'profile.activityDay'
   | 'progress.easy'
   | 'progress.medium'
   | 'progress.hard'
@@ -257,6 +315,8 @@ export type UiMessageKey =
   | 'reader.readProgressLine'
   | 'reader.autoScrollBadge'
   | 'reader.practiceModeHint'
+  | 'reader.levelFitTitle'
+  | 'reader.levelFitBody'
   | 'reader.peekTranslation'
   | 'reader.grammarCount'
   | 'mini.nowPlaying'
@@ -300,6 +360,231 @@ export type UiMessageKey =
   | 'action.open'
   | 'action.edit'
   | 'action.delete'
+  | 'flashcards.brand'
+  | 'flashcards.title.hub'
+  | 'flashcards.title.session'
+  | 'flashcards.title.done'
+  | 'flashcards.back'
+  | 'flashcards.backToDeck'
+  | 'flashcards.dueTotal'
+  | 'flashcards.stat.new'
+  | 'flashcards.stat.learning'
+  | 'flashcards.stat.learned'
+  | 'flashcards.langLabel'
+  | 'flashcards.langAll'
+  | 'flashcards.sourceLabel'
+  | 'flashcards.allBooks'
+  | 'flashcards.startSession'
+  | 'flashcards.nothingToReview'
+  | 'flashcards.emptyHint.en'
+  | 'flashcards.emptyHint.zh'
+  | 'flashcards.emptyHint.other'
+  | 'flashcards.sessionHint'
+  | 'flashcards.sessionDone'
+  | 'flashcards.reviewedSummary'
+  | 'flashcards.anotherSession'
+  | 'flashcards.progress'
+  | 'flashcards.progressWithAnswers'
+  | 'flashcards.fromFanfic'
+  | 'flashcards.noContextYet'
+  | 'flashcards.noTranslation'
+  | 'flashcards.tapToReveal'
+  | 'flashcards.showAnswer'
+  | 'flashcards.grade.again'
+  | 'flashcards.grade.hard'
+  | 'flashcards.grade.good'
+  | 'flashcards.grade.easy'
+  | 'flashcards.grade.againHint'
+  | 'flashcards.grade.hardHint'
+  | 'flashcards.grade.goodHint'
+  | 'flashcards.grade.easyHint'
+  | 'flashcards.delete'
+  | 'flashcards.deleteConfirm'
+  | 'flashcards.deleteConfirmBody'
+  | 'flashcards.browse'
+  | 'flashcards.browseTitle'
+  | 'flashcards.searchPlaceholder'
+  | 'flashcards.exportCsv'
+  | 'flashcards.exportAnki'
+  | 'flashcards.shareDeck'
+  | 'flashcards.shareImport'
+  | 'flashcards.shareNotFound'
+  | 'flashcards.shareFail'
+  | 'flashcards.shareCopied'
+  | 'flashcards.shareImported'
+  | 'flashcards.shareImportedBody'
+  | 'flashcards.shareMeta'
+  | 'flashcards.shareLoginRequired'
+  | 'flashcards.modeLabel'
+  | 'flashcards.mode.recognition'
+  | 'flashcards.mode.recall'
+  | 'flashcards.mode.cloze'
+  | 'flashcards.mode.listen'
+  | 'flashcards.emptyBrowse'
+  | 'flashcards.speakCard'
+  | 'flashcards.addGrammar'
+  | 'flashcards.grammarAdded'
+  | 'progress.dailyGoal'
+  | 'progress.wordsGoal'
+  | 'progress.cardsGoal'
+  | 'progress.goalMet'
+  | 'progress.dueCards'
+  | 'progress.continueWithDue'
+  | 'word.removeFromDeck'
+  | 'word.knownRemoved'
+  | 'flashcards.queueLabel'
+  | 'flashcards.queue.default'
+  | 'flashcards.queue.weak'
+  | 'flashcards.queue.mixed'
+  | 'flashcards.keyboardHint'
+  | 'flashcards.demoDeck'
+  | 'flashcards.demoDeckDone'
+  | 'flashcards.importAnki'
+  | 'flashcards.importAnkiDone'
+  | 'flashcards.create'
+  | 'flashcards.createTitle'
+  | 'flashcards.createFront'
+  | 'flashcards.createFrontPlaceholder'
+  | 'flashcards.createBack'
+  | 'flashcards.createBackPlaceholder'
+  | 'flashcards.createReading'
+  | 'flashcards.createReadingPlaceholder'
+  | 'flashcards.createContext'
+  | 'flashcards.createContextPlaceholder'
+  | 'flashcards.createKindWord'
+  | 'flashcards.createKindGrammar'
+  | 'flashcards.createSave'
+  | 'flashcards.createSaveAnother'
+  | 'flashcards.createNeedFront'
+  | 'flashcards.createNeedBack'
+  | 'flashcards.createOk'
+  | 'flashcards.createFail'
+  | 'progress.dueBannerTitle'
+  | 'progress.dueBannerHint'
+  | 'progress.dueBannerCta'
+  | 'progress.dueTomorrowTitle'
+  | 'progress.dueTomorrowHint'
+  | 'progress.dueTomorrowCta'
+  | 'progress.weekTitle'
+  | 'progress.weekStats'
+  | 'progress.shareProfile'
+  | 'progress.shareProfileBusy'
+  | 'progress.shareProfileOk'
+  | 'progress.shareProfileCopied'
+  | 'progress.shareProfileFail'
+  | 'progress.shareImage'
+  | 'progress.shareImageBusy'
+  | 'progress.weeklyQuest'
+  | 'progress.weeklyQuestStats'
+  | 'progress.weeklyQuestDone'
+  | 'progress.darkSpots'
+  | 'progress.darkSpotsHint'
+  | 'progress.darkSpotStat'
+  | 'catalog.publicDecks'
+  | 'catalog.noPublicDecks'
+  | 'catalog.deckCardsCount'
+  | 'catalog.filters'
+  | 'catalog.filtersActive'
+  | 'catalog.hideFilters'
+  | 'addBook.screenSubtitle.en'
+  | 'addBook.screenSubtitle.zh'
+  | 'addBook.screenSubtitle.ru'
+  | 'addBook.sourceLang'
+  | 'addBook.fanficTitle'
+  | 'addBook.titlePlaceholder'
+  | 'addBook.fanficText'
+  | 'addBook.uploadTxt'
+  | 'addBook.placeholder.en'
+  | 'addBook.placeholder.zh'
+  | 'addBook.placeholder.ru'
+  | 'addBook.translateFromTo'
+  | 'addBook.hskLevel'
+  | 'addBook.hskMismatchHint'
+  | 'addBook.collection'
+  | 'addBook.createCollection'
+  | 'addBook.analyzeEn'
+  | 'addBook.saveLangText'
+  | 'addBook.analyzeText'
+  | 'addBook.saveAndRead'
+  | 'addBook.enPreviewTitle'
+  | 'addBook.enPreviewMeta'
+  | 'addBook.parallelLabel'
+  | 'addBook.parallelEmpty'
+  | 'addBook.parallelError'
+  | 'addBook.moreItems'
+  | 'addBook.grammarTitle'
+  | 'addBook.defaultTitle'
+  | 'addBook.newCollection'
+  | 'addBook.collectionNamePlaceholder'
+  | 'addBook.color'
+  | 'addBook.create'
+  | 'addBook.a11y.back'
+  | 'addBook.a11y.theme'
+  | 'addBook.a11y.translate'
+  | 'addBook.a11y.analyze'
+  | 'addBook.alert.attention'
+  | 'addBook.alert.error'
+  | 'addBook.alert.translateError'
+  | 'addBook.alert.analyzeError'
+  | 'addBook.alert.saveError'
+  | 'addBook.alert.enterCollection'
+  | 'addBook.alert.pasteForTranslate'
+  | 'addBook.alert.notLikely'
+  | 'addBook.alert.enterTitle'
+  | 'addBook.alert.enterText'
+  | 'addBook.alert.parallelTitle'
+  | 'addBook.alert.parallelBody'
+  | 'addBook.alert.translateUnavailableTitle'
+  | 'addBook.alert.translateUnavailableSave'
+  | 'addBook.alert.translateUnavailableRetry'
+  | 'addBook.alert.unsupportedPair'
+  | 'addBook.loading.translatePrep'
+  | 'addBook.loading.analyzeEn'
+  | 'addBook.loading.analyzeHsk'
+  | 'addBook.loading.prepareContent'
+  | 'addBook.loading.translateParallel'
+  | 'addBook.unknownError'
+  | 'reader.peekHint'
+  | 'reader.showParagraphTranslation'
+  | 'reader.hideParagraphTranslation'
+  | 'reader.peekedSuffix'
+  | 'reader.hiddenSuffix'
+  | 'reader.ttsWord'
+  | 'reader.ttsParagraph'
+  | 'reader.grammarBadge'
+  | 'reader.grammarToggle'
+  | 'reader.noGrammarDetected'
+  | 'reader.targetHskNotebook'
+  | 'reader.sourceParallel'
+  | 'reader.showNativeTranslation'
+  | 'reader.parsing'
+  | 'reader.translatingParagraphs'
+  | 'reader.translateTextFail'
+  | 'word.addToDict'
+  | 'word.markKnown'
+  | 'word.inDict'
+  | 'word.markedKnown'
+  | 'auth.enterEmail'
+  | 'auth.enterPassword'
+  | 'auth.passwordTooShort'
+  | 'auth.redirectingGoogle'
+  | 'auth.signOutTimeout'
+  | 'auth.syncTimeout'
+  | 'auth.signIn'
+  | 'auth.signUp'
+  | 'auth.signInSubtitle'
+  | 'auth.signUpSubtitle'
+  | 'auth.passwordPlaceholder'
+  | 'auth.noAccount'
+  | 'auth.hasAccount'
+  | 'auth.continueGuest'
+  | 'auth.syncDevicesHint'
+  | 'auth.signOut'
+  | 'auth.syncNow'
+  | 'auth.submitSignIn'
+  | 'auth.submitSignUp'
+  | 'auth.googleSignIn'
+  | 'auth.syncError'
 
 type Dictionary = Record<UiMessageKey, string>;
 
@@ -354,6 +639,10 @@ const ru: Dictionary = {
   'offline.title': 'Вы в оффлайн-режиме. Доступны сохранённые тексты',
   'offline.hint':
     'Прогресс чтения сохранится локально и отправится в облако при появлении сети.',
+  'offline.hintPending':
+    'Локальных изменений в очереди: {n}. Отправятся, когда сеть вернётся.',
+  'offline.hintPinned':
+    'Книг на устройстве: {n}. Читайте и повторяйте карточки без интернета.',
   'offline.dismiss': 'OK',
   'addBook.title': 'Добавить фанфик',
   'addBook.subtitle': 'импорт и анализ',
@@ -389,9 +678,27 @@ const ru: Dictionary = {
   'empty.genericDesc': 'Самое время начать — добавьте что-нибудь своё.',
   'empty.genericAction': 'Начать',
   'reader.noBook': 'Нет открытого фанфика',
-  'reader.notesTitle': 'Notes',
+  'reader.notesTitle': 'Блокнот',
   'reader.notesBody':
-    'Кликните по слову — откроется карточка с переводом на родной язык.',
+    'Пишите заметки к абзацам во время чтения — они сохраняются локально и в облаке.',
+  'notebook.title': 'Блокнот',
+  'notebook.subtitle': 'Заметок: {n}',
+  'notebook.placeholder': 'Мысль, перевод, вопрос…',
+  'notebook.attachParagraph': 'Привязать к абзацу §{n}',
+  'notebook.add': 'Добавить',
+  'notebook.save': 'Сохранить',
+  'notebook.empty': 'Пока пусто — напишите первую заметку к тексту.',
+  'notebook.general': 'Общая заметка',
+  'notebook.jump': 'К абзацу',
+  'notebook.edit': 'Изменить',
+  'notebook.delete': 'Удалить',
+  'notebook.addToParagraph': '+ заметка',
+  'notebook.export': 'Экспорт',
+  'notebook.fromSelection': '📝 В блокнот',
+  'notebook.toCards': 'В карточки',
+  'notebook.toCardsOk': 'Заметка добавлена в SRS-колоду',
+  'notebook.toCardsBatch': 'Все заметки → карточки',
+  'notebook.toCardsBatchBody': 'Добавлено: {added} · пропущено: {skipped}',
   'reader.pageLight': 'Светлый',
   'reader.pageDark': 'Тёмный',
   'reader.pageSepia': 'Сепия',
@@ -429,6 +736,8 @@ const ru: Dictionary = {
   'word.transFail': 'Не удалось получить перевод. Попробуйте ещё раз.',
   'word.addCard': '+ В карточки',
   'word.alreadyInCard': 'Уже в карточках',
+  'word.addToNotebook': '📝 В блокнот',
+  'word.addedToNotebook': 'Добавлено в блокнот',
   'word.waitTranslate': 'Ждём перевод…',
   'word.retry': 'Повторить перевод',
   'word.grammar': 'Грамматика / Конструкция',
@@ -436,6 +745,7 @@ const ru: Dictionary = {
   'word.dictRu': 'BKRS · русский',
   'word.serviceUnavailable':
     'Сервис перевода недоступен. Попробуйте ещё раз.',
+  'word.hskUnlisted': 'вне HSK',
   'tour.welcomeTitle': 'Добро пожаловать в languageeee',
   'tour.welcomeBody':
     'Учите языки через фанфики: читайте оригинал, смотрите перевод и собирайте слова в колоду.',
@@ -451,6 +761,18 @@ const ru: Dictionary = {
   'tour.languageTitle': 'Языки',
   'tour.languageBody':
     'В шапке или в Настройках выбирайте изучаемый и родной язык (中文 / RU / EN) — интерфейс и переводы подстроятся.',
+  'tour.cardsTitle': 'Карточки и режимы',
+  'tour.cardsBody':
+    'Во вкладке Карточки повторяйте слова (SRS): режимы узнать / вспомнить / cloze / слушать, weak-колода и экспорт.',
+  'tour.goalsTitle': 'Цель дня и стрик',
+  'tour.goalsBody':
+    'В Прогрессе задайте дневную цель по словам и карточкам — стрик растёт от чтения и повторений.',
+  'tour.notebookTitle': 'Блокнот',
+  'tour.notebookBody':
+    'В ридере кнопка 📝 и «+ заметка» у абзаца. Можно выделить текст или добавить слово из карточки в блокнот.',
+  'tour.installTitle': 'На телефон',
+  'tour.installBody':
+    'В Настройках — «Скачать приложение»: установка с сайта на Android (Chrome), без Google Play.',
   'catalog.searchPlaceholder':
     'Поиск по названию, тексту, тегу, автору…',
   'catalog.searchAria': 'Поиск в каталоге',
@@ -517,6 +839,14 @@ const ru: Dictionary = {
   'public.editHint': 'Редактировать и удалять может только автор подборки.',
   'public.texts': 'Тексты',
   'public.emptyBooks': 'В подборке пока нет текстов.',
+  'profile.title': 'Публичный прогресс',
+  'profile.notFound': 'Профиль не найден или скрыт',
+  'profile.loading': 'Загрузка профиля…',
+  'profile.goHome': 'На главную',
+  'profile.cardsInDeck': 'Карточек в колоде: {n}',
+  'profile.weekLine': '{words} слов · {cards} карточек за неделю',
+  'profile.activityTitle': 'Активность',
+  'profile.activityDay': '{words} слов · {cards} карточек',
   'progress.easy': 'Базовые',
   'progress.medium': 'Средние',
   'progress.hard': 'Сложные',
@@ -576,6 +906,9 @@ const ru: Dictionary = {
   'reader.readProgressLine': 'Прочитано {pct}% · абз. {current}/{total}',
   'reader.autoScrollBadge': ' · автоскролл',
   'reader.practiceModeHint': 'Перевод скрыт · практика чтения · клик по абзацу = подсмотреть',
+  'reader.levelFitTitle': 'Уровень текста',
+  'reader.levelFitBody':
+    '{label} · {unique} уник. слов · уже в карточках {known}%',
   'reader.peekTranslation': 'подсмотреть перевод',
   'reader.grammarCount': 'Грамматика / Конструкции · {n}',
   'mini.nowPlaying': 'Сейчас играет',
@@ -594,6 +927,30 @@ const ru: Dictionary = {
   'mini.uploadTimeout':
     'Загрузка заняла слишком много времени. Файл мог сохраниться локально — обновите список или выберите файл поменьше.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': 'Скачать приложение',
+  'settings.installHint': 'С вашего сайта — без Google Play',
+  'settings.installUnavailable':
+    'Откройте сайт в Chrome на Android: меню ⋮ → «Установить приложение».',
+  'install.title': 'Скачать приложение',
+  'install.subtitle':
+    'Ставится прямо с этого сайта на Android (Chrome). Без Google Play. Иконка на домашнем экране, офлайн после первого открытия.',
+  'install.downloadCta': 'Скачать / установить',
+  'install.showHow': 'Как скачать на Android',
+  'install.busy': 'Устанавливаем…',
+  'install.androidTitle': 'Если кнопки установки нет',
+  'install.androidStep1': 'Откройте сайт в Chrome на телефоне',
+  'install.androidStep2': 'Меню ⋮ → «Установить приложение» или «На главный экран»',
+  'install.androidStep3': 'Подтвердите — Languageeee появится как обычное приложение',
+  'install.manualTitle': 'Скачать с сайта',
+  'install.manualBody':
+    'В Chrome на Android: меню ⋮ → «Установить приложение» (или «Добавить на главный экран»). Это и есть скачивание с сайта — без Play Store.',
+  'install.alreadyTitle': 'Приложение уже установлено',
+  'install.alreadyBody':
+    'Вы открыли Languageeee с домашнего экрана. Обновления приходят автоматически с сайта.',
+  'install.apkCta': 'Скачать APK',
+  'install.apkSoon':
+    'Файл APK появится здесь после сборки. Пока ставьте через Chrome (кнопка выше).',
+  'catalog.importFail': 'Не удалось добавить текст в библиотеку',
   'library.newCategory': 'Новая категория',
   'library.newCategoryPlaceholder': 'Например: Избранное',
   'library.editBook': 'Редактировать книгу',
@@ -620,6 +977,252 @@ const ru: Dictionary = {
   'action.edit': 'Редактировать',
   'action.delete': 'Удалить',
   'library.loading': 'Загрузка…',
+  'flashcards.brand': '🌸 SRS · интервалы',
+  'flashcards.title.hub': 'Карточки',
+  'flashcards.title.session': 'Сессия',
+  'flashcards.title.done': 'Готово',
+  'flashcards.back': 'Назад',
+  'flashcards.backToDeck': 'К колоде',
+  'flashcards.dueTotal': 'К повторению: {due} · Всего: {total}',
+  'flashcards.stat.new': 'Новые',
+  'flashcards.stat.learning': 'На грани',
+  'flashcards.stat.learned': 'Выученные',
+  'flashcards.langLabel': 'Язык',
+  'flashcards.langAll': 'Все',
+  'flashcards.sourceLabel': 'Книга / фанфик',
+  'flashcards.allBooks': 'Все книги',
+  'flashcards.startSession': 'Начать сессию · {n} карточек',
+  'flashcards.nothingToReview': 'Нечего повторять',
+  'flashcards.emptyHint.en':
+    'Добавьте английские слова из ридера (клик → «В карточки»).',
+  'flashcards.emptyHint.zh': 'Добавьте слова из ридера — колода пока пуста.',
+  'flashcards.emptyHint.other': 'Добавьте слова из ридера или смените фильтр.',
+  'flashcards.sessionHint':
+    'Сначала карточки «на грани», затем новые. После ответа интервал обновляется (SM-2).',
+  'flashcards.sessionDone': 'Сессия завершена',
+  'flashcards.reviewedSummary':
+    'Повторено: {done}\nСнова {again} · Трудно {hard} · Хорошо {good} · Легко {easy}',
+  'flashcards.anotherSession': 'Ещё сессия',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · ответов {n}',
+  'flashcards.fromFanfic': 'из фанфика',
+  'flashcards.noContextYet': 'Цитата появится у новых карточек из ридера',
+  'flashcards.noTranslation': 'Перевод не указан',
+  'flashcards.tapToReveal': 'Нажмите, чтобы увидеть ответ',
+  'flashcards.showAnswer': 'Показать ответ',
+  'flashcards.grade.again': 'Снова',
+  'flashcards.grade.hard': 'Трудно',
+  'flashcards.grade.good': 'Хорошо',
+  'flashcards.grade.easy': 'Легко',
+  'flashcards.grade.againHint': '1д',
+  'flashcards.grade.hardHint': 'сложнее',
+  'flashcards.grade.goodHint': 'ок',
+  'flashcards.grade.easyHint': 'легко',
+  'flashcards.delete': 'Удалить карточку',
+  'flashcards.deleteConfirm': 'Удалить карточку?',
+  'flashcards.deleteConfirmBody':
+    '«{word}» больше не будет попадаться в повторениях.',
+  'flashcards.browse': 'Колода',
+  'flashcards.browseTitle': 'Все карточки',
+  'flashcards.searchPlaceholder': 'Поиск по слову или переводу…',
+  'flashcards.exportCsv': 'Экспорт CSV',
+  'flashcards.exportAnki': 'Экспорт Anki (TSV)',
+  'flashcards.shareDeck': 'Поделиться колодой',
+  'flashcards.shareImport': 'Добавить в свою колоду',
+  'flashcards.shareNotFound': 'Колода не найдена или недоступна.',
+  'flashcards.shareFail': 'Не удалось поделиться колодой.',
+  'flashcards.shareCopied': 'Ссылка скопирована',
+  'flashcards.shareImported': 'Колода импортирована',
+  'flashcards.shareImportedBody': 'Добавлено: {added}. Пропущено: {skipped}.',
+  'flashcards.shareMeta': '{n} карточек · {lang}',
+  'flashcards.shareLoginRequired': 'Войдите в аккаунт, чтобы делиться колодой.',
+  'flashcards.modeLabel': 'Режим',
+  'flashcards.mode.recognition': 'Узнать',
+  'flashcards.mode.recall': 'Вспомнить',
+  'flashcards.mode.cloze': 'Cloze',
+  'flashcards.mode.listen': 'Слушать',
+  'flashcards.emptyBrowse': 'В колоде пока нет карточек по фильтру.',
+  'flashcards.speakCard': 'Озвучить',
+  'flashcards.addGrammar': '+ В карточки',
+  'flashcards.grammarAdded': 'Грамматика в колоде',
+  'progress.dailyGoal': 'Цель дня',
+  'progress.wordsGoal': 'Слова {n}/{goal}',
+  'progress.cardsGoal': 'Карточки {n}/{goal}',
+  'progress.goalMet': 'Цель дня выполнена!',
+  'progress.dueCards': 'К повторению: {n}',
+  'progress.continueWithDue': 'Продолжить · due {n}',
+  'word.removeFromDeck': 'Убрать из колоды',
+  'word.knownRemoved': 'Знаю — убрано из SRS',
+  'flashcards.queueLabel': "Очередь",
+  'flashcards.queue.default': "Обычная",
+  'flashcards.queue.weak': "Слабые",
+  'flashcards.queue.mixed': "Микс",
+  'flashcards.keyboardHint': "Space — ответ · 1–4 — оценка",
+  'flashcards.demoDeck': "Демо-колода",
+  'flashcards.demoDeckDone': "Добавлено демо-карточек: {n}",
+  'flashcards.importAnki': "Импорт Anki",
+  'flashcards.importAnkiDone': "Импортировано: {added}. Пропущено: {skipped}.",
+  'flashcards.create': '+ Карточка',
+  'flashcards.createTitle': 'Новая карточка',
+  'flashcards.createFront': 'Слово / фраза',
+  'flashcards.createFrontPlaceholder': 'На изучаемом языке…',
+  'flashcards.createBack': 'Перевод',
+  'flashcards.createBackPlaceholder': 'На родном языке…',
+  'flashcards.createReading': 'Пиньинь / транскрипция',
+  'flashcards.createReadingPlaceholder': 'Необязательно',
+  'flashcards.createContext': 'Пример / контекст',
+  'flashcards.createContextPlaceholder': 'Предложение, где встретилось…',
+  'flashcards.createKindWord': 'Слово',
+  'flashcards.createKindGrammar': 'Грамматика',
+  'flashcards.createSave': 'Добавить в колоду',
+  'flashcards.createSaveAnother': 'Добавить ещё',
+  'flashcards.createNeedFront': 'Введите слово или фразу',
+  'flashcards.createNeedBack': 'Введите перевод',
+  'flashcards.createOk': 'Карточка добавлена',
+  'flashcards.createFail': 'Не удалось добавить карточку',
+  'progress.dueBannerTitle': "К повторению: {n}",
+  'progress.dueBannerHint': "Короткая сессия укрепит стрик",
+  'progress.dueBannerCta': "К карточкам",
+  'progress.dueTomorrowTitle': "Завтра к повторению: {n}",
+  'progress.dueTomorrowHint': "Сегодня можно отдохнуть или разобрать колоду заранее",
+  'progress.dueTomorrowCta': "Открыть колоду",
+  'progress.weekTitle': "Эта неделя",
+  'progress.weekStats': "{words} слов · {cards} карточек · {min} мин",
+  'progress.shareProfile': 'Поделиться прогрессом',
+  'progress.shareProfileBusy': 'Публикуем…',
+  'progress.shareProfileOk': 'Профиль опубликован',
+  'progress.shareProfileCopied': 'Ссылка скопирована:\n{url}',
+  'progress.shareProfileFail': 'Не удалось опубликовать профиль',
+  'progress.shareImage': 'Скачать картинку прогресса',
+  'progress.shareImageBusy': 'Рисуем…',
+  'progress.weeklyQuest': 'Квест недели',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} дн. с ≥{goal} карточками · серия {streak}',
+  'progress.weeklyQuestDone': 'Квест закрыт!',
+  'progress.darkSpots': 'Слабые места',
+  'progress.darkSpotsHint': 'Книги с частыми Again — стоит повторить',
+  'progress.darkSpotStat': 'weak {weak} · again {again}',
+  'catalog.publicDecks': "Публичные колоды",
+  'catalog.noPublicDecks': "Пока нет публичных колод",
+  'catalog.deckCardsCount': "{n} карточек",
+  'catalog.filters': 'Фильтры',
+  'catalog.filtersActive': 'Фильтры · {n}',
+  'catalog.hideFilters': 'Скрыть фильтры',
+  'addBook.screenSubtitle.en':
+    'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
+  'addBook.screenSubtitle.zh':
+    'Язык: 中文. Вставьте китайский или переведите с родного — HSK 3.0 подсветит сложные слова и пиньинь.',
+  'addBook.screenSubtitle.ru':
+    'Язык: русский. Вставьте русский текст для изучения — параллельный перевод на родной можно получить кнопкой ниже.',
+  'addBook.sourceLang': 'Язык исходного текста',
+  'addBook.fanficTitle': 'Название фанфика',
+  'addBook.titlePlaceholder': 'Например: Гарри Поттер и Тайная комната',
+  'addBook.fanficText': 'Текст фанфика',
+  'addBook.uploadTxt': 'Загрузить .txt',
+  'addBook.placeholder.en':
+    'Вставьте текст на родном языке (для перевода) или на английском…',
+  'addBook.placeholder.zh':
+    'Вставьте текст на родном языке или на китайском…',
+  'addBook.placeholder.ru':
+    'Вставьте текст на русском (изучаемый) или на родном для перевода…',
+  'addBook.translateFromTo': 'Перевести с {from} → {to}',
+  'addBook.hskLevel': 'Целевой уровень HSK',
+  'addBook.hskMismatchHint':
+    'Похоже, текст сложнее выбранного уровня (≈HSK {estimated})',
+  'addBook.collection': 'Подборка',
+  'addBook.createCollection': '+ Создать новую подборку',
+  'addBook.analyzeEn': 'Разобрать английский текст',
+  'addBook.saveLangText': 'Сохранить текст ({lang})',
+  'addBook.analyzeText': 'Проанализировать текст',
+  'addBook.saveAndRead': 'Сохранить и начать чтение',
+  'addBook.enPreviewTitle': 'Разбор English · {n} слов',
+  'addBook.enPreviewMeta':
+    'Токенов: {n}. Пиньинь не используется. language: en.',
+  'addBook.parallelLabel': 'Параллельный текст ({lang})',
+  'addBook.parallelEmpty':
+    'Параллельный текст пока пуст — при сохранении попробуем перевести ещё раз.',
+  'addBook.parallelError': 'Перевод: {error}',
+  'addBook.moreItems': '…и ещё {n}',
+  'addBook.grammarTitle': 'Грамматика / Конструкции · {n}',
+  'addBook.defaultTitle': 'Новый фанфик',
+  'addBook.newCollection': 'Новая подборка',
+  'addBook.collectionNamePlaceholder': 'Название подборки',
+  'addBook.color': 'Цвет',
+  'addBook.create': 'Создать',
+  'addBook.a11y.back': 'Назад',
+  'addBook.a11y.theme': 'Переключить тему',
+  'addBook.a11y.translate': 'Перевести с родного языка',
+  'addBook.a11y.analyze': 'Проанализировать текст',
+  'addBook.alert.attention': 'Внимание',
+  'addBook.alert.error': 'Ошибка',
+  'addBook.alert.translateError': 'Ошибка перевода',
+  'addBook.alert.analyzeError': 'Ошибка анализа',
+  'addBook.alert.saveError': 'Ошибка сохранения',
+  'addBook.alert.enterCollection': 'Введите название подборки.',
+  'addBook.alert.pasteForTranslate':
+    'Вставьте текст на {lang} для перевода.',
+  'addBook.alert.notLikely':
+    'Текст не похож на {lang}. Вставьте оригинал на родном языке или смените язык контента.',
+  'addBook.alert.enterTitle': 'Введите название фанфика.',
+  'addBook.alert.enterText': 'Вставьте текст фанфика.',
+  'addBook.alert.parallelTitle': 'Параллельный перевод',
+  'addBook.alert.parallelBody':
+    'API перевода не ответил вовремя. Разбор слов готов — можно сохранить без перевода или попробовать снова.',
+  'addBook.alert.translateUnavailableTitle': 'Перевод недоступен',
+  'addBook.alert.translateUnavailableSave':
+    'Сохраняем текст без параллельного перевода. Попробуйте перевести позже.',
+  'addBook.alert.translateUnavailableRetry':
+    'Не удалось получить параллельный перевод. Книга сохранится без него.',
+  'addBook.alert.unsupportedPair':
+    'Пара перевода {from} → {to} пока не поддерживается.',
+  'addBook.loading.translatePrep': 'Переводим: подготовка…',
+  'addBook.loading.analyzeEn': 'Разбираем английские слова…',
+  'addBook.loading.analyzeHsk': 'Анализируем текст по словарю HSK…',
+  'addBook.loading.prepareContent': 'Готовим текст…',
+  'addBook.loading.translateParallel': 'Переводим параллельный текст…',
+  'addBook.unknownError': 'Неизвестная ошибка',
+  'reader.peekHint': 'Нажмите, чтобы подсмотреть',
+  'reader.showParagraphTranslation': 'Показать перевод абзаца',
+  'reader.hideParagraphTranslation': 'Скрыть перевод абзаца',
+  'reader.peekedSuffix': ' · подсмотр',
+  'reader.hiddenSuffix': ' · скрыт',
+  'reader.ttsWord': 'Озвучить {word}',
+  'reader.ttsParagraph': 'Озвучить абзац',
+  'reader.grammarBadge': 'Грамматика',
+  'reader.grammarToggle': 'Грамматика ({n})',
+  'reader.noGrammarDetected': 'Явных грамматических конструкций не распознано',
+  'reader.targetHskNotebook': 'Целевой HSK {n} · notebook mode',
+  'reader.sourceParallel': 'Источник: оригинальный параллельный текст',
+  'reader.showNativeTranslation': 'Показать / скрыть перевод',
+  'reader.parsing': 'Разбираем текст и грамматику…',
+  'reader.translatingParagraphs': 'Переводим абзацы…',
+  'reader.translateTextFail': 'Не удалось перевести текст',
+  'word.addToDict': 'Добавить в словарик',
+  'word.markKnown': 'Уже знаю',
+  'word.inDict': 'В словарике',
+  'word.markedKnown': 'Отмечено как известное',
+  'auth.enterEmail': 'Введите Email.',
+  'auth.enterPassword': 'Введите пароль.',
+  'auth.passwordTooShort': 'Пароль должен быть не короче 6 символов.',
+  'auth.redirectingGoogle': 'Перенаправление на Google…',
+  'auth.signOutTimeout': 'Выход занял слишком много времени',
+  'auth.syncTimeout': 'Синхронизация заняла слишком много времени',
+  'auth.signIn': 'Вход',
+  'auth.signUp': 'Регистрация',
+  'auth.signInSubtitle': 'Войдите в существующий аккаунт.',
+  'auth.signUpSubtitle': 'Создайте новый аккаунт для синхронизации.',
+  'auth.passwordPlaceholder': 'Пароль (минимум 6 символов)',
+  'auth.noAccount': 'Ещё нет аккаунта? Перейти к регистрации',
+  'auth.hasAccount': 'Уже есть аккаунт? Перейти ко входу',
+  'auth.continueGuest': 'Продолжить без входа',
+  'auth.syncDevicesHint':
+    'Ваши фанфики и карточки синхронизируются между устройствами.',
+  'auth.signOut': 'Выйти',
+  'auth.syncNow': 'Синхронизировать сейчас',
+  'auth.submitSignIn': 'Войти',
+  'auth.submitSignUp': 'Зарегистрироваться',
+  'auth.googleSignIn': '🔵 Войти через Google',
+  'auth.syncError': 'Ошибка синхронизации',
 };
 
 const en: Dictionary = {
@@ -673,6 +1276,10 @@ const en: Dictionary = {
   'offline.title': 'You are offline. Saved texts are available',
   'offline.hint':
     'Reading progress is saved locally and will upload when you are back online.',
+  'offline.hintPending':
+    '{n} local change(s) queued — they will upload when the network returns.',
+  'offline.hintPinned':
+    '{n} book(s) on this device. Read and review cards without internet.',
   'offline.dismiss': 'OK',
   'addBook.title': 'Add Fanfic',
   'addBook.subtitle': 'import and analyze',
@@ -708,9 +1315,27 @@ const en: Dictionary = {
   'empty.genericDesc': 'A good time to start — add something of your own.',
   'empty.genericAction': 'Start',
   'reader.noBook': 'No fanfic open',
-  'reader.notesTitle': 'Notes',
+  'reader.notesTitle': 'Notebook',
   'reader.notesBody':
-    'Click a word — a card opens with a translation into your native language.',
+    'Write notes on paragraphs while reading — they sync locally and to the cloud.',
+  'notebook.title': 'Notebook',
+  'notebook.subtitle': 'Notes: {n}',
+  'notebook.placeholder': 'Thought, gloss, question…',
+  'notebook.attachParagraph': 'Attach to paragraph §{n}',
+  'notebook.add': 'Add',
+  'notebook.save': 'Save',
+  'notebook.empty': 'Empty so far — add your first note on the text.',
+  'notebook.general': 'General note',
+  'notebook.jump': 'Go to paragraph',
+  'notebook.edit': 'Edit',
+  'notebook.delete': 'Delete',
+  'notebook.addToParagraph': '+ note',
+  'notebook.export': 'Export',
+  'notebook.fromSelection': '📝 Notebook',
+  'notebook.toCards': 'To cards',
+  'notebook.toCardsOk': 'Note added to your SRS deck',
+  'notebook.toCardsBatch': 'All notes → cards',
+  'notebook.toCardsBatchBody': 'Added: {added} · skipped: {skipped}',
   'reader.pageLight': 'Light',
   'reader.pageDark': 'Dark',
   'reader.pageSepia': 'Sepia',
@@ -747,6 +1372,8 @@ const en: Dictionary = {
   'word.transFail': 'Could not get a translation. Please try again.',
   'word.addCard': '+ Add to cards',
   'word.alreadyInCard': 'Already in cards',
+  'word.addToNotebook': '📝 To notebook',
+  'word.addedToNotebook': 'Saved to notebook',
   'word.waitTranslate': 'Waiting for translation…',
   'word.retry': 'Retry translation',
   'word.grammar': 'Grammar / Structure',
@@ -754,6 +1381,7 @@ const en: Dictionary = {
   'word.dictRu': 'BKRS · Russian',
   'word.serviceUnavailable':
     'Translation service unavailable. Please try again.',
+  'word.hskUnlisted': 'not in HSK',
   'tour.welcomeTitle': 'Welcome to languageeee',
   'tour.welcomeBody':
     'Learn languages through fanfic: read the original, check translations, and collect words into a deck.',
@@ -769,6 +1397,18 @@ const en: Dictionary = {
   'tour.languageTitle': 'Languages',
   'tour.languageBody':
     'In the header or Settings pick learning and native languages (中文 / RU / EN) — UI and glosses follow.',
+  'tour.cardsTitle': 'Cards and modes',
+  'tour.cardsBody':
+    'In Flashcards review with SRS: recognition / recall / cloze / listen, weak deck, and export.',
+  'tour.goalsTitle': 'Daily goal and streak',
+  'tour.goalsBody':
+    'In Progress set a daily words/cards goal — your streak grows from reading and reviews.',
+  'tour.notebookTitle': 'Notebook',
+  'tour.notebookBody':
+    'In the reader use 📝 or “+ note” on a paragraph. Select text or add a word from the card into the notebook.',
+  'tour.installTitle': 'On your phone',
+  'tour.installBody':
+    'In Settings → “Download app”: install from this site on Android (Chrome), no Google Play.',
   'catalog.searchPlaceholder': 'Search by title, text, tag, author…',
   'catalog.searchAria': 'Search catalog',
   'catalog.allTags': 'All tags',
@@ -834,6 +1474,14 @@ const en: Dictionary = {
   'public.editHint': 'Only the collection author can edit or delete it.',
   'public.texts': 'Texts',
   'public.emptyBooks': 'This collection has no texts yet.',
+  'profile.title': 'Public progress',
+  'profile.notFound': 'Profile not found or private',
+  'profile.loading': 'Loading profile…',
+  'profile.goHome': 'Go home',
+  'profile.cardsInDeck': 'Cards in deck: {n}',
+  'profile.weekLine': '{words} words · {cards} cards this week',
+  'profile.activityTitle': 'Activity',
+  'profile.activityDay': '{words} words · {cards} cards',
   'progress.easy': 'Basic',
   'progress.medium': 'Medium',
   'progress.hard': 'Hard',
@@ -893,6 +1541,9 @@ const en: Dictionary = {
   'reader.readProgressLine': 'Read {pct}% · para. {current}/{total}',
   'reader.autoScrollBadge': ' · auto-scroll',
   'reader.practiceModeHint': 'Translation hidden · reading practice · tap a paragraph to peek',
+  'reader.levelFitTitle': 'Text level',
+  'reader.levelFitBody':
+    '{label} · {unique} unique words · {known}% already in cards',
   'reader.peekTranslation': 'peek translation',
   'reader.grammarCount': 'Grammar / Structures · {n}',
   'mini.nowPlaying': 'Now playing',
@@ -910,6 +1561,29 @@ const en: Dictionary = {
   'mini.uploadTimeout':
     'Upload took too long. The file may already be saved locally — refresh the list or pick a smaller file.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': 'Download app',
+  'settings.installHint': 'From this site — no Google Play',
+  'settings.installUnavailable':
+    'On Android Chrome: menu ⋮ → “Install app”.',
+  'install.title': 'Download app',
+  'install.subtitle':
+    'Install straight from this site on Android (Chrome). No Google Play. Home-screen icon; works offline after the first visit.',
+  'install.downloadCta': 'Download / install',
+  'install.showHow': 'How to download on Android',
+  'install.busy': 'Installing…',
+  'install.androidTitle': 'If the install button is missing',
+  'install.androidStep1': 'Open the site in Chrome on your phone',
+  'install.androidStep2': 'Menu ⋮ → “Install app” or “Add to Home screen”',
+  'install.androidStep3': 'Confirm — Languageeee appears like a normal app',
+  'install.manualTitle': 'Download from the site',
+  'install.manualBody':
+    'In Chrome on Android: menu ⋮ → “Install app” (or “Add to Home screen”). That installs from this site — no Play Store.',
+  'install.alreadyTitle': 'App already installed',
+  'install.alreadyBody':
+    'You opened Languageeee from the home screen. Updates come automatically from the site.',
+  'install.apkCta': 'Download APK',
+  'install.apkSoon': 'APK will appear here after the next build',
+  'catalog.importFail': 'Could not add this text to your library',
   'library.newCategory': 'New category',
   'library.newCategoryPlaceholder': 'e.g. Favorites',
   'library.editBook': 'Edit book',
@@ -936,6 +1610,254 @@ const en: Dictionary = {
   'action.edit': 'Edit',
   'action.delete': 'Delete',
   'library.loading': 'Loading…',
+  'flashcards.brand': '🌸 SRS · spaced',
+  'flashcards.title.hub': 'Cards',
+  'flashcards.title.session': 'Session',
+  'flashcards.title.done': 'Done',
+  'flashcards.back': 'Back',
+  'flashcards.backToDeck': 'To deck',
+  'flashcards.dueTotal': 'Due: {due} · Total: {total}',
+  'flashcards.stat.new': 'New',
+  'flashcards.stat.learning': 'Learning',
+  'flashcards.stat.learned': 'Learned',
+  'flashcards.langLabel': 'Language',
+  'flashcards.langAll': 'All',
+  'flashcards.sourceLabel': 'Book / fanfic',
+  'flashcards.allBooks': 'All books',
+  'flashcards.startSession': 'Start session · {n} cards',
+  'flashcards.nothingToReview': 'Nothing to review',
+  'flashcards.emptyHint.en':
+    'Add English words from the reader (tap → “Add to cards”).',
+  'flashcards.emptyHint.zh':
+    'Add words from the reader — the deck is empty for now.',
+  'flashcards.emptyHint.other':
+    'Add words from the reader or change the filter.',
+  'flashcards.sessionHint':
+    'Learning cards first, then new ones. After each answer the interval updates (SM-2).',
+  'flashcards.sessionDone': 'Session complete',
+  'flashcards.reviewedSummary':
+    'Reviewed: {done}\nAgain {again} · Hard {hard} · Good {good} · Easy {easy}',
+  'flashcards.anotherSession': 'Another session',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · answers {n}',
+  'flashcards.fromFanfic': 'from fanfic',
+  'flashcards.noContextYet': 'Quotes appear on new cards from the reader',
+  'flashcards.noTranslation': 'No translation yet',
+  'flashcards.tapToReveal': 'Tap to reveal the answer',
+  'flashcards.showAnswer': 'Show answer',
+  'flashcards.grade.again': 'Again',
+  'flashcards.grade.hard': 'Hard',
+  'flashcards.grade.good': 'Good',
+  'flashcards.grade.easy': 'Easy',
+  'flashcards.grade.againHint': '1d',
+  'flashcards.grade.hardHint': 'harder',
+  'flashcards.grade.goodHint': 'ok',
+  'flashcards.grade.easyHint': 'easy',
+  'flashcards.delete': 'Delete card',
+  'flashcards.deleteConfirm': 'Delete this card?',
+  'flashcards.deleteConfirmBody':
+    '“{word}” will no longer appear in reviews.',
+  'flashcards.browse': 'Deck',
+  'flashcards.browseTitle': 'All cards',
+  'flashcards.searchPlaceholder': 'Search word or translation…',
+  'flashcards.exportCsv': 'Export CSV',
+  'flashcards.exportAnki': 'Export Anki (TSV)',
+  'flashcards.shareDeck': 'Share deck',
+  'flashcards.shareImport': 'Add to my deck',
+  'flashcards.shareNotFound': 'Deck not found or unavailable.',
+  'flashcards.shareFail': 'Could not share the deck.',
+  'flashcards.shareCopied': 'Link copied',
+  'flashcards.shareImported': 'Deck imported',
+  'flashcards.shareImportedBody': 'Added: {added}. Skipped: {skipped}.',
+  'flashcards.shareMeta': '{n} cards · {lang}',
+  'flashcards.shareLoginRequired': 'Sign in to share a deck.',
+  'flashcards.modeLabel': 'Mode',
+  'flashcards.mode.recognition': 'Recognize',
+  'flashcards.mode.recall': 'Recall',
+  'flashcards.mode.cloze': 'Cloze',
+  'flashcards.mode.listen': 'Listen',
+  'flashcards.emptyBrowse': 'No cards match this filter yet.',
+  'flashcards.speakCard': 'Speak',
+  'flashcards.addGrammar': '+ Add to cards',
+  'flashcards.grammarAdded': 'Grammar in deck',
+  'progress.dailyGoal': 'Daily goal',
+  'progress.wordsGoal': 'Words {n}/{goal}',
+  'progress.cardsGoal': 'Cards {n}/{goal}',
+  'progress.goalMet': 'Daily goal reached!',
+  'progress.dueCards': 'Due: {n}',
+  'progress.continueWithDue': 'Continue · due {n}',
+  'word.removeFromDeck': 'Remove from deck',
+  'word.knownRemoved': 'Known — removed from SRS',
+  'flashcards.queueLabel': "Queue",
+  'flashcards.queue.default': "Default",
+  'flashcards.queue.weak': "Weak",
+  'flashcards.queue.mixed': "Mixed",
+  'flashcards.keyboardHint': "Space — reveal · 1–4 — grade",
+  'flashcards.demoDeck': "Demo deck",
+  'flashcards.demoDeckDone': "Demo cards added: {n}",
+  'flashcards.importAnki': "Import Anki",
+  'flashcards.importAnkiDone': "Imported: {added}. Skipped: {skipped}.",
+  'flashcards.create': '+ Card',
+  'flashcards.createTitle': 'New card',
+  'flashcards.createFront': 'Word / phrase',
+  'flashcards.createFrontPlaceholder': 'In the language you study…',
+  'flashcards.createBack': 'Translation',
+  'flashcards.createBackPlaceholder': 'In your native language…',
+  'flashcards.createReading': 'Pinyin / reading',
+  'flashcards.createReadingPlaceholder': 'Optional',
+  'flashcards.createContext': 'Example / context',
+  'flashcards.createContextPlaceholder': 'A sentence where it appears…',
+  'flashcards.createKindWord': 'Word',
+  'flashcards.createKindGrammar': 'Grammar',
+  'flashcards.createSave': 'Add to deck',
+  'flashcards.createSaveAnother': 'Add another',
+  'flashcards.createNeedFront': 'Enter a word or phrase',
+  'flashcards.createNeedBack': 'Enter a translation',
+  'flashcards.createOk': 'Card added',
+  'flashcards.createFail': 'Could not add the card',
+  'progress.dueBannerTitle': "Due today: {n}",
+  'progress.dueBannerHint': "A short session keeps your streak alive",
+  'progress.dueBannerCta': "Open cards",
+  'progress.dueTomorrowTitle': "Due tomorrow: {n}",
+  'progress.dueTomorrowHint': "Rest today, or browse the deck ahead of time",
+  'progress.dueTomorrowCta': "Open deck",
+  'progress.weekTitle': "This week",
+  'progress.weekStats': "{words} words · {cards} cards · {min} min",
+  'progress.shareProfile': 'Share progress',
+  'progress.shareProfileBusy': 'Publishing…',
+  'progress.shareProfileOk': 'Profile published',
+  'progress.shareProfileCopied': 'Link copied:\n{url}',
+  'progress.shareProfileFail': 'Could not publish profile',
+  'progress.shareImage': 'Download progress image',
+  'progress.shareImageBusy': 'Rendering…',
+  'progress.weeklyQuest': 'Weekly quest',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} days with ≥{goal} cards · streak {streak}',
+  'progress.weeklyQuestDone': 'Quest complete!',
+  'progress.darkSpots': 'Weak spots',
+  'progress.darkSpotsHint': 'Books with frequent Again — worth reviewing',
+  'progress.darkSpotStat': 'weak {weak} · again {again}',
+  'catalog.publicDecks': "Public decks",
+  'catalog.noPublicDecks': "No public decks yet",
+  'catalog.deckCardsCount': "{n} cards",
+  'catalog.filters': 'Filters',
+  'catalog.filtersActive': 'Filters · {n}',
+  'catalog.hideFilters': 'Hide filters',
+  'addBook.screenSubtitle.en':
+    'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
+  'addBook.screenSubtitle.zh':
+    'Language: 中文. Paste Chinese or translate from your native language — HSK 3.0 highlights hard words and pinyin.',
+  'addBook.screenSubtitle.ru':
+    'Language: Russian. Paste Russian study text — use the button below to get a parallel translation into your native language.',
+  'addBook.sourceLang': 'Source text language',
+  'addBook.fanficTitle': 'Fanfic title',
+  'addBook.titlePlaceholder': 'e.g. Harry Potter and the Chamber of Secrets',
+  'addBook.fanficText': 'Fanfic text',
+  'addBook.uploadTxt': 'Upload .txt',
+  'addBook.placeholder.en':
+    'Paste text in your native language (to translate) or in English…',
+  'addBook.placeholder.zh':
+    'Paste text in your native language or in Chinese…',
+  'addBook.placeholder.ru':
+    'Paste Russian study text, or native text to translate…',
+  'addBook.translateFromTo': 'Translate from {from} → {to}',
+  'addBook.hskLevel': 'Target HSK level',
+  'addBook.hskMismatchHint':
+    'This text looks harder than the selected level (≈HSK {estimated})',
+  'addBook.collection': 'Collection',
+  'addBook.createCollection': '+ Create new collection',
+  'addBook.analyzeEn': 'Analyze English text',
+  'addBook.saveLangText': 'Save {lang} text',
+  'addBook.analyzeText': 'Analyze text',
+  'addBook.saveAndRead': 'Save and start reading',
+  'addBook.enPreviewTitle': 'English breakdown · {n} words',
+  'addBook.enPreviewMeta':
+    'Tokens: {n}. No pinyin. language: en.',
+  'addBook.parallelLabel': 'Parallel text ({lang})',
+  'addBook.parallelEmpty':
+    'Parallel text is empty for now — we will try again on save.',
+  'addBook.parallelError': 'Translation: {error}',
+  'addBook.moreItems': '…and {n} more',
+  'addBook.grammarTitle': 'Grammar / Patterns · {n}',
+  'addBook.defaultTitle': 'New fanfic',
+  'addBook.newCollection': 'New collection',
+  'addBook.collectionNamePlaceholder': 'Collection name',
+  'addBook.color': 'Color',
+  'addBook.create': 'Create',
+  'addBook.a11y.back': 'Back',
+  'addBook.a11y.theme': 'Toggle theme',
+  'addBook.a11y.translate': 'Translate from native language',
+  'addBook.a11y.analyze': 'Analyze text',
+  'addBook.alert.attention': 'Notice',
+  'addBook.alert.error': 'Error',
+  'addBook.alert.translateError': 'Translation error',
+  'addBook.alert.analyzeError': 'Analysis error',
+  'addBook.alert.saveError': 'Save error',
+  'addBook.alert.enterCollection': 'Enter a collection name.',
+  'addBook.alert.pasteForTranslate':
+    'Paste text in {lang} to translate.',
+  'addBook.alert.notLikely':
+    'This does not look like {lang}. Paste native-language text or change the content language.',
+  'addBook.alert.enterTitle': 'Enter a fanfic title.',
+  'addBook.alert.enterText': 'Paste the fanfic text.',
+  'addBook.alert.parallelTitle': 'Parallel translation',
+  'addBook.alert.parallelBody':
+    'The translation API timed out. Word breakdown is ready — you can save without a parallel text or try again.',
+  'addBook.alert.translateUnavailableTitle': 'Translation unavailable',
+  'addBook.alert.translateUnavailableSave':
+    'Saving without a parallel translation. Try translating later.',
+  'addBook.alert.translateUnavailableRetry':
+    'Could not get a parallel translation. The book will be saved without it.',
+  'addBook.alert.unsupportedPair':
+    'Translation pair {from} → {to} is not supported yet.',
+  'addBook.loading.translatePrep': 'Translating: preparing…',
+  'addBook.loading.analyzeEn': 'Tokenizing English…',
+  'addBook.loading.analyzeHsk': 'Analyzing with the HSK dictionary…',
+  'addBook.loading.prepareContent': 'Preparing text…',
+  'addBook.loading.translateParallel': 'Translating parallel text…',
+  'addBook.unknownError': 'Unknown error',
+  'reader.peekHint': 'Tap to peek translation',
+  'reader.showParagraphTranslation': 'Show paragraph translation',
+  'reader.hideParagraphTranslation': 'Hide paragraph translation',
+  'reader.peekedSuffix': ' · peeked',
+  'reader.hiddenSuffix': ' · hidden',
+  'reader.ttsWord': 'Speak {word}',
+  'reader.ttsParagraph': 'Speak paragraph',
+  'reader.grammarBadge': 'Grammar',
+  'reader.grammarToggle': 'Grammar ({n})',
+  'reader.noGrammarDetected': 'No clear grammar patterns detected',
+  'reader.targetHskNotebook': 'Target HSK {n} · notebook mode',
+  'reader.sourceParallel': 'Source: original parallel text',
+  'reader.showNativeTranslation': 'Show / hide translation',
+  'reader.parsing': 'Parsing text and grammar…',
+  'reader.translatingParagraphs': 'Translating paragraphs…',
+  'reader.translateTextFail': 'Could not translate the text',
+  'word.addToDict': 'Add to dictionary',
+  'word.markKnown': 'I already know this',
+  'word.inDict': 'In dictionary',
+  'word.markedKnown': 'Marked as known',
+  'auth.enterEmail': 'Enter your email.',
+  'auth.enterPassword': 'Enter your password.',
+  'auth.passwordTooShort': 'Password must be at least 6 characters.',
+  'auth.redirectingGoogle': 'Redirecting to Google…',
+  'auth.signOutTimeout': 'Sign-out took too long',
+  'auth.syncTimeout': 'Sync took too long',
+  'auth.signIn': 'Sign in',
+  'auth.signUp': 'Sign up',
+  'auth.signInSubtitle': 'Sign in to your existing account.',
+  'auth.signUpSubtitle': 'Create a new account to sync.',
+  'auth.passwordPlaceholder': 'Password (min. 6 characters)',
+  'auth.noAccount': 'No account yet? Go to sign up',
+  'auth.hasAccount': 'Already have an account? Go to sign in',
+  'auth.continueGuest': 'Continue without signing in',
+  'auth.syncDevicesHint':
+    'Your fanfics and cards sync across devices.',
+  'auth.signOut': 'Sign out',
+  'auth.syncNow': 'Sync now',
+  'auth.submitSignIn': 'Sign in',
+  'auth.submitSignUp': 'Create account',
+  'auth.googleSignIn': '🔵 Sign in with Google',
+  'auth.syncError': 'Sync error',
 };
 
 const zh: Dictionary = {
@@ -988,6 +1910,8 @@ const zh: Dictionary = {
   'sync.offline': '离线',
   'offline.title': '当前处于离线模式，可阅读已保存文本',
   'offline.hint': '阅读进度会保存在本地，恢复网络后上传到云端。',
+  'offline.hintPending': '本地待同步更改：{n}。恢复网络后会自动上传。',
+  'offline.hintPinned': '本机已缓存 {n} 本书，可离线阅读与复习闪卡。',
   'offline.dismiss': '好的',
   'addBook.title': '添加小说',
   'addBook.subtitle': '导入与分析',
@@ -1022,8 +1946,26 @@ const zh: Dictionary = {
   'empty.genericDesc': '现在开始吧——添加你自己的内容。',
   'empty.genericAction': '开始',
   'reader.noBook': '未打开小说',
-  'reader.notesTitle': '笔记',
-  'reader.notesBody': '点击单词即可打开母语释义卡片。',
+  'reader.notesTitle': '笔记本',
+  'reader.notesBody': '阅读时可为段落写笔记——保存在本地并同步到云端。',
+  'notebook.title': '笔记本',
+  'notebook.subtitle': '笔记：{n}',
+  'notebook.placeholder': '想法、释义、问题…',
+  'notebook.attachParagraph': '关联到第 {n} 段',
+  'notebook.add': '添加',
+  'notebook.save': '保存',
+  'notebook.empty': '还没有笔记——为文本写下第一条。',
+  'notebook.general': '总笔记',
+  'notebook.jump': '跳到段落',
+  'notebook.edit': '编辑',
+  'notebook.delete': '删除',
+  'notebook.addToParagraph': '+ 笔记',
+  'notebook.export': '导出',
+  'notebook.fromSelection': '📝 笔记本',
+  'notebook.toCards': '加入卡片',
+  'notebook.toCardsOk': '笔记已加入 SRS 卡组',
+  'notebook.toCardsBatch': '全部笔记 → 卡片',
+  'notebook.toCardsBatchBody': '已添加：{added} · 跳过：{skipped}',
   'reader.pageLight': '浅色',
   'reader.pageDark': '深色',
   'reader.pageSepia': '羊皮纸',
@@ -1060,12 +2002,15 @@ const zh: Dictionary = {
   'word.transFail': '无法获取翻译，请重试。',
   'word.addCard': '+ 加入卡片',
   'word.alreadyInCard': '已在卡片中',
+  'word.addToNotebook': '📝 加入笔记本',
+  'word.addedToNotebook': '已加入笔记本',
   'word.waitTranslate': '等待翻译…',
   'word.retry': '重试翻译',
   'word.grammar': '语法 / 结构',
   'word.translateLabel': '翻译',
   'word.dictRu': 'BKRS · 俄语',
   'word.serviceUnavailable': '翻译服务不可用，请重试。',
+  'word.hskUnlisted': '不在 HSK',
   'tour.welcomeTitle': '欢迎来到 languageeee',
   'tour.welcomeBody':
     '通过小说学语言：读原文、看译文，并把单词收入卡组。',
@@ -1081,6 +2026,18 @@ const zh: Dictionary = {
   'tour.languageTitle': '语言',
   'tour.languageBody':
     '在顶栏或设置中选择学习语言与母语（中文 / RU / EN）——界面与释义会随之切换。',
+  'tour.cardsTitle': '闪卡与模式',
+  'tour.cardsBody':
+    '在「闪卡」用 SRS 复习：认读 / 回忆 / 完形 / 听力、薄弱卡组与导出。',
+  'tour.goalsTitle': '每日目标与连续天',
+  'tour.goalsBody':
+    '在进度中设置每日词数/卡片目标——阅读与复习会延长连续天数。',
+  'tour.notebookTitle': '笔记本',
+  'tour.notebookBody':
+    '阅读器里点 📝 或段落的「+ 笔记」。也可选中文字，或从单词卡片加入笔记本。',
+  'tour.installTitle': '装到手机',
+  'tour.installBody':
+    '设置 →「下载应用」：从本站安装到 Android（Chrome），无需 Google Play。',
   'catalog.searchPlaceholder': '按标题、正文、标签、作者搜索…',
   'catalog.searchAria': '搜索小说',
   'catalog.allTags': '全部标签',
@@ -1146,6 +2103,14 @@ const zh: Dictionary = {
   'public.editHint': '仅合集作者可以编辑或删除。',
   'public.texts': '文本',
   'public.emptyBooks': '合集中还没有文本。',
+  'profile.title': '公开进度',
+  'profile.notFound': '未找到或未公开该主页',
+  'profile.loading': '正在加载主页…',
+  'profile.goHome': '返回首页',
+  'profile.cardsInDeck': '卡组卡片：{n}',
+  'profile.weekLine': '本周 {words} 词 · {cards} 卡',
+  'profile.activityTitle': '活动',
+  'profile.activityDay': '{words} 词 · {cards} 卡',
   'progress.easy': '基础',
   'progress.medium': '中等',
   'progress.hard': '较难',
@@ -1204,6 +2169,9 @@ const zh: Dictionary = {
   'reader.readProgressLine': '已读 {pct}% · 第 {current}/{total} 段',
   'reader.autoScrollBadge': ' · 自动滚动',
   'reader.practiceModeHint': '译文已隐藏 · 阅读练习 · 点击段落可偷看',
+  'reader.levelFitTitle': '文本等级',
+  'reader.levelFitBody':
+    '{label} · {unique} 个不同词 · 已在卡片中 {known}%',
   'reader.peekTranslation': '偷看译文',
   'reader.grammarCount': '语法 / 结构 · {n}',
   'mini.nowPlaying': '正在播放',
@@ -1220,6 +2188,29 @@ const zh: Dictionary = {
   'mini.upload': '+ 上传文件（最大 {n} MB）',
   'mini.uploadTimeout': '上传超时。文件可能已保存在本地 — 请刷新列表或选择更小的文件。',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': '下载应用',
+  'settings.installHint': '直接从本站安装，无需 Google Play',
+  'settings.installUnavailable':
+    '请在 Android 的 Chrome 中打开：菜单 ⋮ →「安装应用」。',
+  'install.title': '下载应用',
+  'install.subtitle':
+    '在 Android（Chrome）上直接从本站安装，无需 Google Play。主屏幕图标，首次打开后可离线使用。',
+  'install.downloadCta': '下载 / 安装',
+  'install.showHow': '如何在 Android 下载',
+  'install.busy': '安装中…',
+  'install.androidTitle': '如果没有安装按钮',
+  'install.androidStep1': '用手机 Chrome 打开本站',
+  'install.androidStep2': '菜单 ⋮ →「安装应用」或「添加到主屏幕」',
+  'install.androidStep3': '确认后 Languageeee 会像普通应用一样出现',
+  'install.manualTitle': '从网站下载',
+  'install.manualBody':
+    'Android Chrome：菜单 ⋮ →「安装应用」（或「添加到主屏幕」）。这就是从本站安装，无需 Play Store。',
+  'install.alreadyTitle': '应用已安装',
+  'install.alreadyBody':
+    '你正从主屏幕打开 Languageeee。更新会从网站自动获取。',
+  'install.apkCta': '下载 APK',
+  'install.apkSoon': '下次构建后 APK 会出现在这里',
+  'catalog.importFail': '无法将文本加入图书馆',
   'library.newCategory': '新建分类',
   'library.newCategoryPlaceholder': '例如：收藏',
   'library.editBook': '编辑书籍',
@@ -1246,6 +2237,250 @@ const zh: Dictionary = {
   'action.edit': '编辑',
   'action.delete': '删除',
   'library.loading': '加载中…',
+  'flashcards.brand': '🌸 SRS · 间隔复习',
+  'flashcards.title.hub': '卡片',
+  'flashcards.title.session': '练习',
+  'flashcards.title.done': '完成',
+  'flashcards.back': '返回',
+  'flashcards.backToDeck': '返回卡组',
+  'flashcards.dueTotal': '待复习：{due} · 总计：{total}',
+  'flashcards.stat.new': '新卡',
+  'flashcards.stat.learning': '学习中',
+  'flashcards.stat.learned': '已掌握',
+  'flashcards.langLabel': '语言',
+  'flashcards.langAll': '全部',
+  'flashcards.sourceLabel': '书籍 / 小说',
+  'flashcards.allBooks': '全部书籍',
+  'flashcards.startSession': '开始练习 · {n} 张卡片',
+  'flashcards.nothingToReview': '暂无待复习',
+  'flashcards.emptyHint.en':
+    '请从阅读器添加英语单词（点击 →「加入卡片」）。',
+  'flashcards.emptyHint.zh': '请从阅读器添加单词 — 卡组目前为空。',
+  'flashcards.emptyHint.other': '请从阅读器添加单词，或更换筛选条件。',
+  'flashcards.sessionHint':
+    '先复习「学习中」的卡片，再学新卡。作答后间隔会更新（SM-2）。',
+  'flashcards.sessionDone': '练习完成',
+  'flashcards.reviewedSummary':
+    '已复习：{done}\n重来 {again} · 较难 {hard} · 良好 {good} · 简单 {easy}',
+  'flashcards.anotherSession': '再来一轮',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · 已答 {n}',
+  'flashcards.fromFanfic': '来自小说',
+  'flashcards.noContextYet': '新卡片的例句会在阅读器中添加后出现',
+  'flashcards.noTranslation': '暂无翻译',
+  'flashcards.tapToReveal': '点击查看答案',
+  'flashcards.showAnswer': '显示答案',
+  'flashcards.grade.again': '重来',
+  'flashcards.grade.hard': '较难',
+  'flashcards.grade.good': '良好',
+  'flashcards.grade.easy': '简单',
+  'flashcards.grade.againHint': '1天',
+  'flashcards.grade.hardHint': '更难',
+  'flashcards.grade.goodHint': '还行',
+  'flashcards.grade.easyHint': '轻松',
+  'flashcards.delete': '删除卡片',
+  'flashcards.deleteConfirm': '删除这张卡片？',
+  'flashcards.deleteConfirmBody': '「{word}」将不再出现在复习中。',
+  'flashcards.browse': '卡组',
+  'flashcards.browseTitle': '全部卡片',
+  'flashcards.searchPlaceholder': '搜索单词或翻译…',
+  'flashcards.exportCsv': '导出 CSV',
+  'flashcards.exportAnki': '导出 Anki (TSV)',
+  'flashcards.shareDeck': '分享卡组',
+  'flashcards.shareImport': '加入我的卡组',
+  'flashcards.shareNotFound': '卡组不存在或不可用。',
+  'flashcards.shareFail': '无法分享卡组。',
+  'flashcards.shareCopied': '链接已复制',
+  'flashcards.shareImported': '卡组已导入',
+  'flashcards.shareImportedBody': '已添加：{added}。跳过：{skipped}。',
+  'flashcards.shareMeta': '{n} 张卡片 · {lang}',
+  'flashcards.shareLoginRequired': '请登录后再分享卡组。',
+  'flashcards.modeLabel': '模式',
+  'flashcards.mode.recognition': '认词',
+  'flashcards.mode.recall': '回忆',
+  'flashcards.mode.cloze': '完形',
+  'flashcards.mode.listen': '听力',
+  'flashcards.emptyBrowse': '当前筛选下暂无卡片。',
+  'flashcards.speakCard': '朗读',
+  'flashcards.addGrammar': '+ 加入卡片',
+  'flashcards.grammarAdded': '语法已在卡组',
+  'progress.dailyGoal': '今日目标',
+  'progress.wordsGoal': '阅读 {n}/{goal}',
+  'progress.cardsGoal': '卡片 {n}/{goal}',
+  'progress.goalMet': '今日目标已完成！',
+  'progress.dueCards': '待复习：{n}',
+  'progress.continueWithDue': '继续 · 待复习 {n}',
+  'word.removeFromDeck': '移出卡组',
+  'word.knownRemoved': '已掌握 — 已移出 SRS',
+  'flashcards.queueLabel': "队列",
+  'flashcards.queue.default': "默认",
+  'flashcards.queue.weak': "薄弱",
+  'flashcards.queue.mixed': "混合",
+  'flashcards.keyboardHint': "空格翻面 · 1–4 评分",
+  'flashcards.demoDeck': "演示卡组",
+  'flashcards.demoDeckDone': "已添加演示卡片：{n}",
+  'flashcards.importAnki': "导入 Anki",
+  'flashcards.importAnkiDone': "已导入：{added}。跳过：{skipped}。",
+  'flashcards.create': '+ 卡片',
+  'flashcards.createTitle': '新建卡片',
+  'flashcards.createFront': '单词 / 短语',
+  'flashcards.createFrontPlaceholder': '用正在学习的语言…',
+  'flashcards.createBack': '翻译',
+  'flashcards.createBackPlaceholder': '用母语…',
+  'flashcards.createReading': '拼音 / 读音',
+  'flashcards.createReadingPlaceholder': '可选',
+  'flashcards.createContext': '例句 / 语境',
+  'flashcards.createContextPlaceholder': '出现该词的句子…',
+  'flashcards.createKindWord': '单词',
+  'flashcards.createKindGrammar': '语法',
+  'flashcards.createSave': '加入卡组',
+  'flashcards.createSaveAnother': '再加一张',
+  'flashcards.createNeedFront': '请输入单词或短语',
+  'flashcards.createNeedBack': '请输入翻译',
+  'flashcards.createOk': '卡片已添加',
+  'flashcards.createFail': '无法添加卡片',
+  'progress.dueBannerTitle': "今日待复习：{n}",
+  'progress.dueBannerHint': "短时复习可保持连续天数",
+  'progress.dueBannerCta': "去卡片",
+  'progress.dueTomorrowTitle': "明天待复习：{n}",
+  'progress.dueTomorrowHint': "今天可以休息，或提前浏览卡组",
+  'progress.dueTomorrowCta': "打开卡组",
+  'progress.weekTitle': "本周",
+  'progress.weekStats': "{words} 词 · {cards} 卡 · {min} 分钟",
+  'progress.shareProfile': '分享进度',
+  'progress.shareProfileBusy': '发布中…',
+  'progress.shareProfileOk': '主页已发布',
+  'progress.shareProfileCopied': '链接已复制：\n{url}',
+  'progress.shareProfileFail': '无法发布主页',
+  'progress.shareImage': '下载进度图',
+  'progress.shareImageBusy': '生成中…',
+  'progress.weeklyQuest': '本周任务',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} 天达到 ≥{goal} 张卡 · 连续 {streak} 天',
+  'progress.weeklyQuestDone': '任务完成！',
+  'progress.darkSpots': '薄弱点',
+  'progress.darkSpotsHint': '经常点 Again 的书 — 值得再读',
+  'progress.darkSpotStat': '薄弱 {weak} · again {again}',
+  'catalog.publicDecks': "公开卡组",
+  'catalog.noPublicDecks': "暂无公开卡组",
+  'catalog.deckCardsCount': "{n} 张卡片",
+  'catalog.filters': '筛选',
+  'catalog.filtersActive': '筛选 · {n}',
+  'catalog.hideFilters': '收起筛选',
+  'addBook.screenSubtitle.en':
+    '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
+  'addBook.screenSubtitle.zh':
+    '语言：中文。粘贴中文，或从母语翻译 — HSK 3.0 会高亮难词与拼音。',
+  'addBook.screenSubtitle.ru':
+    '语言：俄语。粘贴俄语学习文本 — 可用下方按钮生成母语平行译文。',
+  'addBook.sourceLang': '原文语言',
+  'addBook.fanficTitle': '小说标题',
+  'addBook.titlePlaceholder': '例如：哈利·波特与密室',
+  'addBook.fanficText': '小说正文',
+  'addBook.uploadTxt': '上传 .txt',
+  'addBook.placeholder.en':
+    '粘贴母语文本（用于翻译）或英语文本…',
+  'addBook.placeholder.zh':
+    '粘贴母语文本或中文文本…',
+  'addBook.placeholder.ru':
+    '粘贴俄语学习文本，或母语文本以便翻译…',
+  'addBook.translateFromTo': '从 {from} 翻译 → {to}',
+  'addBook.hskLevel': '目标 HSK 等级',
+  'addBook.hskMismatchHint':
+    '这段文字似乎比所选等级更难（≈HSK {estimated}）',
+  'addBook.collection': '合集',
+  'addBook.createCollection': '+ 新建合集',
+  'addBook.analyzeEn': '分析英语文本',
+  'addBook.saveLangText': '保存{lang}文本',
+  'addBook.analyzeText': '分析文本',
+  'addBook.saveAndRead': '保存并开始阅读',
+  'addBook.enPreviewTitle': '英语解析 · {n} 个词',
+  'addBook.enPreviewMeta':
+    '词元：{n}。不使用拼音。language: en。',
+  'addBook.parallelLabel': '平行文本（{lang}）',
+  'addBook.parallelEmpty':
+    '平行文本暂为空 — 保存时会再试一次翻译。',
+  'addBook.parallelError': '翻译：{error}',
+  'addBook.moreItems': '…还有 {n} 项',
+  'addBook.grammarTitle': '语法 / 句式 · {n}',
+  'addBook.defaultTitle': '新小说',
+  'addBook.newCollection': '新建合集',
+  'addBook.collectionNamePlaceholder': '合集名称',
+  'addBook.color': '颜色',
+  'addBook.create': '创建',
+  'addBook.a11y.back': '返回',
+  'addBook.a11y.theme': '切换主题',
+  'addBook.a11y.translate': '从母语翻译',
+  'addBook.a11y.analyze': '分析文本',
+  'addBook.alert.attention': '注意',
+  'addBook.alert.error': '错误',
+  'addBook.alert.translateError': '翻译错误',
+  'addBook.alert.analyzeError': '分析错误',
+  'addBook.alert.saveError': '保存错误',
+  'addBook.alert.enterCollection': '请输入合集名称。',
+  'addBook.alert.pasteForTranslate':
+    '请粘贴{lang}文本以便翻译。',
+  'addBook.alert.notLikely':
+    '文本不像{lang}。请粘贴母语原文，或更换内容语言。',
+  'addBook.alert.enterTitle': '请输入小说标题。',
+  'addBook.alert.enterText': '请粘贴小说正文。',
+  'addBook.alert.parallelTitle': '平行翻译',
+  'addBook.alert.parallelBody':
+    '翻译接口超时。分词已完成 — 可先无译文保存，或稍后重试。',
+  'addBook.alert.translateUnavailableTitle': '无法翻译',
+  'addBook.alert.translateUnavailableSave':
+    '将保存为无平行译文。可稍后再译。',
+  'addBook.alert.translateUnavailableRetry':
+    '未能获得平行译文。书籍将不含译文保存。',
+  'addBook.alert.unsupportedPair':
+    '暂不支持翻译方向 {from} → {to}。',
+  'addBook.loading.translatePrep': '翻译中：准备…',
+  'addBook.loading.analyzeEn': '正在分词英语…',
+  'addBook.loading.analyzeHsk': '正在按 HSK 词典分析…',
+  'addBook.loading.prepareContent': '正在准备文本…',
+  'addBook.loading.translateParallel': '正在翻译平行文本…',
+  'addBook.unknownError': '未知错误',
+  'reader.peekHint': '点击查看翻译',
+  'reader.showParagraphTranslation': '显示段落翻译',
+  'reader.hideParagraphTranslation': '隐藏段落翻译',
+  'reader.peekedSuffix': ' · 已查看',
+  'reader.hiddenSuffix': ' · 已隐藏',
+  'reader.ttsWord': '朗读 {word}',
+  'reader.ttsParagraph': '朗读段落',
+  'reader.grammarBadge': '语法',
+  'reader.grammarToggle': '语法 ({n})',
+  'reader.noGrammarDetected': '未识别到明显语法结构',
+  'reader.targetHskNotebook': '目标 HSK {n} · notebook mode',
+  'reader.sourceParallel': '来源：原始平行译文',
+  'reader.showNativeTranslation': '显示 / 隐藏译文',
+  'reader.parsing': '正在解析文本与语法…',
+  'reader.translatingParagraphs': '正在翻译段落…',
+  'reader.translateTextFail': '无法翻译文本',
+  'word.addToDict': '加入生词本',
+  'word.markKnown': '已认识',
+  'word.inDict': '已在生词本',
+  'word.markedKnown': '已标为认识',
+  'auth.enterEmail': '请输入邮箱。',
+  'auth.enterPassword': '请输入密码。',
+  'auth.passwordTooShort': '密码至少需要 6 个字符。',
+  'auth.redirectingGoogle': '正在跳转到 Google…',
+  'auth.signOutTimeout': '退出超时',
+  'auth.syncTimeout': '同步超时',
+  'auth.signIn': '登录',
+  'auth.signUp': '注册',
+  'auth.signInSubtitle': '登录已有账户。',
+  'auth.signUpSubtitle': '创建新账户以同步数据。',
+  'auth.passwordPlaceholder': '密码（至少 6 个字符）',
+  'auth.noAccount': '还没有账户？去注册',
+  'auth.hasAccount': '已有账户？去登录',
+  'auth.continueGuest': '暂不登录，继续使用',
+  'auth.syncDevicesHint': '你的小说与卡片会在各设备间同步。',
+  'auth.signOut': '退出登录',
+  'auth.syncNow': '立即同步',
+  'auth.submitSignIn': '登录',
+  'auth.submitSignUp': '注册',
+  'auth.googleSignIn': '🔵 使用 Google 登录',
+  'auth.syncError': '同步错误',
 };
 
 const TABLES: Record<NativeLanguage, Dictionary> = { ru, en, zh };

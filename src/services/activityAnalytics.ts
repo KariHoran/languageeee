@@ -37,6 +37,28 @@ export function yesterdayLocalKey(d = new Date()): string {
   return localDayKey(y);
 }
 
+/** Стрик «жив», если активность была сегодня или вчера. */
+export function isStreakAlive(
+  lastActiveDate: string | null | undefined,
+  now = new Date()
+): boolean {
+  if (!lastActiveDate) return false;
+  return (
+    lastActiveDate === localDayKey(now) ||
+    lastActiveDate === yesterdayLocalKey(now)
+  );
+}
+
+/** Число для UI: просроченный стрик показываем как 0. */
+export function displayStreak(
+  current: number,
+  lastActiveDate: string | null | undefined,
+  now = new Date()
+): number {
+  if (!isStreakAlive(lastActiveDate, now)) return 0;
+  return Math.max(0, Math.floor(current) || 0);
+}
+
 export function normalizeDayActivity(raw: unknown): DayActivity | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -99,6 +121,86 @@ export function getDayActivity(
   day = localDayKey()
 ): DayActivity {
   return map[day] ?? emptyDayActivity();
+}
+
+/** Сумма активности за последние `days` календарных дней (включая сегодня). */
+export function sumActivityRange(
+  map: ActivityByDay,
+  days = 7,
+  now = new Date()
+): DayActivity {
+  let wordsRead = 0;
+  let cardsReviewed = 0;
+  let minutes = 0;
+  let latest = '';
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const row = map[localDayKey(d)];
+    if (!row) continue;
+    wordsRead += row.wordsRead || 0;
+    cardsReviewed += row.cardsReviewed || 0;
+    minutes += row.minutes || 0;
+    if (row.updatedAt && row.updatedAt > latest) latest = row.updatedAt;
+  }
+  return {
+    wordsRead,
+    cardsReviewed,
+    minutes,
+    updatedAt: latest || now.toISOString(),
+  };
+}
+
+/**
+ * Обнулить слова/минуты (ложный скролл / простой вкладки), карточки оставить.
+ * updatedAt → now, чтобы LWW/epoch-синк отдал приоритет сбросу.
+ */
+export function clearReadingActivityCounters(
+  map: ActivityByDay,
+  now = new Date()
+): ActivityByDay {
+  const updatedAt = now.toISOString();
+  const next: ActivityByDay = {};
+  for (const [key, row] of Object.entries(map)) {
+    if (!row) continue;
+    next[key] = {
+      wordsRead: 0,
+      cardsReviewed: Math.max(0, Math.floor(row.cardsReviewed || 0)),
+      minutes: 0,
+      updatedAt,
+    };
+  }
+  return pruneActivityByDay(next, ACTIVITY_HISTORY_DAYS, now);
+}
+
+/**
+ * Слияние карт с учётом epoch сброса: больший epoch побеждает целиком,
+ * при равенстве — max по полям (мультидевайс).
+ */
+export function mergeActivityByDayWithEpoch(
+  local: ActivityByDay | undefined,
+  localEpoch: number,
+  remote: ActivityByDay | undefined,
+  remoteEpoch: number
+): { activityByDay: ActivityByDay; activityEpoch: number } {
+  const le = Math.max(0, Math.floor(localEpoch) || 0);
+  const re = Math.max(0, Math.floor(remoteEpoch) || 0);
+  if (le > re) {
+    return {
+      activityByDay: pruneActivityByDay(local ?? {}),
+      activityEpoch: le,
+    };
+  }
+  if (re > le) {
+    return {
+      activityByDay: pruneActivityByDay(remote ?? {}),
+      activityEpoch: re,
+    };
+  }
+  return {
+    activityByDay: mergeActivityByDay(local, remote),
+    activityEpoch: le,
+  };
 }
 
 /** Ячейки heatmap: weeks колонок × 7 строк (вс→сб или пн→вс). GitHub-style: колонки = недели. */

@@ -5,6 +5,12 @@ import {
   initNetworkStatusMonitoring,
   type NetworkStatus,
 } from '../services/networkStatusService';
+import { countOfflinePinnedBooks } from '../services/offlineLibraryService';
+import {
+  getOfflineQueueSnapshot,
+  subscribeOfflineQueue,
+  type OfflineQueueState,
+} from '../services/offlineSyncQueue';
 import { reportNetworkConnectivity } from '../services/syncService';
 import { Button, Div, Span } from './dom';
 
@@ -15,16 +21,39 @@ export function OfflineBanner() {
   const { t } = useI18n();
   const [status, setStatus] = useState<NetworkStatus>(() => getNetworkStatus());
   const [dismissed, setDismissed] = useState(false);
+  const [queue, setQueue] = useState<OfflineQueueState>(() =>
+    getOfflineQueueSnapshot()
+  );
+  const [pinnedCount, setPinnedCount] = useState(0);
 
   useEffect(() => {
     return initNetworkStatusMonitoring((next) => {
       setStatus(next);
       reportNetworkConnectivity(next !== 'offline');
       if (next === 'online') setDismissed(false);
+      if (next === 'offline') {
+        void countOfflinePinnedBooks().then(setPinnedCount);
+      }
     });
   }, []);
 
+  useEffect(() => subscribeOfflineQueue(setQueue), []);
+
+  useEffect(() => {
+    if (status === 'offline') {
+      void countOfflinePinnedBooks().then(setPinnedCount);
+    }
+  }, [status]);
+
   if (status !== 'offline' || dismissed) return null;
+
+  const pendingN = queue.pending.length;
+  const hint =
+    pendingN > 0
+      ? t('offline.hintPending', { n: pendingN })
+      : pinnedCount > 0
+        ? t('offline.hintPinned', { n: pinnedCount })
+        : t('offline.hint');
 
   return (
     <Div
@@ -46,7 +75,7 @@ export function OfflineBanner() {
             {t('offline.title')}
           </Div>
           <Div className="text-[10px] sm:text-[11px] text-white/55 font-semibold leading-snug mt-0.5">
-            {t('offline.hint')}
+            {hint}
           </Div>
         </Div>
         <Button

@@ -207,6 +207,8 @@ const RU_ZH: LangPair = { sl: 'ru', tl: 'zh-CN', mymemory: 'ru|zh-CN' };
 const ZH_RU: LangPair = { sl: 'zh-CN', tl: 'ru', mymemory: 'zh-CN|ru' };
 const RU_EN: LangPair = { sl: 'ru', tl: 'en', mymemory: 'ru|en' };
 const EN_RU: LangPair = { sl: 'en', tl: 'ru', mymemory: 'en|ru' };
+const ZH_EN: LangPair = { sl: 'zh-CN', tl: 'en', mymemory: 'zh-CN|en' };
+const EN_ZH: LangPair = { sl: 'en', tl: 'zh-CN', mymemory: 'en|zh-CN' };
 
 function pairFromCodes(sl: string, tl: string): LangPair {
   return { sl, tl, mymemory: `${sl}|${tl}` };
@@ -541,6 +543,24 @@ export function isLikelyRussian(text: string): boolean {
   return cyrillic > 0 && cyrillic >= chinese;
 }
 
+/** Эвристика алфавита: похож ли текст на указанный язык. */
+export function isLikelyLanguage(
+  text: string,
+  lang: 'zh' | 'ru' | 'en'
+): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (lang === 'ru') return isLikelyRussian(trimmed);
+  const cyrillic = (trimmed.match(/[\u0400-\u04FF]/g) ?? []).length;
+  const chinese = (trimmed.match(/[\u4e00-\u9fff]/g) ?? []).length;
+  const latin = (trimmed.match(/[A-Za-z]/g) ?? []).length;
+  if (lang === 'zh') {
+    return chinese > 0 && chinese >= cyrillic && chinese >= latin * 0.25;
+  }
+  // en: латиница доминирует над кириллицей и иероглифами
+  return latin > 0 && latin >= cyrillic && latin >= chinese;
+}
+
 /**
  * Ru → Zh. Сбойные абзацы остаются оригиналом (без CORS-заглушек в тексте).
  */
@@ -640,6 +660,82 @@ export async function translateEnToRu(
     }
     throw err instanceof Error ? err : new Error('Не удалось перевести En→Ru');
   }
+}
+
+/**
+ * Zh → En. Абзацы по той же схеме, что Ru↔En / Zh↔Ru.
+ */
+export async function translateZhToEn(
+  text: string,
+  onProgress?: TranslateProgressCallback
+): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error('Введите текст для перевода.');
+  }
+
+  try {
+    return await withTimeout(
+      translateByParagraphs(trimmed, ZH_EN, false, onProgress),
+      TRANSLATE_JOB_TIMEOUT_MS,
+      'Zh→En'
+    );
+  } catch (err) {
+    console.error('[translation] translateZhToEn failed:', err);
+    if (IS_WEB && isLikelyCorsOrNetworkError(err)) {
+      throw new Error(WEB_CORS_FALLBACK);
+    }
+    throw err instanceof Error ? err : new Error('Не удалось перевести Zh→En');
+  }
+}
+
+/**
+ * En → Zh. Абзацы; результат в упрощённом китайском.
+ */
+export async function translateEnToZh(
+  text: string,
+  onProgress?: TranslateProgressCallback
+): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error('Введите текст для перевода.');
+  }
+
+  try {
+    const joined = await withTimeout(
+      translateByParagraphs(trimmed, EN_ZH, true, onProgress),
+      TRANSLATE_JOB_TIMEOUT_MS,
+      'En→Zh'
+    );
+    return toSimplified(joined);
+  } catch (err) {
+    console.error('[translation] translateEnToZh failed:', err);
+    if (IS_WEB && isLikelyCorsOrNetworkError(err)) {
+      throw new Error(WEB_CORS_FALLBACK);
+    }
+    throw err instanceof Error ? err : new Error('Не удалось перевести En→Zh');
+  }
+}
+
+/**
+ * Диспетчер абзацного перевода native → learning (все пары zh/ru/en).
+ */
+export async function translateBetweenLanguages(
+  text: string,
+  from: 'zh' | 'ru' | 'en',
+  to: 'zh' | 'ru' | 'en',
+  onProgress?: TranslateProgressCallback
+): Promise<string> {
+  if (from === to) {
+    throw new Error('Исходный и целевой язык совпадают.');
+  }
+  if (from === 'ru' && to === 'zh') return translateRuToZh(text, onProgress);
+  if (from === 'zh' && to === 'ru') return translateZhToRu(text, onProgress);
+  if (from === 'ru' && to === 'en') return translateRuToEn(text, onProgress);
+  if (from === 'en' && to === 'ru') return translateEnToRu(text, onProgress);
+  if (from === 'zh' && to === 'en') return translateZhToEn(text, onProgress);
+  if (from === 'en' && to === 'zh') return translateEnToZh(text, onProgress);
+  throw new Error(`Пара перевода ${from}→${to} не поддерживается.`);
 }
 
 /**

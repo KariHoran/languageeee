@@ -39,17 +39,22 @@ import { showAlert, showConfirm } from '../utils/alert';
 import { BottomDock, type DockTab } from './BottomDock';
 import { CatalogPanel } from './CatalogPanel';
 import { Button, Div, Span } from './dom';
+import { InstallAppCard } from './InstallAppCard';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useI18n } from '../i18n/useI18n';
 import { MiniPlayPanel } from './MiniPlayPanel';
 import { MyLibraryPanel } from './MyLibraryPanel';
 import { OfflineBanner } from './OfflineBanner';
+import { DueCardsBanner } from './DueCardsBanner';
 import { OnboardingTour } from './OnboardingTour';
 import { ProgressPanel } from './ProgressPanel';
 import { PublicCollectionPanel } from './PublicCollectionPanel';
+import { PublicDeckPanel } from './PublicDeckPanel';
+import { PublicProfilePanel } from './PublicProfilePanel';
 import { ReaderPanel } from './ReaderPanel';
 import { StarryBackground } from './StarryBackground';
 import { applyDocumentTheme, useWebTheme } from './webTheme';
+import { pinBookForOffline } from '../services/offlineLibraryService';
 
 type ShellView = DockTab | 'addBook' | 'publicShare';
 
@@ -64,9 +69,35 @@ function parseShareSlugFromPath(): string | null {
   }
 }
 
+function parseDeckSlugFromPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  const m = window.location.pathname.match(/^\/d\/([^/]+)\/?$/i);
+  if (!m?.[1]) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
+function parseProfileSlugFromPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  const m = window.location.pathname.match(/^\/u\/([^/]+)\/?$/i);
+  if (!m?.[1]) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
 function clearSharePath() {
   if (typeof window === 'undefined') return;
-  if (/^\/c\//i.test(window.location.pathname)) {
+  if (
+    /^\/c\//i.test(window.location.pathname) ||
+    /^\/d\//i.test(window.location.pathname) ||
+    /^\/u\//i.test(window.location.pathname)
+  ) {
     window.history.replaceState({}, '', '/');
   }
 }
@@ -89,6 +120,8 @@ export default function MacDesktopShell() {
   const [books, setBooks] = useState<Book[]>([]);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [wordsLearned, setWordsLearned] = useState(0);
+  const [cardsDue, setCardsDue] = useState(0);
+  const [cardsDueTomorrow, setCardsDueTomorrow] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bookCoverage, setBookCoverage] = useState<BookCoverage | null>(null);
   const [readingProgress, setReadingProgress] =
@@ -110,9 +143,18 @@ export default function MacDesktopShell() {
   const [shareSlug, setShareSlug] = useState<string | null>(() =>
     parseShareSlugFromPath()
   );
+  const [deckSlug, setDeckSlug] = useState<string | null>(() =>
+    parseDeckSlugFromPath()
+  );
+  const [profileSlug, setProfileSlug] = useState<string | null>(() =>
+    parseProfileSlugFromPath()
+  );
 
   const theme = useWebTheme();
-  useActivitySessionTimer(true);
+  // Минуты только в ридере (открытая книга) или на экране карточек — не за простой вкладки.
+  useActivitySessionTimer(
+    tab === 'flashcards' || (tab === 'home' && activeBook != null)
+  );
   const isRussianHidden = useAppStore((s) => s.isRussianHiddenGlobal);
   const toggleRussian = useAppStore((s) => s.toggleGlobalRussianVisibility);
   const deleteBookFromStore = useAppStore((s) => s.deleteBook);
@@ -149,6 +191,8 @@ export default function MacDesktopShell() {
       const lang = useAppStore.getState().learningLanguage;
       const langCounts = await getFlashcardsCount(lang);
       setWordsLearned(langCounts.total);
+      setCardsDue(langCounts.due);
+      setCardsDueTomorrow(langCounts.dueTomorrow);
       setStreak(streakState.current);
       // Welcome-тур только для зарегистрированных пользователей, ещё не прошедших онбординг
       const isAuthed =
@@ -232,6 +276,7 @@ export default function MacDesktopShell() {
     setLearningLanguageStore(lang);
     void setLearningLanguage(lang);
     setActiveBook(book);
+    void pinBookForOffline(book);
     setTab('home');
   }, [continueTarget, setLearningLanguageStore]);
 
@@ -241,6 +286,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       await setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       await reloadLibrary();
       setTab('home');
     },
@@ -253,6 +299,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       await setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       setTab('home');
     },
     [setLearningLanguageStore]
@@ -264,14 +311,38 @@ export default function MacDesktopShell() {
   }, []);
 
   useEffect(() => {
-    const onPop = () => setShareSlug(parseShareSlugFromPath());
+    const onPop = () => {
+      setShareSlug(parseShareSlugFromPath());
+      setDeckSlug(parseDeckSlugFromPath());
+      setProfileSlug(parseProfileSlugFromPath());
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  const refreshCardsDue = useCallback(async () => {
+    try {
+      const lang = useAppStore.getState().learningLanguage;
+      const counts = await getFlashcardsCount(lang);
+      setCardsDue(counts.due);
+      setCardsDueTomorrow(counts.dueTomorrow);
+      setWordsLearned(counts.total);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'flashcards') {
+      void refreshCardsDue();
+    }
+  }, [tab, refreshCardsDue]);
+
   const closePublicShare = useCallback(() => {
     clearSharePath();
     setShareSlug(null);
+    setDeckSlug(null);
+    setProfileSlug(null);
     setTab('home');
   }, []);
 
@@ -281,6 +352,28 @@ export default function MacDesktopShell() {
     const path = `/c/${encodeURIComponent(clean)}`;
     window.history.pushState({}, '', path);
     setShareSlug(clean);
+    setDeckSlug(null);
+    setProfileSlug(null);
+  }, []);
+
+  const openPublicDeck = useCallback((slug: string) => {
+    const clean = slug.trim();
+    if (!clean || typeof window === 'undefined') return;
+    const path = `/d/${encodeURIComponent(clean)}`;
+    window.history.pushState({}, '', path);
+    setDeckSlug(clean);
+    setShareSlug(null);
+    setProfileSlug(null);
+  }, []);
+
+  const openPublicProfile = useCallback((slug: string) => {
+    const clean = slug.trim();
+    if (!clean || typeof window === 'undefined') return;
+    const path = `/u/${encodeURIComponent(clean)}`;
+    window.history.pushState({}, '', path);
+    setProfileSlug(clean);
+    setShareSlug(null);
+    setDeckSlug(null);
   }, []);
 
   const handleOpenPublicBook = useCallback(
@@ -289,6 +382,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       void setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       clearSharePath();
       setShareSlug(null);
       setTab('home');
@@ -322,10 +416,6 @@ export default function MacDesktopShell() {
       ? activeBook.title
       : activeBook.title;
   }, [activeBook, t]);
-
-  const handleNotes = useCallback(() => {
-    showAlert(t('reader.notesTitle'), t('reader.notesBody'));
-  }, [t]);
 
   const handleDeleteBook = useCallback(
     (book: Book) => {
@@ -461,15 +551,23 @@ export default function MacDesktopShell() {
         {theme.isDark ? <StarryBackground /> : null}
         <Div className="relative z-10 h-full">
           <View style={styles.legacyFill}>
-            <FlashcardsScreen onBack={() => goBack('home')} />
+            <FlashcardsScreen
+              onBack={() => {
+                void refreshCardsDue();
+                goBack('home');
+              }}
+            />
           </View>
         </Div>
         <BottomDock
           active="flashcards"
+          flashcardsDue={cardsDue}
           onSelect={(t) => {
-            if (shareSlug) {
+            if (shareSlug || deckSlug || profileSlug) {
               clearSharePath();
               setShareSlug(null);
+              setDeckSlug(null);
+              setProfileSlug(null);
             }
             setTab(t);
           }}
@@ -494,6 +592,11 @@ export default function MacDesktopShell() {
       </Div>
 
       <OfflineBanner />
+      <DueCardsBanner
+        due={cardsDue}
+        dueTomorrow={cardsDueTomorrow}
+        onOpenFlashcards={() => setTab('flashcards')}
+      />
 
       <Div className="relative z-10 shrink-0 px-3 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <Div className="min-w-0">
@@ -557,12 +660,28 @@ export default function MacDesktopShell() {
               onAddedToLibrary={() => void reloadLibrary()}
             />
           </Div>
+        ) : deckSlug ? (
+          <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            <PublicDeckPanel
+              slug={deckSlug}
+              onClose={closePublicShare}
+              onImported={() => {
+                void refreshCardsDue();
+                void reloadLibrary();
+              }}
+            />
+          </Div>
+        ) : profileSlug ? (
+          <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            <PublicProfilePanel slug={profileSlug} onClose={closePublicShare} />
+          </Div>
         ) : tab === 'home' || tab === 'explore' || tab === 'library' ? (
           <>
             <Div className="hidden xl:block h-full shrink-0">
               <ProgressPanel
                 streak={streak}
                 wordsLearned={wordsLearned}
+                dueCards={cardsDue}
                 coverage={bookCoverage}
                 readingProgress={
                   activeBook && readingProgress?.bookId === activeBook.id
@@ -592,6 +711,7 @@ export default function MacDesktopShell() {
                   onOpenMyLibrary={() => setTab('library')}
                   onOpenBook={(book) => void handleOpenCatalogBook(book)}
                   onOpenPublicCollection={openPublicShare}
+                  onOpenPublicDeck={openPublicDeck}
                 />
               ) : tab === 'library' ? (
                 <MyLibraryPanel
@@ -610,7 +730,7 @@ export default function MacDesktopShell() {
                 <ReaderPanel
                   book={activeBook}
                   chapterTitle={chapterTitle}
-                  onNotes={handleNotes}
+                  coverage={bookCoverage}
                   onBack={() => goBack('library')}
                   onDelete={
                     activeBook && canEditBook(activeBook)
@@ -692,6 +812,9 @@ export default function MacDesktopShell() {
                     : `☀️ ${t('settings.themeLight')}`}
                 </Div>
               </Button>
+
+              <InstallAppCard />
+
               <Button
                 type="button"
                 className={`w-full text-left rounded-2xl px-4 py-3 transition ${theme.cta}`}
@@ -730,6 +853,7 @@ export default function MacDesktopShell() {
                 widthClass="w-full h-full"
                 streak={streak}
                 wordsLearned={wordsLearned}
+                dueCards={cardsDue}
                 coverage={bookCoverage}
                 readingProgress={
                   activeBook && readingProgress?.bookId === activeBook.id
@@ -788,10 +912,13 @@ export default function MacDesktopShell() {
 
       <BottomDock
         active={dockTab}
+        flashcardsDue={cardsDue}
         onSelect={(t) => {
-          if (shareSlug) {
+          if (shareSlug || deckSlug || profileSlug) {
             clearSharePath();
             setShareSlug(null);
+            setDeckSlug(null);
+            setProfileSlug(null);
           }
           setTab(t);
         }}

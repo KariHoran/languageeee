@@ -16,6 +16,8 @@ type DomProps = {
   style?: CSSProperties;
   children?: ReactNode;
   onClick?: MouseEventHandler<HTMLElement>;
+  onMouseUp?: MouseEventHandler<HTMLElement>;
+  onMouseDown?: MouseEventHandler<HTMLElement>;
   onScroll?: UIEventHandler<HTMLElement>;
   title?: string;
   role?: string;

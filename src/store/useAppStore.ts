@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
+  clearReadingActivityCounters,
   emptyDayActivity,
   localDayKey,
   mergeActivityByDay,
+  mergeActivityByDayWithEpoch,
   normalizeDayActivity,
   pruneActivityByDay,
   yesterdayLocalKey,
@@ -150,6 +152,19 @@ export interface ActivitySlice {
   streakUpdatedAt: string;
   activityByDay: ActivityByDay;
   /**
+   * Поколение сброса reading-счётчиков. Большее значение побеждает при sync,
+   * чтобы max-merge не вернул раздутые words/minutes из облака.
+   */
+  activityEpoch: number;
+  /** Дневная цель: слова прочитано */
+  dailyWordsGoal: number;
+  /** Дневная цель: карточки повторено */
+  dailyCardsGoal: number;
+  setDailyGoals: (goals: {
+    words?: number;
+    cards?: number;
+  }) => void;
+  /**
    * Целевое действие: чтение / карточки / минуты в приложении.
    * Обновляет счётчики дня и стрик (если день ещё не засчитан).
    */
@@ -166,6 +181,7 @@ export interface ActivitySlice {
       updatedAt?: string;
     };
     activityByDay?: ActivityByDay;
+    activityEpoch?: number;
   }) => void;
   getTodayActivity: () => DayActivity;
 }
@@ -553,6 +569,22 @@ export const useAppStore = create<AppStore>()(
       streakLastActiveDate: null as string | null,
       streakUpdatedAt: new Date().toISOString(),
       activityByDay: {} as ActivityByDay,
+      activityEpoch: 0,
+      dailyWordsGoal: 50,
+      dailyCardsGoal: 10,
+
+      setDailyGoals: ({ words, cards }) => {
+        set((state) => ({
+          dailyWordsGoal:
+            words != null
+              ? Math.max(5, Math.min(2000, Math.floor(words)))
+              : state.dailyWordsGoal,
+          dailyCardsGoal:
+            cards != null
+              ? Math.max(1, Math.min(200, Math.floor(cards)))
+              : state.dailyCardsGoal,
+        }));
+      },
 
       trackActivity: (delta) => {
         const words = Math.max(0, Math.floor(delta.wordsRead ?? 0));
@@ -576,6 +608,15 @@ export const useAppStore = create<AppStore>()(
           let streakCurrent = state.streakCurrent;
           let streakLastActiveDate = state.streakLastActiveDate;
           let streakUpdatedAt = state.streakUpdatedAt;
+
+          // Просроченный стрик (пропуск >1 дня) сбрасываем до инкремента
+          if (
+            streakLastActiveDate &&
+            streakLastActiveDate !== today &&
+            streakLastActiveDate !== yesterday
+          ) {
+            streakCurrent = 0;
+          }
 
           // Стрик только от целевых действий: чтение или карточки (не просто минуты в UI)
           const meaningful = words > 0 || cards > 0;
@@ -618,11 +659,15 @@ export const useAppStore = create<AppStore>()(
               next.streakUpdatedAt = new Date().toISOString();
             }
           }
-          if (payload.activityByDay) {
-            next.activityByDay = mergeActivityByDay(
+          if (payload.activityByDay || typeof payload.activityEpoch === 'number') {
+            const merged = mergeActivityByDayWithEpoch(
               state.activityByDay,
-              payload.activityByDay
+              state.activityEpoch,
+              payload.activityByDay,
+              payload.activityEpoch ?? 0
             );
+            next.activityByDay = merged.activityByDay;
+            next.activityEpoch = merged.activityEpoch;
           }
           return next;
         });
@@ -680,15 +725,32 @@ export const useAppStore = create<AppStore>()(
         radioVolume: state.radioVolume,
         readerFontScale: state.readerFontScale,
         readerPageTheme: state.readerPageTheme,
-        learningLanguage: state.learningLanguage,
-        nativeLanguage: state.nativeLanguage,
+        // Языки НЕ в persist: SoT = onboarding prefs (@languageeee/user_prefs).
+        // Иначе поздняя гидратация IndexedDB откатывала nativeLanguage после
+        // LanguageSwitcher (карточки каталога «не переключаются» / мигают).
         stickyNotes: state.stickyNotes,
         activeBookId: state.activeBookId,
         streakCurrent: state.streakCurrent,
         streakLastActiveDate: state.streakLastActiveDate,
         streakUpdatedAt: state.streakUpdatedAt,
         activityByDay: state.activityByDay,
+        activityEpoch: state.activityEpoch,
+        dailyWordsGoal: state.dailyWordsGoal,
+        dailyCardsGoal: state.dailyCardsGoal,
       }),
+      // Старые снимки persist ещё содержат learning/native — игнорируем их.
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return currentState;
+        }
+        const raw = persistedState as Record<string, unknown>;
+        const {
+          learningLanguage: _dropLearn,
+          nativeLanguage: _dropNative,
+          ...rest
+        } = raw;
+        return { ...currentState, ...rest };
+      },
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('[useAppStore] rehydrate failed', error);
@@ -715,6 +777,7 @@ export const useAppStore = create<AppStore>()(
           ) {
             state.readerPageTheme = 'light';
           }
+          // Языки подтянет hydrateStoreLanguagesFromPrefs (App boot / post-rehydrate)
           state.learningLanguage = normalizeLearningLanguage(
             state.learningLanguage
           );
@@ -736,6 +799,15 @@ export const useAppStore = create<AppStore>()(
             }
             state.activityByDay = pruneActivityByDay(cleaned);
           }
+          if (typeof state.activityEpoch !== 'number' || state.activityEpoch < 0) {
+            state.activityEpoch = 0;
+          }
+          if (typeof state.dailyWordsGoal !== 'number' || state.dailyWordsGoal < 5) {
+            state.dailyWordsGoal = 50;
+          }
+          if (typeof state.dailyCardsGoal !== 'number' || state.dailyCardsGoal < 1) {
+            state.dailyCardsGoal = 10;
+          }
           // Убрать только старые автосиднутые id — пользовательские названия не фильтруем
           if (Array.isArray(state.collections)) {
             const legacyIds = new Set([
@@ -754,11 +826,69 @@ export const useAppStore = create<AppStore>()(
           }
           // Миграция legacy AsyncStorage streak → Zustand (один раз)
           void migrateLegacyStreakIntoZustand();
+          // Сброс раздутых words/minutes от скролла (синхронно + persist)
+          resetInflatedReadingStatsIfNeeded();
         }
       },
     }
   )
 );
+
+/**
+ * Минимальный activityEpoch после сброса накрутки от скролла.
+ * Маркер в том же persist-снимке, что и activityByDay.
+ */
+const READING_STATS_RESET_EPOCH = 3;
+
+/** Явно раздутый счётчик (баг скролла) — сбрасываем даже если epoch уже высокий. */
+const INFLATED_WORDS_THRESHOLD = 2500;
+
+function totalWordsRead(map: ActivityByDay): number {
+  let n = 0;
+  for (const row of Object.values(map || {})) {
+    n += row?.wordsRead || 0;
+  }
+  return n;
+}
+
+/**
+ * Обнулить words/minutes при низком epoch или явно раздутом счётчике.
+ * Возвращает true, если сброс выполнен (нужен push в облако).
+ */
+export function resetInflatedReadingStatsIfNeeded(): boolean {
+  try {
+    const state = useAppStore.getState();
+    const epoch = Math.max(0, Math.floor(state.activityEpoch || 0));
+    const words = totalWordsRead(state.activityByDay);
+    const needsEpochReset = epoch < READING_STATS_RESET_EPOCH;
+    const needsHeuristicReset = words >= INFLATED_WORDS_THRESHOLD;
+    if (!needsEpochReset && !needsHeuristicReset) return false;
+
+    const cleared = clearReadingActivityCounters(state.activityByDay);
+    // Date.now() бьёт любой старый epoch в Firestore (в т.ч. после pull-replace).
+    useAppStore.setState({
+      activityByDay: cleared,
+      activityEpoch: Math.max(
+        READING_STATS_RESET_EPOCH,
+        epoch + 1,
+        Date.now()
+      ),
+    });
+    // Debounced sync: внутри runExclusiveSync запись уже идёт через loadLocalSnapshot().
+    queueCloudSync();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// HMR / уже гидратированный store: onRehydrateStorage больше не вызовется
+if (useAppStore.persist.hasHydrated()) {
+  resetInflatedReadingStatsIfNeeded();
+}
+useAppStore.persist.onFinishHydration(() => {
+  resetInflatedReadingStatsIfNeeded();
+});
 
 /** Один раз перенести legacy `@languageeee/streak` в Zustand ActivitySlice. */
 async function migrateLegacyStreakIntoZustand(): Promise<void> {

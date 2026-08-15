@@ -7,6 +7,7 @@ import {
   localDayKey,
   pruneActivityByDay,
   yesterdayLocalKey,
+  displayStreak,
 } from './activityAnalytics';
 import { useAppStore } from '../store/useAppStore';
 
@@ -19,7 +20,7 @@ export interface StreakState {
 export async function loadStreak(): Promise<StreakState> {
   const s = useAppStore.getState();
   return {
-    current: s.streakCurrent,
+    current: displayStreak(s.streakCurrent, s.streakLastActiveDate),
     lastActiveDate: s.streakLastActiveDate,
     updatedAt: s.streakUpdatedAt,
   };

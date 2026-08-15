@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HskAnalysisView from '../components/HskAnalysisView';
+import { useI18n } from '../i18n/useI18n';
+import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   analyzeAndTranslateEnglish,
   analyzeEnglishText,
@@ -21,6 +23,7 @@ import {
 import {
   analyzeText,
   buildBookFromAnalysis,
+  estimateHskLevel,
   normalizeForHskAnalysis,
 } from '../services/hskLocalService';
 import {
@@ -29,10 +32,8 @@ import {
 } from '../services/onboardingService';
 import { getCollections, saveBook, saveCollection } from '../services/storageService';
 import {
-  isLikelyRussian,
-  translateEnToRu,
-  translateRuToEn,
-  translateRuToZh,
+  isLikelyLanguage,
+  translateBetweenLanguages,
 } from '../services/translationService';
 import {
   COLLECTION_COLORS,
@@ -44,6 +45,7 @@ import {
   HskAnalysisResult,
   LEARNING_LANGUAGE_OPTIONS,
   LearningLanguage,
+  NativeLanguage,
   TargetHskLevel,
 } from '../types';
 import { showAlert } from '../utils/alert';
@@ -57,12 +59,20 @@ const IS_TABLET = SCREEN_WIDTH >= 768;
 
 const HSK_LEVELS: TargetHskLevel[] = [1, 2, 3, 4, 5, 6];
 
+type BusyKind = 'translate' | 'analyze' | 'save' | null;
+
 interface AddBookScreenProps {
   initialCollectionId?: string;
   initialText?: string;
   initialTitle?: string;
   onBookCreated: (book: Book) => void;
   onBack: () => void;
+}
+
+function langLabelKey(lang: NativeLanguage | LearningLanguage): UiMessageKey {
+  if (lang === 'zh') return 'catalog.lang.zh';
+  if (lang === 'en') return 'catalog.lang.en';
+  return 'catalog.lang.ru';
 }
 
 export default function AddBookScreen({
@@ -73,29 +83,40 @@ export default function AddBookScreen({
   onBack,
 }: AddBookScreenProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const toggleMidnight = useAppStore((s) => s.toggleMidnightMode);
   const midnightMode = useAppStore((s) => s.midnightMode);
+  const nativeLanguage = useAppStore((s) => s.nativeLanguage);
   const [title, setTitle] = useState(initialTitle?.trim() || '');
   const [text, setText] = useState(initialText ?? '');
   const [sourceLanguage, setSourceLanguage] = useState<LearningLanguage>('zh');
   const [targetHskLevel, setTargetHskLevel] = useState<TargetHskLevel>(2);
+  /** Пользователь вручную нажал уровень HSK — больше не перезаписываем автооценкой. */
+  const [hskLevelTouched, setHskLevelTouched] = useState(false);
+  const [estimatedHskLevel, setEstimatedHskLevel] =
+    useState<TargetHskLevel | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>(
     initialCollectionId
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [busyKind, setBusyKind] = useState<BusyKind>(null);
   const [loadingLabel, setLoadingLabel] = useState('');
   const [analysis, setAnalysis] = useState<HskAnalysisResult | null>(null);
   const [enAnalysis, setEnAnalysis] = useState<EnglishAnalysisResult | null>(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [newCollectionTitle, setNewCollectionTitle] = useState('');
   const [newCollectionColor, setNewCollectionColor] = useState(DEFAULT_COLLECTION_COLOR);
-  /** Русский оригинал до перевода — сохраняется в книгу как originalRussianText */
+  /** Параллельный (родной) текст — legacy-поле originalRussianText */
   const [originalRussianText, setOriginalRussianText] = useState<string | undefined>();
 
   const isEnglish = sourceLanguage === 'en';
   const isRussian = sourceLanguage === 'ru';
   const isChinese = sourceLanguage === 'zh';
+  const showTranslateButton = sourceLanguage !== nativeLanguage;
+
+  const nativeName = t(langLabelKey(nativeLanguage));
+  const sourceName = t(langLabelKey(sourceLanguage));
 
   const clearAnalysis = () => {
     setAnalysis(null);
@@ -119,10 +140,50 @@ export default function AddBookScreen({
     void getLearningLanguage().then((lang) => setSourceLanguage(lang));
   }, []);
 
+  /** Авто-оценка HSK для китайского текста (не для каталога). */
+  useEffect(() => {
+    if (!isChinese) {
+      setEstimatedHskLevel(null);
+      return;
+    }
+    const trimmed = text.trim();
+    if (!trimmed || !/[\u4e00-\u9fff]/.test(trimmed)) {
+      setEstimatedHskLevel(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      try {
+        const estimated = estimateHskLevel(trimmed);
+        if (cancelled) return;
+        setEstimatedHskLevel(estimated);
+        if (!hskLevelTouched) {
+          setTargetHskLevel((prev) =>
+            prev === estimated ? prev : estimated
+          );
+        }
+      } catch (err) {
+        console.warn('[AddBook] estimateHskLevel failed:', err);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [text, isChinese, hskLevelTouched]);
+
+  const hskMismatchHint =
+    isChinese &&
+    hskLevelTouched &&
+    estimatedHskLevel != null &&
+    Math.abs(estimatedHskLevel - targetHskLevel) >= 2;
+
   const handleSelectSourceLanguage = async (lang: LearningLanguage) => {
     setSourceLanguage(lang);
     clearAnalysis();
     setOriginalRussianText(undefined);
+    setHskLevelTouched(false);
+    setEstimatedHskLevel(null);
     await setLearningLanguage(lang);
   };
 
@@ -133,7 +194,7 @@ export default function AddBookScreen({
       clearAnalysis();
       setOriginalRussianText(undefined);
       if (!title.trim()) {
-        setTitle('Новый фанфик');
+        setTitle(t('addBook.defaultTitle'));
       }
     }
   };
@@ -141,7 +202,7 @@ export default function AddBookScreen({
   const handleCreateCollection = async () => {
     const trimmed = newCollectionTitle.trim();
     if (!trimmed) {
-      showAlert('Ошибка', 'Введите название подборки.');
+      showAlert(t('addBook.alert.error'), t('addBook.alert.enterCollection'));
       return;
     }
 
@@ -157,59 +218,95 @@ export default function AddBookScreen({
     setShowNewCollection(false);
   };
 
-  const handleTranslateFromRussian = async () => {
+  /** Родной текст → язык контента (learning / sourceLanguage). */
+  const handleTranslateFromNative = async () => {
     if (isLoading) return;
+
+    if (nativeLanguage === sourceLanguage) {
+      showAlert(
+        t('addBook.alert.attention'),
+        t('addBook.alert.unsupportedPair', {
+          from: nativeName,
+          to: sourceName,
+        })
+      );
+      return;
+    }
 
     const trimmedText = text.trim();
     if (!trimmedText) {
-      showAlert('Внимание', 'Вставьте русский текст для перевода.');
+      showAlert(
+        t('addBook.alert.attention'),
+        t('addBook.alert.pasteForTranslate', { lang: nativeName })
+      );
       return;
     }
-    if (!isLikelyRussian(trimmedText)) {
+    if (!isLikelyLanguage(trimmedText, nativeLanguage)) {
       showAlert(
-        'Внимание',
-        isEnglish
-          ? 'Текст не похож на русский. Введите русский оригинал или вставьте английский и нажмите «Разобрать».'
-          : 'Текст не похож на русский. Введите текст на русском или используйте «Проанализировать текст» для китайского.'
+        t('addBook.alert.attention'),
+        t('addBook.alert.notLikely', { lang: nativeName })
       );
       return;
     }
 
     setIsLoading(true);
-    setLoadingLabel('Переводим: подготовка...');
+    setBusyKind('translate');
+    setLoadingLabel(t('addBook.loading.translatePrep'));
     clearAnalysis();
 
     try {
-      if (isEnglish) {
-        const translated = await translateRuToEn(trimmedText, (progress) => {
+      const translated = await translateBetweenLanguages(
+        trimmedText,
+        nativeLanguage,
+        sourceLanguage,
+        (progress) => {
           setLoadingLabel(progress.label);
-        });
-        setOriginalRussianText(trimmedText);
+        }
+      );
+
+      setOriginalRussianText(trimmedText);
+      if (isEnglish) {
         setText(translated);
-        setLoadingLabel('Разбираем английские слова…');
-        // Русский уже есть (оригинал) — только токены, без второго сетевого вызова
+        setLoadingLabel(t('addBook.loading.analyzeEn'));
         const tokens = analyzeEnglishText(translated);
         setEnAnalysis({
           ...tokens,
           russianText: trimmedText,
           translationOk: true,
         });
-      } else {
-        const translated = await translateRuToZh(trimmedText, (progress) => {
-          setLoadingLabel(progress.label);
-        });
+      } else if (isChinese) {
         const chineseText = normalizeForHskAnalysis(translated);
-        setOriginalRussianText(trimmedText);
         setText(chineseText);
-        setLoadingLabel('Анализируем текст по словарю HSK...');
-        setAnalysis(analyzeText(chineseText, targetHskLevel));
+        setLoadingLabel(t('addBook.loading.analyzeHsk'));
+        const level = hskLevelTouched
+          ? targetHskLevel
+          : estimateHskLevel(chineseText);
+        if (!hskLevelTouched) {
+          setTargetHskLevel(level);
+          setEstimatedHskLevel(level);
+        }
+        setAnalysis(analyzeText(chineseText, level));
+      } else {
+        setText(translated);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
-      console.error('[AddBook] translate from Russian failed:', err);
-      showAlert('Ошибка перевода', message);
+      const message =
+        err instanceof Error ? err.message : t('addBook.unknownError');
+      console.error('[AddBook] translate from native failed:', err);
+      if (/не поддерживается|not supported/i.test(message)) {
+        showAlert(
+          t('addBook.alert.translateError'),
+          t('addBook.alert.unsupportedPair', {
+            from: nativeName,
+            to: sourceName,
+          })
+        );
+      } else {
+        showAlert(t('addBook.alert.translateError'), message);
+      }
     } finally {
       setIsLoading(false);
+      setBusyKind(null);
       setLoadingLabel('');
     }
   };
@@ -221,60 +318,100 @@ export default function AddBookScreen({
     const trimmedText = text.trim();
 
     if (!trimmedTitle) {
-      showAlert('Внимание', 'Введите название фанфика.');
+      showAlert(t('addBook.alert.attention'), t('addBook.alert.enterTitle'));
       return;
     }
     if (!trimmedText) {
-      showAlert('Внимание', 'Вставьте текст фанфика.');
+      showAlert(t('addBook.alert.attention'), t('addBook.alert.enterText'));
       return;
     }
 
     setIsLoading(true);
+    setBusyKind('analyze');
     try {
       if (isEnglish) {
-        // Only tokens + En→Ru. Without pinyin / HSK / OpenCC.
-        setLoadingLabel('Разбираем слова…');
+        setLoadingLabel(t('addBook.loading.analyzeEn'));
         console.log('[AddBook] EN analyze start');
-        const result = await analyzeAndTranslateEnglish(
-          trimmedText,
-          (progress) => setLoadingLabel(progress.label)
-        );
-        setEnAnalysis(result);
-        setAnalysis(null);
-        if (result.russianText.trim()) {
-          setOriginalRussianText(result.russianText);
-        }
-        if (!result.translationOk) {
-          showAlert(
-            'Перевод на русский',
-            result.translationError ??
-              'API перевода не ответил вовремя. Разбор слов готов — можно сохранить без перевода или попробовать снова.'
+        const existingNative = originalRussianText?.trim();
+        if (existingNative) {
+          const tokens = analyzeEnglishText(trimmedText);
+          setEnAnalysis({
+            ...tokens,
+            russianText: existingNative,
+            translationOk: true,
+          });
+          setAnalysis(null);
+        } else if (nativeLanguage === 'ru') {
+          const result = await analyzeAndTranslateEnglish(
+            trimmedText,
+            (progress) => setLoadingLabel(progress.label)
           );
+          setEnAnalysis(result);
+          setAnalysis(null);
+          if (result.russianText.trim()) {
+            setOriginalRussianText(result.russianText);
+          }
+          if (!result.translationOk) {
+            showAlert(
+              t('addBook.alert.parallelTitle'),
+              result.translationError ?? t('addBook.alert.parallelBody')
+            );
+          }
+        } else {
+          const tokens = analyzeEnglishText(trimmedText);
+          setEnAnalysis({
+            ...tokens,
+            russianText: '',
+            translationOk: false,
+          });
+          setAnalysis(null);
         }
-        console.log('[AddBook] EN analyze done', {
-          words: result.uniqueCount,
-          translationOk: result.translationOk,
-        });
+        console.log('[AddBook] EN analyze done');
       } else if (isRussian) {
-        setLoadingLabel('Готовим русский текст…');
+        setLoadingLabel(t('addBook.loading.prepareContent'));
         setAnalysis(null);
         setEnAnalysis(null);
-        setOriginalRussianText(trimmedText);
+        const parallel =
+          nativeLanguage === 'ru'
+            ? trimmedText
+            : originalRussianText?.trim() || undefined;
+        const book = buildBookFromAnalysis(
+          trimmedTitle,
+          trimmedText,
+          targetHskLevel,
+          {
+            collectionId: selectedCollectionId,
+            originalRussianText: parallel,
+            language: sourceLanguage,
+          }
+        );
+        await saveBook(book);
+        await setLearningLanguage(sourceLanguage);
+        onBookCreated(book);
       } else {
-        setLoadingLabel('Анализируем текст по словарю HSK...');
+        setLoadingLabel(t('addBook.loading.analyzeHsk'));
         const normalized = normalizeForHskAnalysis(trimmedText);
         if (normalized !== trimmedText) {
           setText(normalized);
         }
-        setAnalysis(analyzeText(normalized, targetHskLevel));
+        const level = hskLevelTouched
+          ? targetHskLevel
+          : estimateHskLevel(normalized);
+        if (!hskLevelTouched) {
+          setTargetHskLevel(level);
+          setEstimatedHskLevel(level);
+        }
+        setAnalysis(analyzeText(normalized, level));
         setEnAnalysis(null);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      const message =
+        err instanceof Error ? err.message : t('addBook.unknownError');
       console.error('[AddBook] analyze failed:', err);
-      showAlert('Ошибка анализа', message);
+      showAlert(t('addBook.alert.analyzeError'), message);
     } finally {
       setIsLoading(false);
+      setBusyKind(null);
       setLoadingLabel('');
     }
   };
@@ -285,54 +422,85 @@ export default function AddBookScreen({
     if (!trimmedTitle || !trimmedText) return;
 
     setIsLoading(true);
+    setBusyKind('save');
     try {
-      let russianSource = originalRussianText?.trim() || enAnalysis?.russianText?.trim();
+      let parallelSource =
+        originalRussianText?.trim() || enAnalysis?.russianText?.trim();
 
-      // Повторный перевод только если ещё нет русского
-      if (isEnglish && !russianSource) {
-        setLoadingLabel('Переводим на русский…');
-        console.log('[AddBook] EN save → translateEnToRu');
+      // Нет параллели — переводим learning → native (поле originalRussianText legacy)
+      if (
+        isEnglish &&
+        !parallelSource &&
+        nativeLanguage !== 'en'
+      ) {
+        setLoadingLabel(t('addBook.loading.translateParallel'));
+        console.log('[AddBook] EN save → translate to native', nativeLanguage);
         try {
-          russianSource = await translateEnToRu(trimmedText, (progress) => {
-            setLoadingLabel(progress.label);
-          });
-          if (russianSource?.includes('[Перевод временно недоступен')) {
+          parallelSource = await translateBetweenLanguages(
+            trimmedText,
+            'en',
+            nativeLanguage,
+            (progress) => {
+              setLoadingLabel(progress.label);
+            }
+          );
+          if (parallelSource?.includes('[Перевод временно недоступен')) {
             console.warn('[AddBook] EN save translation fallback marker');
             showAlert(
-              'Перевод недоступен',
-              'Сохраняем английский текст без русского перевода. Попробуйте перевести позже.'
+              t('addBook.alert.translateUnavailableTitle'),
+              t('addBook.alert.translateUnavailableSave')
             );
-            russianSource = undefined;
+            parallelSource = undefined;
           }
         } catch (err) {
           console.error('[AddBook] EN save translate failed:', err);
           showAlert(
-            'Перевод недоступен',
+            t('addBook.alert.translateUnavailableTitle'),
             err instanceof Error
               ? err.message
-              : 'Не удалось перевести на русский. Книга сохранится без перевода.'
+              : t('addBook.alert.translateUnavailableRetry')
           );
-          russianSource = undefined;
+          parallelSource = undefined;
         }
       }
 
       const book = buildBookFromAnalysis(trimmedTitle, trimmedText, targetHskLevel, {
         collectionId: selectedCollectionId,
-        originalRussianText: russianSource,
+        originalRussianText: parallelSource,
         language: sourceLanguage,
       });
       await saveBook(book);
       await setLearningLanguage(sourceLanguage);
       onBookCreated(book);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      const message =
+        err instanceof Error ? err.message : t('addBook.unknownError');
       console.error('[AddBook] save failed:', err);
-      showAlert('Ошибка сохранения', message);
+      showAlert(t('addBook.alert.saveError'), message);
     } finally {
       setIsLoading(false);
+      setBusyKind(null);
       setLoadingLabel('');
     }
   };
+
+  const subtitleKey: UiMessageKey = isEnglish
+    ? 'addBook.screenSubtitle.en'
+    : isRussian
+      ? 'addBook.screenSubtitle.ru'
+      : 'addBook.screenSubtitle.zh';
+
+  const placeholderKey: UiMessageKey = isEnglish
+    ? 'addBook.placeholder.en'
+    : isRussian
+      ? 'addBook.placeholder.ru'
+      : 'addBook.placeholder.zh';
+
+  const primaryActionLabel = isEnglish
+    ? t('addBook.analyzeEn')
+    : isRussian
+      ? t('addBook.saveLangText', { lang: sourceName })
+      : t('addBook.analyzeText');
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]} edges={['top', 'bottom']}>
@@ -347,7 +515,7 @@ export default function AddBookScreen({
               styles.backButton,
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
-            accessibilityLabel="Назад"
+            accessibilityLabel={t('addBook.a11y.back')}
           >
             <Text style={[styles.backButtonText, { color: theme.accentViolet }]}>←</Text>
           </Pressable>
@@ -357,7 +525,7 @@ export default function AddBookScreen({
               styles.themeToggle,
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
-            accessibilityLabel="Переключить тему"
+            accessibilityLabel={t('addBook.a11y.theme')}
           >
             <Text style={[styles.themeToggleText, { color: theme.accentViolet }]}>
               {midnightMode ? '☀️' : '🌙'}
@@ -365,15 +533,15 @@ export default function AddBookScreen({
           </Pressable>
         </View>
 
-        <Text style={[styles.screenTitle, { color: theme.accentViolet }]}>Добавить фанфик</Text>
+        <Text style={[styles.screenTitle, { color: theme.accentViolet }]}>
+          {t('addBook.title')}
+        </Text>
         <Text style={[styles.screenSubtitle, { color: theme.textMuted }]}>
-          {isEnglish
-            ? 'Язык: English. Вставьте английский или переведите с русского — слова станут кликабельными, перевод на русский сохранится в книгу.'
-            : 'Язык: 中文. Вставьте китайский или переведите с русского — HSK 3.0 подсветит сложные слова и пиньинь.'}
+          {t(subtitleKey)}
         </Text>
 
         <Text style={[styles.label, { color: theme.accentViolet }]}>
-          Язык исходного текста
+          {t('addBook.sourceLang')}
         </Text>
         <View style={styles.langSelector}>
           {LEARNING_LANGUAGE_OPTIONS.map((opt) => {
@@ -411,7 +579,9 @@ export default function AddBookScreen({
           })}
         </View>
 
-        <Text style={[styles.label, { color: theme.accentViolet }]}>Название фанфика</Text>
+        <Text style={[styles.label, { color: theme.accentViolet }]}>
+          {t('addBook.fanficTitle')}
+        </Text>
         <TextInput
           style={[
             styles.input,
@@ -426,15 +596,19 @@ export default function AddBookScreen({
             setTitle(v);
             clearAnalysis();
           }}
-          placeholder="Например: Гарри Поттер и Тайная комната"
+          placeholder={t('addBook.titlePlaceholder')}
           placeholderTextColor={theme.textDim}
           editable={!isLoading}
         />
 
         <View style={styles.textAreaHeader}>
-          <Text style={[styles.label, { color: theme.accentViolet }]}>Текст фанфика</Text>
+          <Text style={[styles.label, { color: theme.accentViolet }]}>
+            {t('addBook.fanficText')}
+          </Text>
           <Pressable onPress={handlePickFile} disabled={isLoading}>
-            <Text style={[styles.fileButton, { color: theme.accentLime }]}>Загрузить .txt</Text>
+            <Text style={[styles.fileButton, { color: theme.accentLime }]}>
+              {t('addBook.uploadTxt')}
+            </Text>
           </Pressable>
         </View>
         <TextInput
@@ -450,52 +624,53 @@ export default function AddBookScreen({
           onChangeText={(v) => {
             setText(v);
             clearAnalysis();
-            if (isLikelyRussian(v)) {
+            if (isLikelyLanguage(v, nativeLanguage)) {
               setOriginalRussianText(undefined);
             }
           }}
-          placeholder={
-            isEnglish
-              ? 'Вставьте текст на русском (для перевода) или на английском...'
-              : 'Вставьте текст на русском или китайском...'
-          }
+          placeholder={t(placeholderKey)}
           placeholderTextColor={theme.textDim}
           multiline
           textAlignVertical="top"
           editable={!isLoading}
         />
 
-        <TouchableOpacity
-          style={[
-            styles.translateButton,
-            { backgroundColor: theme.surface, borderColor: theme.accentViolet },
-            isLoading && styles.generateButtonDisabled,
-          ]}
-          onPress={handleTranslateFromRussian}
-          disabled={isLoading}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Перевести с русского"
-        >
-          {isLoading && (loadingLabel.startsWith('Переводим') || loadingLabel.includes('/')) ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={theme.accentViolet} />
-              <Text style={[styles.translateProgressText, { color: theme.accentViolet }]}>
-                {loadingLabel}
+        {showTranslateButton ? (
+          <TouchableOpacity
+            style={[
+              styles.translateButton,
+              { backgroundColor: theme.surface, borderColor: theme.accentViolet },
+              isLoading && styles.generateButtonDisabled,
+            ]}
+            onPress={() => void handleTranslateFromNative()}
+            disabled={isLoading}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('addBook.a11y.translate')}
+          >
+            {isLoading && busyKind === 'translate' ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={theme.accentViolet} />
+                <Text style={[styles.translateProgressText, { color: theme.accentViolet }]}>
+                  {loadingLabel}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.translateButtonText, { color: theme.accentViolet }]}>
+                {t('addBook.translateFromTo', {
+                  from: nativeName,
+                  to: sourceName,
+                })}
               </Text>
-            </View>
-          ) : (
-            <Text style={[styles.translateButtonText, { color: theme.accentViolet }]}>
-              {isEnglish
-                ? 'Перевести с русского → English'
-                : 'Перевести с русского → 中文'}
-            </Text>
-          )}
-        </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        ) : null}
 
         {!isEnglish && !isRussian ? (
           <>
-            <Text style={[styles.label, { color: theme.accentViolet }]}>Целевой уровень HSK</Text>
+            <Text style={[styles.label, { color: theme.accentViolet }]}>
+              {t('addBook.hskLevel')}
+            </Text>
             <View style={styles.hskSelector}>
               {HSK_LEVELS.map((level) => (
                 <Pressable
@@ -512,6 +687,7 @@ export default function AddBookScreen({
                     },
                   ]}
                   onPress={() => {
+                    setHskLevelTouched(true);
                     setTargetHskLevel(level);
                     clearAnalysis();
                   }}
@@ -529,10 +705,24 @@ export default function AddBookScreen({
                 </Pressable>
               ))}
             </View>
+            {hskMismatchHint ? (
+              <Text
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  lineHeight: 16,
+                  color: theme.textMuted,
+                }}
+              >
+                {t('addBook.hskMismatchHint', { estimated: estimatedHskLevel! })}
+              </Text>
+            ) : null}
           </>
         ) : null}
 
-        <Text style={[styles.label, { color: theme.accentViolet }]}>Подборка</Text>
+        <Text style={[styles.label, { color: theme.accentViolet }]}>
+          {t('addBook.collection')}
+        </Text>
         <View style={styles.collectionSelector}>
           {collections.map((col) => (
             <Pressable
@@ -571,7 +761,7 @@ export default function AddBookScreen({
             disabled={isLoading}
           >
             <Text style={[styles.newCollectionButtonText, { color: theme.accentLime }]}>
-              + Создать новую подборку
+              {t('addBook.createCollection')}
             </Text>
           </Pressable>
         </View>
@@ -582,15 +772,13 @@ export default function AddBookScreen({
             { backgroundColor: theme.accentLime },
             isLoading && styles.generateButtonDisabled,
           ]}
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
           disabled={isLoading}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Проанализировать текст"
+          accessibilityLabel={t('addBook.a11y.analyze')}
         >
-          {isLoading &&
-          (loadingLabel.startsWith('Анализируем') ||
-            loadingLabel.startsWith('Разбираем')) ? (
+          {isLoading && busyKind === 'analyze' ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={theme.bg} />
               <Text style={[styles.generateButtonText, { color: theme.bg }]}>
@@ -599,11 +787,7 @@ export default function AddBookScreen({
             </View>
           ) : (
             <Text style={[styles.generateButtonText, { color: theme.bg }]}>
-              {isEnglish
-                ? 'Разобрать английский текст'
-                : isRussian
-                  ? 'Сохранить русский текст'
-                  : 'Проанализировать текст'}
+              {primaryActionLabel}
             </Text>
           )}
         </TouchableOpacity>
@@ -617,14 +801,14 @@ export default function AddBookScreen({
                 { backgroundColor: theme.accentViolet },
                 isLoading && styles.generateButtonDisabled,
               ]}
-              onPress={handleSaveAndRead}
+              onPress={() => void handleSaveAndRead()}
               disabled={isLoading}
               activeOpacity={0.7}
             >
-              {isLoading ? (
+              {isLoading && busyKind === 'save' ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.saveButtonText}>Сохранить и начать чтение</Text>
+                <Text style={styles.saveButtonText}>{t('addBook.saveAndRead')}</Text>
               )}
             </TouchableOpacity>
           </>
@@ -639,10 +823,10 @@ export default function AddBookScreen({
               ]}
             >
               <Text style={[styles.enPreviewTitle, { color: theme.accentPink }]}>
-                Разбор English · {enAnalysis.uniqueCount} слов
+                {t('addBook.enPreviewTitle', { n: enAnalysis.uniqueCount })}
               </Text>
               <Text style={[styles.enPreviewMeta, { color: theme.textMuted }]}>
-                Токенов: {enAnalysis.tokenCount}. Пиньинь не используется. language: en.
+                {t('addBook.enPreviewMeta', { n: enAnalysis.tokenCount })}
               </Text>
               {enAnalysis.russianText ? (
                 <View
@@ -652,7 +836,7 @@ export default function AddBookScreen({
                   ]}
                 >
                   <Text style={[styles.enRuLabel, { color: theme.accentPink }]}>
-                    Русский перевод
+                    {t('addBook.parallelLabel', { lang: nativeName })}
                   </Text>
                   <Text style={[styles.enRuText, { color: theme.text }]}>
                     {enAnalysis.russianText.slice(0, 600)}
@@ -662,8 +846,10 @@ export default function AddBookScreen({
               ) : (
                 <Text style={[styles.enPreviewMeta, { color: theme.textDim }]}>
                   {enAnalysis.translationError
-                    ? `Перевод: ${enAnalysis.translationError}`
-                    : 'Русский перевод пока пуст — при сохранении попробуем ещё раз.'}
+                    ? t('addBook.parallelError', {
+                        error: enAnalysis.translationError,
+                      })
+                    : t('addBook.parallelEmpty')}
                 </Text>
               )}
               <View style={styles.enWordWrap}>
@@ -683,13 +869,17 @@ export default function AddBookScreen({
               </View>
               {enAnalysis.words.length > 48 ? (
                 <Text style={[styles.enPreviewMeta, { color: theme.textDim }]}>
-                  …и ещё {enAnalysis.words.length - 48}
+                  {t('addBook.moreItems', {
+                    n: enAnalysis.words.length - 48,
+                  })}
                 </Text>
               ) : null}
               {enAnalysis.grammar && enAnalysis.grammar.length > 0 ? (
                 <View style={styles.enGrammarSection}>
                   <Text style={[styles.enGrammarTitle, { color: theme.accentViolet }]}>
-                    Грамматика / Конструкции · {enAnalysis.grammar.length}
+                    {t('addBook.grammarTitle', {
+                      n: enAnalysis.grammar.length,
+                    })}
                   </Text>
                   {enAnalysis.grammar.slice(0, 12).map((g, i) => (
                     <View
@@ -717,7 +907,9 @@ export default function AddBookScreen({
                   ))}
                   {enAnalysis.grammar.length > 12 ? (
                     <Text style={[styles.enPreviewMeta, { color: theme.textDim }]}>
-                      …и ещё {enAnalysis.grammar.length - 12} конструкций
+                      {t('addBook.moreItems', {
+                        n: enAnalysis.grammar.length - 12,
+                      })}
                     </Text>
                   ) : null}
                 </View>
@@ -729,14 +921,14 @@ export default function AddBookScreen({
                 { backgroundColor: theme.accentViolet },
                 isLoading && styles.generateButtonDisabled,
               ]}
-              onPress={handleSaveAndRead}
+              onPress={() => void handleSaveAndRead()}
               disabled={isLoading}
               activeOpacity={0.7}
             >
-              {isLoading ? (
+              {isLoading && busyKind === 'save' ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.saveButtonText}>Сохранить и начать чтение</Text>
+                <Text style={styles.saveButtonText}>{t('addBook.saveAndRead')}</Text>
               )}
             </TouchableOpacity>
           </>
@@ -752,7 +944,9 @@ export default function AddBookScreen({
             ]}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text style={[styles.modalTitle, { color: theme.accentViolet }]}>Новая подборка</Text>
+            <Text style={[styles.modalTitle, { color: theme.accentViolet }]}>
+              {t('addBook.newCollection')}
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -764,11 +958,13 @@ export default function AddBookScreen({
               ]}
               value={newCollectionTitle}
               onChangeText={setNewCollectionTitle}
-              placeholder="Название подборки"
+              placeholder={t('addBook.collectionNamePlaceholder')}
               placeholderTextColor={theme.textDim}
               autoFocus
             />
-            <Text style={[styles.colorLabel, { color: theme.accentViolet }]}>Цвет</Text>
+            <Text style={[styles.colorLabel, { color: theme.accentViolet }]}>
+              {t('addBook.color')}
+            </Text>
             <View style={styles.colorRow}>
               {COLLECTION_COLORS.map((color) => (
                 <Pressable
@@ -786,9 +982,11 @@ export default function AddBookScreen({
             </View>
             <Pressable
               style={[styles.modalButton, { backgroundColor: theme.accentLime }]}
-              onPress={handleCreateCollection}
+              onPress={() => void handleCreateCollection()}
             >
-              <Text style={[styles.modalButtonText, { color: theme.bg }]}>Создать</Text>
+              <Text style={[styles.modalButtonText, { color: theme.bg }]}>
+                {t('addBook.create')}
+              </Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1027,17 +1225,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A3A',
   },
-  hskOptionActive: {
-    backgroundColor: '#D0FF00',
-    borderColor: '#D0FF00',
-  },
   hskOptionText: {
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-  },
-  hskOptionTextActive: {
-    color: '#0D0D11',
   },
   collectionSelector: {
     gap: 8,
@@ -1052,17 +1243,9 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A3A',
     borderLeftWidth: 4,
   },
-  collectionOptionActive: {
-    backgroundColor: '#16161E',
-    borderColor: '#8B5CF6',
-  },
   collectionOptionText: {
     fontSize: 16,
     color: '#ffffff',
-  },
-  collectionOptionTextActive: {
-    color: '#8B5CF6',
-    fontWeight: '600',
   },
   newCollectionButton: {
     paddingVertical: 12,
@@ -1152,9 +1335,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  colorSwatchActive: {
-    borderColor: '#D0FF00',
   },
   modalButton: {
     backgroundColor: '#D0FF00',

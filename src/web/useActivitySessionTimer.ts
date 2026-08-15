@@ -1,5 +1,5 @@
 /**
- * Учёт минут в приложении (visible tab) → ActivitySlice.
+ * Учёт минут только во время учёбы (ридер / карточки), пока вкладка видима.
  */
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
@@ -11,14 +11,21 @@ function isDocumentVisible(): boolean {
   return document.visibilityState !== 'hidden';
 }
 
-/** Пока вкладка видима — каждую минуту +1 к «Минут в приложении». */
+/**
+ * Пока вкладка видима и `enabled` — каждую минуту +1 к activity minutes.
+ * Включать только на экране ридера или карточек.
+ */
 export function useActivitySessionTimer(enabled = true): void {
   const trackActivity = useAppStore((s) => s.trackActivity);
   const accruedMs = useRef(0);
   const lastTs = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      accruedMs.current = 0;
+      lastTs.current = null;
+      return;
+    }
 
     const flush = () => {
       if (accruedMs.current < FLUSH_MS) return;
