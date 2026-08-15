@@ -268,6 +268,12 @@ export type UiMessageKey =
   | 'public.editHint'
   | 'public.texts'
   | 'public.emptyBooks'
+  | 'public.importAll'
+  | 'public.importBusy'
+  | 'public.imported'
+  | 'public.importedBody'
+  | 'public.importFail'
+  | 'public.importEmpty'
   | 'unit.word.one'
   | 'unit.word.few'
   | 'unit.word.many'
@@ -854,6 +860,12 @@ const ru: Dictionary = {
   'public.editHint': 'Редактировать и удалять может только автор подборки.',
   'public.texts': 'Тексты',
   'public.emptyBooks': 'В подборке пока нет текстов.',
+  'public.importAll': 'Добавить всю подборку в библиотеку',
+  'public.importBusy': 'Добавляем…',
+  'public.imported': 'Подборка добавлена',
+  'public.importedBody': 'Добавлено текстов: {added}. Пропущено: {skipped}.',
+  'public.importFail': 'Не удалось добавить подборку',
+  'public.importEmpty': 'В подборке нет текстов для добавления',
   'unit.word.one': 'слово',
   'unit.word.few': 'слова',
   'unit.word.many': 'слов',
@@ -1503,6 +1515,12 @@ const en: Dictionary = {
   'public.editHint': 'Only the collection author can edit or delete it.',
   'public.texts': 'Texts',
   'public.emptyBooks': 'This collection has no texts yet.',
+  'public.importAll': 'Add entire collection to library',
+  'public.importBusy': 'Adding…',
+  'public.imported': 'Collection added',
+  'public.importedBody': 'Added: {added}. Skipped: {skipped}.',
+  'public.importFail': 'Could not add the collection',
+  'public.importEmpty': 'This collection has no texts to add',
   'unit.word.one': 'word',
   'unit.word.few': 'words',
   'unit.word.many': 'words',
@@ -2145,6 +2163,12 @@ const zh: Dictionary = {
   'public.editHint': '仅合集作者可以编辑或删除。',
   'public.texts': '文本',
   'public.emptyBooks': '合集中还没有文本。',
+  'public.importAll': '将整个合集加入图书馆',
+  'public.importBusy': '正在添加…',
+  'public.imported': '合集已添加',
+  'public.importedBody': '已添加：{added}。跳过：{skipped}。',
+  'public.importFail': '无法添加合集',
+  'public.importEmpty': '合集中没有可添加的文本',
   'unit.word.one': '词',
   'unit.word.few': '词',
   'unit.word.many': '词',

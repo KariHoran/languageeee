@@ -22,7 +22,14 @@ import type {
 } from '../types';
 import { getCloudUid } from './authService';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
-import { getBooksByCollection, updateCollection } from './storageService';
+import {
+  createUserCollection,
+  getBook,
+  getBooksByCollection,
+  saveBook,
+  updateCollection,
+} from './storageService';
+import { getDataOwnerId } from './dataOwner';
 
 const PUBLIC_FETCH_TIMEOUT_MS = 12_000;
 
@@ -403,6 +410,82 @@ export async function fetchPublicCollectionBook(
     console.warn('[publicCollections] fetch book failed:', err);
     throw err;
   }
+}
+
+/**
+ * Импорт всей публичной подборки в «Мою библиотеку»:
+ * новая локальная категория + копии всех текстов.
+ * Уже сохранённые книги (тот же public-{slug}-{id}) пропускаются;
+ * если книга была без категории — привязываем к новой.
+ */
+export async function importPublicCollection(
+  pub: PublicCollectionDoc
+): Promise<{ added: number; skipped: number; collectionId: string }> {
+  const slug = (pub.slug || '').trim();
+  if (!slug) throw new Error('Missing collection slug');
+  const summaries = Array.isArray(pub.books) ? pub.books : [];
+  if (summaries.length === 0) {
+    throw new Error('EMPTY_PUBLIC_COLLECTION');
+  }
+
+  const local = await createUserCollection(
+    pub.title?.trim() || slug,
+    pub.color || '#8B5CF6',
+    pub.description ?? undefined
+  );
+
+  const ownerUserId = getDataOwnerId();
+  let added = 0;
+  let skipped = 0;
+
+  for (const summary of summaries) {
+    const bookId = summary?.id?.trim();
+    if (!bookId) {
+      skipped += 1;
+      continue;
+    }
+    const personalId = `public-${slug}-${bookId}`;
+    try {
+      const existing = await getBook(personalId);
+      if (existing) {
+        if (!existing.collectionId) {
+          await saveBook({
+            ...existing,
+            collectionId: local.id,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+        skipped += 1;
+        continue;
+      }
+
+      const remote = await fetchPublicCollectionBook(slug, bookId);
+      if (!remote || !Array.isArray(remote.paragraphs) || remote.paragraphs.length === 0) {
+        skipped += 1;
+        continue;
+      }
+
+      const now = new Date().toISOString();
+      const personal: Book = {
+        ...remote,
+        id: personalId,
+        catalogId: remote.catalogId,
+        collectionId: local.id,
+        ownerUserId,
+        userId: ownerUserId !== 'guest' ? ownerUserId : undefined,
+        authorId: ownerUserId !== 'guest' ? ownerUserId : undefined,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await saveBook(personal);
+      added += 1;
+    } catch (err) {
+      console.warn('[publicCollections] import book failed:', bookId, err);
+      skipped += 1;
+    }
+  }
+
+  return { added, skipped, collectionId: local.id };
 }
 
 /** Удалить публичное зеркало при удалении подборки */

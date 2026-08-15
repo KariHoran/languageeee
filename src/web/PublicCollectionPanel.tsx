@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/useI18n';
 import {
   fetchPublicCollection,
   fetchPublicCollectionBook,
+  importPublicCollection,
 } from '../services/publicCollectionsService';
 import { saveBook } from '../services/storageService';
 import type { Book, PublicCollectionDoc } from '../types';
@@ -36,8 +37,7 @@ type LoadErrorKind = 'notFound' | 'auth';
 
 /**
  * Публичная подборка по ссылке `/c/{slug}`.
- * Read-only для гостей; «Добавить к себе» копирует книгу в личную библиотеку.
- * Ридер (пиньинь #FF6584 + WordModalGlass) открывается через onOpenBook.
+ * Read-only для гостей; «Добавить всю подборку» / по книге — в личную библиотеку.
  */
 export function PublicCollectionPanel({
   slug,
@@ -52,6 +52,7 @@ export function PublicCollectionPanel({
   const [loading, setLoading] = useState(true);
   const [errorKind, setErrorKind] = useState<LoadErrorKind | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +103,7 @@ export function PublicCollectionPanel({
 
   const openBook = useCallback(
     async (bookId: string, addToLibrary: boolean) => {
-      if (busyId) return;
+      if (busyId || importBusy) return;
       setBusyId(bookId);
       try {
         const book = await fetchPublicCollectionBook(slug, bookId);
@@ -136,8 +137,41 @@ export function PublicCollectionPanel({
         setBusyId(null);
       }
     },
-    [busyId, slug, onOpenBook, onAddedToLibrary, t]
+    [busyId, importBusy, slug, onOpenBook, onAddedToLibrary, t]
   );
+
+  const handleImportAll = useCallback(async () => {
+    if (!doc || importBusy || busyId) return;
+    if (!(doc.books?.length > 0)) {
+      showAlert(t('alert.error'), t('public.importEmpty'));
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const result = await importPublicCollection(doc);
+      showAlert(
+        t('public.imported'),
+        t('public.importedBody', {
+          added: result.added,
+          skipped: result.skipped,
+        })
+      );
+      onAddedToLibrary?.();
+    } catch (err) {
+      const empty =
+        err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';
+      showAlert(
+        t('alert.error'),
+        empty
+          ? t('public.importEmpty')
+          : err instanceof Error
+            ? err.message
+            : t('public.importFail')
+      );
+    } finally {
+      setImportBusy(false);
+    }
+  }, [doc, importBusy, busyId, onAddedToLibrary, t]);
 
   const glass =
     theme.isDark
@@ -225,6 +259,16 @@ export function PublicCollectionPanel({
               <Div className={`text-[10px] ${theme.textMuted}`}>
                 {t('public.editHint')}
               </Div>
+              {(doc.books ?? []).length > 0 ? (
+                <Button
+                  type="button"
+                  disabled={importBusy || !!busyId}
+                  className={`w-full mt-2 rounded-xl py-2.5 text-sm font-bold ${theme.cta} disabled:opacity-50`}
+                  onClick={() => void handleImportAll()}
+                >
+                  {importBusy ? t('public.importBusy') : t('public.importAll')}
+                </Button>
+              ) : null}
             </Div>
 
             <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}>
@@ -297,7 +341,7 @@ export function PublicCollectionPanel({
                       <Div className="mt-auto flex flex-col gap-1.5 pt-1">
                         <Button
                           type="button"
-                          disabled={!!busyId}
+                          disabled={!!busyId || importBusy}
                           className={`w-full rounded-xl py-2 text-xs font-bold ${theme.cta} disabled:opacity-50`}
                           onClick={() => void openBook(b.id, false)}
                         >
@@ -305,7 +349,7 @@ export function PublicCollectionPanel({
                         </Button>
                         <Button
                           type="button"
-                          disabled={!!busyId}
+                          disabled={!!busyId || importBusy}
                           className={`w-full rounded-xl py-2 text-xs font-bold border transition disabled:opacity-50 ${
                             theme.isDark
                               ? 'border-[#2A2A3A] text-white/80 hover:bg-[#2A2A3A]'
