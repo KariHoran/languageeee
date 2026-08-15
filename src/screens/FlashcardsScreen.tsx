@@ -15,6 +15,7 @@ import { useI18n } from '../i18n/useI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   DEFAULT_SESSION_SIZE,
+  addFlashcard,
   getFlashcardSources,
   getFlashcards,
   getFlashcardsCount,
@@ -48,7 +49,7 @@ interface FlashcardsScreenProps {
 }
 
 type DeckFilter = LearningLanguage | 'all';
-type Phase = 'hub' | 'browse' | 'session' | 'done';
+type Phase = 'hub' | 'browse' | 'create' | 'session' | 'done';
 type StudyMode = 'recognition' | 'recall' | 'cloze' | 'listen';
 type QueueMode = 'default' | 'weak' | 'mixed';
 
@@ -149,11 +150,20 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [deckCards, setDeckCards] = useState<Flashcard[]>([]);
   const [browseQuery, setBrowseQuery] = useState('');
   const [weakCount, setWeakCount] = useState(0);
+  const [createFront, setCreateFront] = useState('');
+  const [createBack, setCreateBack] = useState('');
+  const [createReading, setCreateReading] = useState('');
+  const [createContext, setCreateContext] = useState('');
+  const [createKind, setCreateKind] = useState<'word' | 'grammar'>('word');
+  const [createLang, setCreateLang] = useState<LearningLanguage>('zh');
+  const [createBusy, setCreateBusy] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const lang = await getLearningLanguage();
-      setFilter(lang === 'en' ? 'en' : 'zh');
+      const deckLang: DeckFilter = lang === 'en' ? 'en' : lang === 'ru' ? 'ru' : 'zh';
+      setFilter(deckLang);
+      setCreateLang(lang === 'en' || lang === 'ru' || lang === 'zh' ? lang : 'zh');
       setFilterReady(true);
     })();
   }, []);
@@ -298,6 +308,64 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       t('flashcards.demoDeckDone', { n: result.added })
     );
     await reloadHub();
+  };
+
+  const resetCreateForm = () => {
+    setCreateFront('');
+    setCreateBack('');
+    setCreateReading('');
+    setCreateContext('');
+    setCreateKind('word');
+  };
+
+  const openCreate = () => {
+    resetCreateForm();
+    if (filter === 'en' || filter === 'zh' || filter === 'ru') {
+      setCreateLang(filter);
+    }
+    setPhase('create');
+  };
+
+  const handleCreateCard = async (stayOpen: boolean) => {
+    const front = createFront.trim();
+    const back = createBack.trim();
+    if (!front) {
+      showAlert(t('alert.error'), t('flashcards.createNeedFront'));
+      return;
+    }
+    if (!back) {
+      showAlert(t('alert.error'), t('flashcards.createNeedBack'));
+      return;
+    }
+    if (createBusy) return;
+    setCreateBusy(true);
+    try {
+      await addFlashcard({
+        hanzi: front,
+        translation: back,
+        pinyin: createReading.trim() || undefined,
+        contextSentence: createContext.trim() || undefined,
+        language: createLang,
+        kind: createKind,
+        sourceTitle: 'Manual',
+      });
+      if (stayOpen) {
+        resetCreateForm();
+        showAlert(t('flashcards.createOk'), t('flashcards.createSaveAnother'));
+      } else {
+        resetCreateForm();
+        setPhase('hub');
+        void reloadHub();
+        showAlert(t('flashcards.createOk'), front);
+      }
+    } catch (e) {
+      showAlert(
+        t('alert.error'),
+        e instanceof Error ? e.message : t('flashcards.createFail')
+      );
+    } finally {
+      setCreateBusy(false);
+    }
   };
 
   const handleImportAnki = async () => {
@@ -477,11 +545,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const titleKey: UiMessageKey =
     phase === 'browse'
       ? 'flashcards.browseTitle'
-      : phase === 'session'
-        ? 'flashcards.title.session'
-        : phase === 'done'
-          ? 'flashcards.title.done'
-          : 'flashcards.title.hub';
+      : phase === 'create'
+        ? 'flashcards.createTitle'
+        : phase === 'session'
+          ? 'flashcards.title.session'
+          : phase === 'done'
+            ? 'flashcards.title.done'
+            : 'flashcards.title.hub';
 
   const emptyHintKey: UiMessageKey =
     filter === 'en'
@@ -540,7 +610,8 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 if (
                   phase === 'session' ||
                   phase === 'done' ||
-                  phase === 'browse'
+                  phase === 'browse' ||
+                  phase === 'create'
                 ) {
                   setPhase('hub');
                   void reloadHub();
@@ -813,6 +884,22 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               <Pressable
                 style={[
                   styles.secondaryButton,
+                  { borderColor: theme.accentPink },
+                ]}
+                onPress={openCreate}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.accentPink },
+                  ]}
+                >
+                  {t('flashcards.create')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
                   { borderColor: theme.accent },
                 ]}
                 onPress={() => {
@@ -962,6 +1049,26 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 },
               ]}
             />
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                {
+                  borderColor: theme.accentPink,
+                  alignSelf: 'flex-start',
+                  marginBottom: 12,
+                },
+              ]}
+              onPress={openCreate}
+            >
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  { color: theme.accentPink },
+                ]}
+              >
+                {t('flashcards.create')}
+              </Text>
+            </Pressable>
             {filteredBrowseCards.length === 0 ? (
               <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
                 {t('flashcards.emptyBrowse')}
@@ -1022,6 +1129,232 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               </ScrollView>
             )}
           </View>
+        ) : null}
+
+        {phase === 'create' ? (
+          <ScrollView
+            contentContainerStyle={styles.hubScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.langLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(['zh', 'en', 'ru'] as LearningLanguage[]).map((lang) => {
+                const active = createLang === lang;
+                const label =
+                  lang === 'zh'
+                    ? '中文'
+                    : lang === 'en'
+                      ? 'EN'
+                      : 'RU';
+                return (
+                  <Pressable
+                    key={lang}
+                    onPress={() => setCreateLang(lang)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accentPink : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(255,122,217,0.18)'
+                            : 'rgba(236,72,153,0.12)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accentPink : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createKindWord')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(
+                [
+                  { id: 'word' as const, key: 'flashcards.createKindWord' },
+                  {
+                    id: 'grammar' as const,
+                    key: 'flashcards.createKindGrammar',
+                  },
+                ] as const
+              ).map((opt) => {
+                const active = createKind === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setCreateKind(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(99,102,241,0.18)'
+                            : 'rgba(99,102,241,0.1)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accent : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.key)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createFront')}
+            </Text>
+            <TextInput
+              value={createFront}
+              onChangeText={setCreateFront}
+              placeholder={t('flashcards.createFrontPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              autoCapitalize="none"
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createBack')}
+            </Text>
+            <TextInput
+              value={createBack}
+              onChangeText={setCreateBack}
+              placeholder={t('flashcards.createBackPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            {createLang === 'zh' || createLang === 'ru' ? (
+              <>
+                <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+                  {t('flashcards.createReading')}
+                </Text>
+                <TextInput
+                  value={createReading}
+                  onChangeText={setCreateReading}
+                  placeholder={t('flashcards.createReadingPlaceholder')}
+                  placeholderTextColor={theme.textDim}
+                  autoCapitalize="none"
+                  style={[
+                    styles.searchInput,
+                    {
+                      color: theme.text,
+                      borderColor: theme.border,
+                      backgroundColor:
+                        theme.mode === 'midnight'
+                          ? 'rgba(255,255,255,0.04)'
+                          : 'rgba(0,0,0,0.03)',
+                    },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            <Text style={[styles.sectionLabel, { color: theme.textDim }]}>
+              {t('flashcards.createContext')}
+            </Text>
+            <TextInput
+              value={createContext}
+              onChangeText={setCreateContext}
+              placeholder={t('flashcards.createContextPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              multiline
+              style={[
+                styles.searchInput,
+                styles.createMultiline,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+
+            <Pressable
+              style={[
+                styles.sessionButton,
+                {
+                  backgroundColor: theme.accent,
+                  opacity: createBusy ? 0.6 : 1,
+                  marginTop: 8,
+                },
+              ]}
+              disabled={createBusy}
+              onPress={() => void handleCreateCard(false)}
+            >
+              <Text style={styles.sessionButtonText}>
+                {t('flashcards.createSave')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                {
+                  borderColor: theme.border,
+                  alignSelf: 'center',
+                  marginTop: 10,
+                },
+              ]}
+              disabled={createBusy}
+              onPress={() => void handleCreateCard(true)}
+            >
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  { color: theme.textMuted },
+                ]}
+              >
+                {t('flashcards.createSaveAnother')}
+              </Text>
+            </Pressable>
+          </ScrollView>
         ) : null}
 
         {phase === 'done' ? (
@@ -1558,6 +1891,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     fontWeight: '600',
+  },
+  createMultiline: {
+    minHeight: 88,
+    textAlignVertical: 'top',
   },
   browseList: {
     paddingBottom: 100,

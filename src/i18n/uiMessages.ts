@@ -440,6 +440,24 @@ export type UiMessageKey =
   | 'flashcards.demoDeckDone'
   | 'flashcards.importAnki'
   | 'flashcards.importAnkiDone'
+  | 'flashcards.create'
+  | 'flashcards.createTitle'
+  | 'flashcards.createFront'
+  | 'flashcards.createFrontPlaceholder'
+  | 'flashcards.createBack'
+  | 'flashcards.createBackPlaceholder'
+  | 'flashcards.createReading'
+  | 'flashcards.createReadingPlaceholder'
+  | 'flashcards.createContext'
+  | 'flashcards.createContextPlaceholder'
+  | 'flashcards.createKindWord'
+  | 'flashcards.createKindGrammar'
+  | 'flashcards.createSave'
+  | 'flashcards.createSaveAnother'
+  | 'flashcards.createNeedFront'
+  | 'flashcards.createNeedBack'
+  | 'flashcards.createOk'
+  | 'flashcards.createFail'
   | 'progress.dueBannerTitle'
   | 'progress.dueBannerHint'
   | 'progress.dueBannerCta'
@@ -1040,6 +1058,24 @@ const ru: Dictionary = {
   'flashcards.demoDeckDone': "Добавлено демо-карточек: {n}",
   'flashcards.importAnki': "Импорт Anki",
   'flashcards.importAnkiDone': "Импортировано: {added}. Пропущено: {skipped}.",
+  'flashcards.create': '+ Карточка',
+  'flashcards.createTitle': 'Новая карточка',
+  'flashcards.createFront': 'Слово / фраза',
+  'flashcards.createFrontPlaceholder': 'На изучаемом языке…',
+  'flashcards.createBack': 'Перевод',
+  'flashcards.createBackPlaceholder': 'На родном языке…',
+  'flashcards.createReading': 'Пиньинь / транскрипция',
+  'flashcards.createReadingPlaceholder': 'Необязательно',
+  'flashcards.createContext': 'Пример / контекст',
+  'flashcards.createContextPlaceholder': 'Предложение, где встретилось…',
+  'flashcards.createKindWord': 'Слово',
+  'flashcards.createKindGrammar': 'Грамматика',
+  'flashcards.createSave': 'Добавить в колоду',
+  'flashcards.createSaveAnother': 'Добавить ещё',
+  'flashcards.createNeedFront': 'Введите слово или фразу',
+  'flashcards.createNeedBack': 'Введите перевод',
+  'flashcards.createOk': 'Карточка добавлена',
+  'flashcards.createFail': 'Не удалось добавить карточку',
   'progress.dueBannerTitle': "К повторению: {n}",
   'progress.dueBannerHint': "Короткая сессия укрепит стрик",
   'progress.dueBannerCta': "К карточкам",
@@ -1653,6 +1689,24 @@ const en: Dictionary = {
   'flashcards.demoDeckDone': "Demo cards added: {n}",
   'flashcards.importAnki': "Import Anki",
   'flashcards.importAnkiDone': "Imported: {added}. Skipped: {skipped}.",
+  'flashcards.create': '+ Card',
+  'flashcards.createTitle': 'New card',
+  'flashcards.createFront': 'Word / phrase',
+  'flashcards.createFrontPlaceholder': 'In the language you study…',
+  'flashcards.createBack': 'Translation',
+  'flashcards.createBackPlaceholder': 'In your native language…',
+  'flashcards.createReading': 'Pinyin / reading',
+  'flashcards.createReadingPlaceholder': 'Optional',
+  'flashcards.createContext': 'Example / context',
+  'flashcards.createContextPlaceholder': 'A sentence where it appears…',
+  'flashcards.createKindWord': 'Word',
+  'flashcards.createKindGrammar': 'Grammar',
+  'flashcards.createSave': 'Add to deck',
+  'flashcards.createSaveAnother': 'Add another',
+  'flashcards.createNeedFront': 'Enter a word or phrase',
+  'flashcards.createNeedBack': 'Enter a translation',
+  'flashcards.createOk': 'Card added',
+  'flashcards.createFail': 'Could not add the card',
   'progress.dueBannerTitle': "Due today: {n}",
   'progress.dueBannerHint': "A short session keeps your streak alive",
   'progress.dueBannerCta': "Open cards",
@@ -2255,6 +2309,24 @@ const zh: Dictionary = {
   'flashcards.demoDeckDone': "已添加演示卡片：{n}",
   'flashcards.importAnki': "导入 Anki",
   'flashcards.importAnkiDone': "已导入：{added}。跳过：{skipped}。",
+  'flashcards.create': '+ 卡片',
+  'flashcards.createTitle': '新建卡片',
+  'flashcards.createFront': '单词 / 短语',
+  'flashcards.createFrontPlaceholder': '用正在学习的语言…',
+  'flashcards.createBack': '翻译',
+  'flashcards.createBackPlaceholder': '用母语…',
+  'flashcards.createReading': '拼音 / 读音',
+  'flashcards.createReadingPlaceholder': '可选',
+  'flashcards.createContext': '例句 / 语境',
+  'flashcards.createContextPlaceholder': '出现该词的句子…',
+  'flashcards.createKindWord': '单词',
+  'flashcards.createKindGrammar': '语法',
+  'flashcards.createSave': '加入卡组',
+  'flashcards.createSaveAnother': '再加一张',
+  'flashcards.createNeedFront': '请输入单词或短语',
+  'flashcards.createNeedBack': '请输入翻译',
+  'flashcards.createOk': '卡片已添加',
+  'flashcards.createFail': '无法添加卡片',
   'progress.dueBannerTitle': "今日待复习：{n}",
   'progress.dueBannerHint': "短时复习可保持连续天数",
   'progress.dueBannerCta': "去卡片",
