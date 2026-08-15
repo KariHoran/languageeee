@@ -151,7 +151,10 @@ export default function MacDesktopShell() {
   );
 
   const theme = useWebTheme();
-  useActivitySessionTimer(true);
+  // Минуты только в ридере (открытая книга) или на экране карточек — не за простой вкладки.
+  useActivitySessionTimer(
+    tab === 'flashcards' || (tab === 'home' && activeBook != null)
+  );
   const isRussianHidden = useAppStore((s) => s.isRussianHiddenGlobal);
   const toggleRussian = useAppStore((s) => s.toggleGlobalRussianVisibility);
   const deleteBookFromStore = useAppStore((s) => s.deleteBook);
