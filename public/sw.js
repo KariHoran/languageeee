@@ -1,7 +1,7 @@
 /* Languageeee PWA service worker — offline-first shell + static assets */
 /* eslint-disable no-restricted-globals */
 
-const CACHE_VERSION = 'languageeee-v5';
+const CACHE_VERSION = 'languageeee-v6';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -43,11 +43,41 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/** Сообщения от registerPwa (SKIP_WAITING). */
+/** Сообщения от registerPwa (SKIP_WAITING / CACHE_URLS). */
 self.addEventListener('message', (event) => {
-  if (event && event.data && event.data.type === 'SKIP_WAITING') {
+  const data = event && event.data;
+  if (!data) return;
+  if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
   }
+  if (data.type === 'CACHE_URLS' && Array.isArray(data.urls)) {
+    event.waitUntil(
+      caches.open(CACHE_VERSION).then((cache) =>
+        Promise.all(
+          data.urls.map((url) =>
+            cache.add(url).catch(() => undefined)
+          )
+        )
+      )
+    );
+  }
+});
+
+/**
+ * Background Sync: сеть вернулась → просим открытые вкладки сбросить очередь sync.
+ */
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'languageeee-sync') return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(
+      (clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({ type: 'FLUSH_SYNC' });
+        });
+      }
+    )
+  );
 });
 
 function isFirebaseOrApi(url) {
@@ -119,6 +149,10 @@ async function networkFirst(request) {
     const fresh = await fetch(request);
     if (fresh && fresh.ok) {
       cache.put(request, fresh.clone());
+      // SPA routes (/c /d /u) — зеркало в index.html
+      if (request.mode === 'navigate') {
+        cache.put('/index.html', fresh.clone()).catch(() => undefined);
+      }
     }
     return fresh;
   } catch {

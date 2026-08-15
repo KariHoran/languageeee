@@ -54,6 +54,8 @@ export type UiMessageKey =
   | 'sync.offline'
   | 'offline.title'
   | 'offline.hint'
+  | 'offline.hintPending'
+  | 'offline.hintPinned'
   | 'offline.dismiss'
   | 'addBook.title'
   | 'addBook.subtitle'
@@ -560,6 +562,10 @@ const ru: Dictionary = {
   'offline.title': 'Вы в оффлайн-режиме. Доступны сохранённые тексты',
   'offline.hint':
     'Прогресс чтения сохранится локально и отправится в облако при появлении сети.',
+  'offline.hintPending':
+    'Локальных изменений в очереди: {n}. Отправятся, когда сеть вернётся.',
+  'offline.hintPinned':
+    'Книг на устройстве: {n}. Читайте и повторяйте карточки без интернета.',
   'offline.dismiss': 'OK',
   'addBook.title': 'Добавить фанфик',
   'addBook.subtitle': 'импорт и анализ',
@@ -1107,6 +1113,10 @@ const en: Dictionary = {
   'offline.title': 'You are offline. Saved texts are available',
   'offline.hint':
     'Reading progress is saved locally and will upload when you are back online.',
+  'offline.hintPending':
+    '{n} local change(s) queued — they will upload when the network returns.',
+  'offline.hintPinned':
+    '{n} book(s) on this device. Read and review cards without internet.',
   'offline.dismiss': 'OK',
   'addBook.title': 'Add Fanfic',
   'addBook.subtitle': 'import and analyze',
@@ -1652,6 +1662,8 @@ const zh: Dictionary = {
   'sync.offline': '离线',
   'offline.title': '当前处于离线模式，可阅读已保存文本',
   'offline.hint': '阅读进度会保存在本地，恢复网络后上传到云端。',
+  'offline.hintPending': '本地待同步更改：{n}。恢复网络后会自动上传。',
+  'offline.hintPinned': '本机已缓存 {n} 本书，可离线阅读与复习闪卡。',
   'offline.dismiss': '好的',
   'addBook.title': '添加小说',
   'addBook.subtitle': '导入与分析',

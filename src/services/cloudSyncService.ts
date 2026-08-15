@@ -20,6 +20,11 @@ import { getCloudUid, isCloudUser, resolveFirestoreUid, type AuthUser } from './
 import { GUEST_OWNER_ID, getDataOwnerId } from './dataOwner';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import { isNetworkOnline } from './networkStatusService';
+import {
+  clearOfflinePending,
+  markOfflinePending,
+} from './offlineSyncQueue';
+import { bookContentRichness } from './offlineLibraryService';
 import type { ReadingProgress } from './readingProgressStore';
 import type { UserTrack } from './userTracksStore';
 
@@ -466,6 +471,59 @@ function bookTimestamp(item: {
   );
 }
 
+/**
+ * Cloud meta часто новее по updatedAt, но paragraphs slim (words: []).
+ * Для офлайн-ридера оставляем более «богатый» локальный текст.
+ */
+function mergeBookPair(local?: Book, remote?: Book): Book | undefined {
+  if (!local) return remote;
+  if (!remote) return local;
+  const newer =
+    bookTimestamp(local) >= bookTimestamp(remote) ? local : remote;
+  const older = newer === local ? remote : local;
+  const newerRich = bookContentRichness(newer);
+  const olderRich = bookContentRichness(older);
+  if (olderRich > newerRich + 50) {
+    return {
+      ...newer,
+      paragraphs: older.paragraphs,
+      sourceText: older.sourceText?.trim()
+        ? older.sourceText
+        : newer.sourceText,
+    };
+  }
+  return newer;
+}
+
+function mergeBooksMaps(
+  local: Record<string, Book>,
+  remote: Record<string, Book>,
+  tombstones: SyncTombstone[]
+): Record<string, Book> {
+  const result: Record<string, Book> = {};
+  const ids = new Set([...Object.keys(local), ...Object.keys(remote)]);
+
+  for (const id of ids) {
+    const tomb = tombstones
+      .filter((t) => t.entity === 'book' && t.id === id)
+      .sort(
+        (a, b) =>
+          new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()
+      )[0];
+
+    const winner = mergeBookPair(local[id], remote[id]);
+    if (!winner) continue;
+
+    if (tomb && new Date(tomb.deletedAt).getTime() > bookTimestamp(winner)) {
+      continue;
+    }
+
+    result[id] = winner;
+  }
+
+  return result;
+}
+
 /** SRS: nextReviewDate / updatedAt — побеждает более свежий прогресс. */
 function flashcardTimestamp(item: {
   nextReviewDate?: string | number;
@@ -674,7 +732,7 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
   );
 
   return {
-    books: mergeRecords(local.books, remote.books, tombstones, 'book', bookTimestamp),
+    books: mergeBooksMaps(local.books, remote.books, tombstones),
     collections: mergeRecords(
       local.collections,
       remote.collections,
@@ -1355,6 +1413,7 @@ function markSynced(uid: string, now: string) {
     userId: uid,
     error: undefined,
   });
+  void clearOfflinePending();
 }
 
 /**
@@ -1864,7 +1923,10 @@ export async function initCloudSync(options?: { autoSync?: boolean }): Promise<v
 export function scheduleSyncDebounced(): void {
   if (!isFirebaseConfigured()) return;
   // Офлайн: правки уже в AsyncStorage/IndexedDB — дошлём на `online`
-  if (!isNetworkOnline()) return;
+  if (!isNetworkOnline()) {
+    void markOfflinePending(['books', 'flashcards', 'other']);
+    return;
+  }
   const g = globalThis as unknown as {
     __languageeeeSyncTimer?: ReturnType<typeof setTimeout>;
   };
@@ -1890,7 +1952,10 @@ const READING_PROGRESS_DEBOUNCE_MS = 800;
  */
 export function scheduleReadingProgressSync(): void {
   if (!isFirebaseConfigured()) return;
-  if (!isNetworkOnline()) return;
+  if (!isNetworkOnline()) {
+    void markOfflinePending('progress');
+    return;
+  }
   const g = globalThis as unknown as {
     __languageeeeProgressTimer?: ReturnType<typeof setTimeout>;
   };

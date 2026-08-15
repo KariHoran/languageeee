@@ -53,6 +53,7 @@ import { PublicProfilePanel } from './PublicProfilePanel';
 import { ReaderPanel } from './ReaderPanel';
 import { StarryBackground } from './StarryBackground';
 import { applyDocumentTheme, useWebTheme } from './webTheme';
+import { pinBookForOffline } from '../services/offlineLibraryService';
 
 type ShellView = DockTab | 'addBook' | 'publicShare';
 
@@ -269,6 +270,7 @@ export default function MacDesktopShell() {
     setLearningLanguageStore(lang);
     void setLearningLanguage(lang);
     setActiveBook(book);
+    void pinBookForOffline(book);
     setTab('home');
   }, [continueTarget, setLearningLanguageStore]);
 
@@ -278,6 +280,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       await setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       await reloadLibrary();
       setTab('home');
     },
@@ -290,6 +293,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       await setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       setTab('home');
     },
     [setLearningLanguageStore]
@@ -371,6 +375,7 @@ export default function MacDesktopShell() {
       setLearningLanguageStore(lang);
       void setLearningLanguage(lang);
       setActiveBook(book);
+      void pinBookForOffline(book);
       clearSharePath();
       setShareSlug(null);
       setTab('home');
