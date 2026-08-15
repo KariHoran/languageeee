@@ -47,6 +47,8 @@ interface ProgressPanelProps {
   /** @deprecated Берётся из Zustand; prop оставлен для совместимости */
   streak?: number;
   wordsLearned?: number;
+  /** Карточек due сегодня — для CTA Continue */
+  dueCards?: number;
   coverage?: BookCoverage | null;
   readingProgress?: ReadingProgress | null;
   continueReading?: ContinuePayload | null;
@@ -57,6 +59,7 @@ interface ProgressPanelProps {
 export function ProgressPanel({
   streak: _streakProp,
   wordsLearned = 0,
+  dueCards = 0,
   coverage = null,
   readingProgress = null,
   continueReading = null,
@@ -68,6 +71,9 @@ export function ProgressPanel({
   const streakCurrent = useAppStore((s) => s.streakCurrent);
   const streakLastActiveDate = useAppStore((s) => s.streakLastActiveDate);
   const activityByDay = useAppStore((s) => s.activityByDay);
+  const dailyWordsGoal = useAppStore((s) => s.dailyWordsGoal);
+  const dailyCardsGoal = useAppStore((s) => s.dailyCardsGoal);
+  const setDailyGoals = useAppStore((s) => s.setDailyGoals);
   const streak = useMemo(
     () => displayStreak(streakCurrent, streakLastActiveDate),
     [streakCurrent, streakLastActiveDate]
@@ -77,6 +83,17 @@ export function ProgressPanel({
     () => getDayActivity(activityByDay, localDayKey()),
     [activityByDay]
   );
+
+  const wordsGoalPct = Math.min(
+    100,
+    Math.round((today.wordsRead / Math.max(1, dailyWordsGoal)) * 100)
+  );
+  const cardsGoalPct = Math.min(
+    100,
+    Math.round((today.cardsReviewed / Math.max(1, dailyCardsGoal)) * 100)
+  );
+  const goalMet =
+    today.wordsRead >= dailyWordsGoal && today.cardsReviewed >= dailyCardsGoal;
 
   const heatmap = useMemo(
     () => buildActivityHeatmap(activityByDay, 14),
@@ -132,6 +149,11 @@ export function ProgressPanel({
               ? ` · ${continueReading.language.toUpperCase()}`
               : ''}
           </Div>
+          {dueCards > 0 ? (
+            <Div className="mt-1 text-[10px] font-bold opacity-75">
+              {t('progress.continueWithDue', { n: dueCards })}
+            </Div>
+          ) : null}
           <Div className="mt-2 h-1.5 rounded-full bg-black/15 overflow-hidden">
             <Div
               className="h-full rounded-full bg-[#0D0D11]/70"
@@ -165,6 +187,90 @@ export function ProgressPanel({
             {wordsLearned}
           </Div>
         </Div>
+      </Div>
+
+      <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
+        {t('progress.dailyGoal')}
+      </Div>
+      <Div className={`${glassCard} px-3 py-2.5 mb-3`}>
+        <Div className="flex items-center justify-between gap-2 mb-1.5">
+          <Span className={`text-[11px] font-semibold ${theme.textMuted}`}>
+            {t('progress.wordsGoal', {
+              n: today.wordsRead,
+              goal: dailyWordsGoal,
+            })}
+          </Span>
+          <Div className="flex items-center gap-1">
+            <Button
+              type="button"
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${theme.textMuted}`}
+              onClick={() => setDailyGoals({ words: dailyWordsGoal - 10 })}
+            >
+              −
+            </Button>
+            <Button
+              type="button"
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${theme.textMuted}`}
+              onClick={() => setDailyGoals({ words: dailyWordsGoal + 10 })}
+            >
+              +
+            </Button>
+          </Div>
+        </Div>
+        <Div
+          className={`h-1.5 rounded-full overflow-hidden mb-2.5 ${
+            theme.isDark ? 'bg-[#2A2A3A]' : 'bg-gray-100'
+          }`}
+        >
+          <Div
+            className="h-full rounded-full bg-[#D0FF00] transition-all"
+            style={{ width: `${wordsGoalPct}%` }}
+          />
+        </Div>
+        <Div className="flex items-center justify-between gap-2 mb-1.5">
+          <Span className={`text-[11px] font-semibold ${theme.textMuted}`}>
+            {t('progress.cardsGoal', {
+              n: today.cardsReviewed,
+              goal: dailyCardsGoal,
+            })}
+          </Span>
+          <Div className="flex items-center gap-1">
+            <Button
+              type="button"
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${theme.textMuted}`}
+              onClick={() => setDailyGoals({ cards: dailyCardsGoal - 1 })}
+            >
+              −
+            </Button>
+            <Button
+              type="button"
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${theme.textMuted}`}
+              onClick={() => setDailyGoals({ cards: dailyCardsGoal + 1 })}
+            >
+              +
+            </Button>
+          </Div>
+        </Div>
+        <Div
+          className={`h-1.5 rounded-full overflow-hidden ${
+            theme.isDark ? 'bg-[#2A2A3A]' : 'bg-gray-100'
+          }`}
+        >
+          <Div
+            className="h-full rounded-full bg-[#FF6584] transition-all"
+            style={{ width: `${cardsGoalPct}%` }}
+          />
+        </Div>
+        {goalMet ? (
+          <Div className="mt-2 text-[11px] font-bold text-[#D0FF00]">
+            {t('progress.goalMet')}
+          </Div>
+        ) : null}
+        {dueCards > 0 ? (
+          <Div className={`mt-1.5 text-[10px] font-semibold ${theme.accent}`}>
+            {t('progress.dueCards', { n: dueCards })}
+          </Div>
+        ) : null}
       </Div>
 
       <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>

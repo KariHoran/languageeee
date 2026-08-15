@@ -9,6 +9,8 @@ export type DockTab = 'home' | 'explore' | 'library' | 'flashcards' | 'settings'
 interface BottomDockProps {
   active: DockTab;
   onSelect: (tab: DockTab) => void;
+  /** Бейдж due на вкладке карточек */
+  flashcardsDue?: number;
 }
 
 const ITEMS: Array<{ id: DockTab; icon: string; labelKey: UiMessageKey }> = [
@@ -19,7 +21,11 @@ const ITEMS: Array<{ id: DockTab; icon: string; labelKey: UiMessageKey }> = [
   { id: 'settings', icon: '⚙️', labelKey: 'nav.settings' },
 ];
 
-export function BottomDock({ active, onSelect }: BottomDockProps) {
+export function BottomDock({
+  active,
+  onSelect,
+  flashcardsDue = 0,
+}: BottomDockProps) {
   const theme = useWebTheme();
   const { t } = useI18n();
 
@@ -36,20 +42,29 @@ export function BottomDock({ active, onSelect }: BottomDockProps) {
         {ITEMS.map((item) => {
           const isActive = item.id === active;
           const label = t(item.labelKey);
+          const due =
+            item.id === 'flashcards' && flashcardsDue > 0 ? flashcardsDue : 0;
           return (
             <Button
               key={item.id}
               type="button"
-              className={`dock-btn flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full transition ${
+              className={`dock-btn relative flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full transition ${
                 isActive ? 'bg-[#D0FF00] text-[#0D0D11]' : theme.dockIdle
               }`}
               onClick={() => onSelect(item.id)}
-              title={label}
+              title={
+                due > 0 ? `${label} · ${t('progress.dueCards', { n: due })}` : label
+              }
             >
               <Span className="text-base sm:text-lg leading-none">{item.icon}</Span>
               <Span className="text-[8px] sm:text-[9px] font-bold mt-0.5 tracking-wide">
                 {label}
               </Span>
+              {due > 0 ? (
+                <Span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#FF6584] text-[9px] font-extrabold text-white flex items-center justify-center">
+                  {due > 99 ? '99+' : due}
+                </Span>
+              ) : null}
             </Button>
           );
         })}

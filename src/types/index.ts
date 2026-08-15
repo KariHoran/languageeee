@@ -293,7 +293,7 @@ export interface CatalogStory {
 
 /** Карточка интервального повторения (SRS) */
 export interface Flashcard {
-  /** Идентификатор = иероглиф / en:слово */
+  /** Идентификатор = иероглиф / en:слово / grammar:… */
   id: string;
   hanzi: string;
   pinyin: string;
@@ -301,6 +301,10 @@ export interface Flashcard {
   hskLevel?: number;
   /** Язык изучаемого слова (по умолчанию zh) */
   language?: LearningLanguage;
+  /** Слово из текста или грамматика */
+  kind?: 'word' | 'grammar';
+  /** Не показывать в SRS (знаю / отложено) */
+  suspended?: boolean;
   /** Цитата из фанфика, где встретилось слово */
   contextSentence?: string;
   /** Название книги-источника */

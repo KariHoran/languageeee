@@ -89,6 +89,7 @@ export default function MacDesktopShell() {
   const [books, setBooks] = useState<Book[]>([]);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [wordsLearned, setWordsLearned] = useState(0);
+  const [cardsDue, setCardsDue] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bookCoverage, setBookCoverage] = useState<BookCoverage | null>(null);
   const [readingProgress, setReadingProgress] =
@@ -149,6 +150,7 @@ export default function MacDesktopShell() {
       const lang = useAppStore.getState().learningLanguage;
       const langCounts = await getFlashcardsCount(lang);
       setWordsLearned(langCounts.total);
+      setCardsDue(langCounts.due);
       setStreak(streakState.current);
       // Welcome-тур только для зарегистрированных пользователей, ещё не прошедших онбординг
       const isAuthed =
@@ -466,6 +468,7 @@ export default function MacDesktopShell() {
         </Div>
         <BottomDock
           active="flashcards"
+          flashcardsDue={cardsDue}
           onSelect={(t) => {
             if (shareSlug) {
               clearSharePath();
@@ -563,6 +566,7 @@ export default function MacDesktopShell() {
               <ProgressPanel
                 streak={streak}
                 wordsLearned={wordsLearned}
+                dueCards={cardsDue}
                 coverage={bookCoverage}
                 readingProgress={
                   activeBook && readingProgress?.bookId === activeBook.id
@@ -730,6 +734,7 @@ export default function MacDesktopShell() {
                 widthClass="w-full h-full"
                 streak={streak}
                 wordsLearned={wordsLearned}
+                dueCards={cardsDue}
                 coverage={bookCoverage}
                 readingProgress={
                   activeBook && readingProgress?.bookId === activeBook.id
@@ -788,6 +793,7 @@ export default function MacDesktopShell() {
 
       <BottomDock
         active={dockTab}
+        flashcardsDue={cardsDue}
         onSelect={(t) => {
           if (shareSlug) {
             clearSharePath();

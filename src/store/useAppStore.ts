@@ -149,6 +149,14 @@ export interface ActivitySlice {
   streakLastActiveDate: string | null;
   streakUpdatedAt: string;
   activityByDay: ActivityByDay;
+  /** Дневная цель: слова прочитано */
+  dailyWordsGoal: number;
+  /** Дневная цель: карточки повторено */
+  dailyCardsGoal: number;
+  setDailyGoals: (goals: {
+    words?: number;
+    cards?: number;
+  }) => void;
   /**
    * Целевое действие: чтение / карточки / минуты в приложении.
    * Обновляет счётчики дня и стрик (если день ещё не засчитан).
@@ -553,6 +561,21 @@ export const useAppStore = create<AppStore>()(
       streakLastActiveDate: null as string | null,
       streakUpdatedAt: new Date().toISOString(),
       activityByDay: {} as ActivityByDay,
+      dailyWordsGoal: 50,
+      dailyCardsGoal: 10,
+
+      setDailyGoals: ({ words, cards }) => {
+        set((state) => ({
+          dailyWordsGoal:
+            words != null
+              ? Math.max(5, Math.min(2000, Math.floor(words)))
+              : state.dailyWordsGoal,
+          dailyCardsGoal:
+            cards != null
+              ? Math.max(1, Math.min(200, Math.floor(cards)))
+              : state.dailyCardsGoal,
+        }));
+      },
 
       trackActivity: (delta) => {
         const words = Math.max(0, Math.floor(delta.wordsRead ?? 0));
@@ -698,6 +721,8 @@ export const useAppStore = create<AppStore>()(
         streakLastActiveDate: state.streakLastActiveDate,
         streakUpdatedAt: state.streakUpdatedAt,
         activityByDay: state.activityByDay,
+        dailyWordsGoal: state.dailyWordsGoal,
+        dailyCardsGoal: state.dailyCardsGoal,
       }),
       // Старые снимки persist ещё содержат learning/native — игнорируем их.
       merge: (persistedState, currentState) => {
@@ -759,6 +784,12 @@ export const useAppStore = create<AppStore>()(
               if (n) cleaned[k] = n;
             }
             state.activityByDay = pruneActivityByDay(cleaned);
+          }
+          if (typeof state.dailyWordsGoal !== 'number' || state.dailyWordsGoal < 5) {
+            state.dailyWordsGoal = 50;
+          }
+          if (typeof state.dailyCardsGoal !== 'number' || state.dailyCardsGoal < 1) {
+            state.dailyCardsGoal = 10;
           }
           // Убрать только старые автосиднутые id — пользовательские названия не фильтруем
           if (Array.isArray(state.collections)) {

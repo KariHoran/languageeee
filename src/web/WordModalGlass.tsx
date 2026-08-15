@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocalizedGrammarExplanation } from '../hooks/useLocalizedText';
 import { lookupBkrs } from '../services/bkrsService';
 import { analyzeEnglishWordGrammar } from '../services/englishGrammarService';
-import { addFlashcard, hasFlashcard } from '../services/flashcardsStore';
+import { addFlashcard, hasFlashcard, markFlashcardKnown, removeFlashcard } from '../services/flashcardsStore';
 import {
   learningToNativePair,
   ttsLocale,
@@ -445,6 +445,83 @@ export function WordModalGlass({
                 ? t('word.waitTranslate')
                 : t('word.addCard')}
           </Button>
+
+          {inDeck ? (
+            <Button
+              type="button"
+              className={`mt-2 w-full rounded-2xl py-2 text-sm font-bold transition ${
+                theme.isDark
+                  ? 'bg-[#2A2A3A] text-white/80 hover:bg-[#353545]'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await removeFlashcard(word.hanzi.trim(), language);
+                  setInDeck(false);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {t('word.removeFromDeck')}
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            className={`mt-2 w-full rounded-2xl py-2 text-sm font-bold transition ${
+              theme.isDark
+                ? 'border border-[#FF6584]/50 text-[#FF6584]'
+                : 'border border-rose-300 text-rose-600'
+            }`}
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await markFlashcardKnown(word.hanzi.trim(), language, {
+                  remove: true,
+                });
+                setInDeck(false);
+                onAddedToFlashcards?.();
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {t('word.knownRemoved')}
+          </Button>
+
+          {enGrammar ? (
+            <Button
+              type="button"
+              className={`mt-2 w-full rounded-2xl py-2 text-sm font-bold transition ${
+                theme.isDark
+                  ? 'bg-[#2A2A3A] text-[#D0FF00]'
+                  : 'bg-violet-50 text-violet-700'
+              }`}
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await addFlashcard({
+                    hanzi: enGrammar.structure,
+                    translation: enGrammar.explanation || '',
+                    language: 'en',
+                    kind: 'grammar',
+                    contextSentence: enGrammar.example || contextSentence,
+                    sourceTitle,
+                    sourceBookId,
+                  });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {t('flashcards.addGrammar')}
+            </Button>
+          ) : null}
         </Div>
       </Div>
     </Div>

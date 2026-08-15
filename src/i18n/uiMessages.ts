@@ -341,6 +341,28 @@ export type UiMessageKey =
   | 'flashcards.delete'
   | 'flashcards.deleteConfirm'
   | 'flashcards.deleteConfirmBody'
+  | 'flashcards.browse'
+  | 'flashcards.browseTitle'
+  | 'flashcards.searchPlaceholder'
+  | 'flashcards.exportCsv'
+  | 'flashcards.exportAnki'
+  | 'flashcards.modeLabel'
+  | 'flashcards.mode.recognition'
+  | 'flashcards.mode.recall'
+  | 'flashcards.mode.cloze'
+  | 'flashcards.mode.listen'
+  | 'flashcards.emptyBrowse'
+  | 'flashcards.speakCard'
+  | 'flashcards.addGrammar'
+  | 'flashcards.grammarAdded'
+  | 'progress.dailyGoal'
+  | 'progress.wordsGoal'
+  | 'progress.cardsGoal'
+  | 'progress.goalMet'
+  | 'progress.dueCards'
+  | 'progress.continueWithDue'
+  | 'word.removeFromDeck'
+  | 'word.knownRemoved'
   | 'addBook.screenSubtitle.en'
   | 'addBook.screenSubtitle.zh'
   | 'addBook.screenSubtitle.ru'
@@ -803,6 +825,28 @@ const ru: Dictionary = {
   'flashcards.deleteConfirm': 'Удалить карточку?',
   'flashcards.deleteConfirmBody':
     '«{word}» больше не будет попадаться в повторениях.',
+  'flashcards.browse': 'Колода',
+  'flashcards.browseTitle': 'Все карточки',
+  'flashcards.searchPlaceholder': 'Поиск по слову или переводу…',
+  'flashcards.exportCsv': 'Экспорт CSV',
+  'flashcards.exportAnki': 'Экспорт Anki (TSV)',
+  'flashcards.modeLabel': 'Режим',
+  'flashcards.mode.recognition': 'Узнать',
+  'flashcards.mode.recall': 'Вспомнить',
+  'flashcards.mode.cloze': 'Cloze',
+  'flashcards.mode.listen': 'Слушать',
+  'flashcards.emptyBrowse': 'В колоде пока нет карточек по фильтру.',
+  'flashcards.speakCard': 'Озвучить',
+  'flashcards.addGrammar': '+ В карточки',
+  'flashcards.grammarAdded': 'Грамматика в колоде',
+  'progress.dailyGoal': 'Цель дня',
+  'progress.wordsGoal': 'Слова {n}/{goal}',
+  'progress.cardsGoal': 'Карточки {n}/{goal}',
+  'progress.goalMet': 'Цель дня выполнена!',
+  'progress.dueCards': 'К повторению: {n}',
+  'progress.continueWithDue': 'Продолжить · due {n}',
+  'word.removeFromDeck': 'Убрать из колоды',
+  'word.knownRemoved': 'Знаю — убрано из SRS',
   'addBook.screenSubtitle.en':
     'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
   'addBook.screenSubtitle.zh':
@@ -1278,6 +1322,28 @@ const en: Dictionary = {
   'flashcards.deleteConfirm': 'Delete this card?',
   'flashcards.deleteConfirmBody':
     '“{word}” will no longer appear in reviews.',
+  'flashcards.browse': 'Deck',
+  'flashcards.browseTitle': 'All cards',
+  'flashcards.searchPlaceholder': 'Search word or translation…',
+  'flashcards.exportCsv': 'Export CSV',
+  'flashcards.exportAnki': 'Export Anki (TSV)',
+  'flashcards.modeLabel': 'Mode',
+  'flashcards.mode.recognition': 'Recognize',
+  'flashcards.mode.recall': 'Recall',
+  'flashcards.mode.cloze': 'Cloze',
+  'flashcards.mode.listen': 'Listen',
+  'flashcards.emptyBrowse': 'No cards match this filter yet.',
+  'flashcards.speakCard': 'Speak',
+  'flashcards.addGrammar': '+ Add to cards',
+  'flashcards.grammarAdded': 'Grammar in deck',
+  'progress.dailyGoal': 'Daily goal',
+  'progress.wordsGoal': 'Words {n}/{goal}',
+  'progress.cardsGoal': 'Cards {n}/{goal}',
+  'progress.goalMet': 'Daily goal reached!',
+  'progress.dueCards': 'Due: {n}',
+  'progress.continueWithDue': 'Continue · due {n}',
+  'word.removeFromDeck': 'Remove from deck',
+  'word.knownRemoved': 'Known — removed from SRS',
   'addBook.screenSubtitle.en':
     'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
   'addBook.screenSubtitle.zh':
@@ -1744,6 +1810,28 @@ const zh: Dictionary = {
   'flashcards.delete': '删除卡片',
   'flashcards.deleteConfirm': '删除这张卡片？',
   'flashcards.deleteConfirmBody': '「{word}」将不再出现在复习中。',
+  'flashcards.browse': '卡组',
+  'flashcards.browseTitle': '全部卡片',
+  'flashcards.searchPlaceholder': '搜索单词或翻译…',
+  'flashcards.exportCsv': '导出 CSV',
+  'flashcards.exportAnki': '导出 Anki (TSV)',
+  'flashcards.modeLabel': '模式',
+  'flashcards.mode.recognition': '认词',
+  'flashcards.mode.recall': '回忆',
+  'flashcards.mode.cloze': '完形',
+  'flashcards.mode.listen': '听力',
+  'flashcards.emptyBrowse': '当前筛选下暂无卡片。',
+  'flashcards.speakCard': '朗读',
+  'flashcards.addGrammar': '+ 加入卡片',
+  'flashcards.grammarAdded': '语法已在卡组',
+  'progress.dailyGoal': '今日目标',
+  'progress.wordsGoal': '阅读 {n}/{goal}',
+  'progress.cardsGoal': '卡片 {n}/{goal}',
+  'progress.goalMet': '今日目标已完成！',
+  'progress.dueCards': '待复习：{n}',
+  'progress.continueWithDue': '继续 · 待复习 {n}',
+  'word.removeFromDeck': '移出卡组',
+  'word.knownRemoved': '已掌握 — 已移出 SRS',
   'addBook.screenSubtitle.en':
     '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
   'addBook.screenSubtitle.zh':

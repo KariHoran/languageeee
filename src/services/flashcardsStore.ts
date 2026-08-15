@@ -14,13 +14,18 @@ import {
 const FLASHCARDS_KEY = '@languageeee/flashcards';
 export const DEFAULT_SESSION_SIZE = 10;
 
-/** Ключ хранения: zh — иероглиф; en/ru — префикс + lower-case. */
+/** Ключ хранения: zh — иероглиф; en/ru — префикс + lower-case; grammar — отдельный namespace. */
 export function flashcardStorageId(
   surface: string,
-  language: LearningLanguage
+  language: LearningLanguage,
+  kind: 'word' | 'grammar' = 'word'
 ): string {
   const trimmed = surface.trim();
   if (!trimmed) return '';
+  if (kind === 'grammar') {
+    const slug = trimmed.toLowerCase().replace(/\s+/g, '_').replace(/[^\w\u4e00-\u9fff\-_:]+/g, '');
+    return `grammar:${language}:${slug || 'pattern'}`;
+  }
   if (language === 'en') {
     return `en:${trimmed.toLowerCase().replace(/\//g, '_')}`;
   }
@@ -57,7 +62,13 @@ function candidateIds(surface: string, language: LearningLanguage): string[] {
 
 export function normalizeCard(card: Flashcard): Flashcard {
   const language = inferFlashcardLanguage(card.hanzi, card.language);
-  const id = flashcardStorageId(card.hanzi, language);
+  const kind = card.kind === 'grammar' || card.id?.startsWith('grammar:')
+    ? 'grammar'
+    : 'word';
+  const id =
+    kind === 'grammar' && card.id?.startsWith('grammar:')
+      ? card.id
+      : flashcardStorageId(card.hanzi, language, kind);
   const ease =
     typeof card.easeFactor === 'number' && card.easeFactor > 0
       ? card.easeFactor
@@ -67,6 +78,8 @@ export function normalizeCard(card: Flashcard): Flashcard {
     id: id || card.id,
     hanzi: card.hanzi.trim(),
     language,
+    kind,
+    suspended: Boolean(card.suspended),
     pinyin: language === 'en' ? '' : card.pinyin ?? '',
     easeFactor: ease,
     interval: Number.isFinite(card.interval) ? card.interval : 0,
@@ -236,6 +249,7 @@ export function computeDeckStats(
   let learned = 0;
   for (const raw of cards) {
     const c = normalizeCard(raw);
+    if (c.suspended) continue;
     const status = getCardSrsStatus(c, now);
     if (status === 'new') neu += 1;
     else if (status === 'learning') learning += 1;
@@ -243,7 +257,7 @@ export function computeDeckStats(
     if (new Date(c.nextReviewDate).getTime() <= ts) due += 1;
   }
   return {
-    total: cards.length,
+    total: cards.filter((c) => !normalizeCard(c).suspended).length,
     due,
     new: neu,
     learning,
@@ -260,7 +274,7 @@ export function buildReviewSession(
   now = new Date()
 ): Flashcard[] {
   const ts = now.getTime();
-  const normalized = cards.map(normalizeCard);
+  const normalized = cards.map(normalizeCard).filter((c) => !c.suspended);
   const dueLearning = normalized
     .filter(
       (c) =>
@@ -318,6 +332,7 @@ export interface AddFlashcardInput {
   translation?: string;
   hskLevel?: number;
   language?: LearningLanguage;
+  kind?: 'word' | 'grammar';
   contextSentence?: string;
   sourceTitle?: string;
   sourceBookId?: string;
@@ -350,11 +365,17 @@ export async function addFlashcard(input: AddFlashcardInput): Promise<Flashcard>
   if (!surface) throw new Error('Пустое слово для карточки');
 
   const language = inferFlashcardLanguage(surface, input.language);
-  const id = flashcardStorageId(surface, language);
+  const kind = input.kind === 'grammar' ? 'grammar' : 'word';
+  const id = flashcardStorageId(surface, language, kind);
   if (!id) throw new Error('Пустое слово для карточки');
 
   const map = await loadMap();
-  const existing = findExisting(map, surface, language);
+  const existing =
+    kind === 'grammar'
+      ? map[id]
+        ? { key: id, card: map[id]! }
+        : null
+      : findExisting(map, surface, language);
   const now = new Date().toISOString();
 
   if (existing) {
@@ -366,6 +387,8 @@ export async function addFlashcard(input: AddFlashcardInput): Promise<Flashcard>
       id,
       hanzi: surface,
       language,
+      kind,
+      suspended: false,
       pinyin:
         language === 'zh'
           ? input.pinyin?.trim() || existing.card.pinyin
@@ -397,6 +420,7 @@ export async function addFlashcard(input: AddFlashcardInput): Promise<Flashcard>
     translation: input.translation?.trim() ?? '',
     hskLevel: language === 'zh' ? input.hskLevel : undefined,
     language,
+    kind,
     contextSentence: input.contextSentence?.trim(),
     sourceTitle: input.sourceTitle?.trim(),
     sourceBookId: input.sourceBookId?.trim(),
@@ -455,7 +479,48 @@ export async function getDueFlashcards(
 ): Promise<Flashcard[]> {
   const all = await getFlashcards(language, query);
   const ts = now.getTime();
-  return all.filter((c) => new Date(c.nextReviewDate).getTime() <= ts);
+  return all.filter(
+    (c) => !c.suspended && new Date(c.nextReviewDate).getTime() <= ts
+  );
+}
+
+/** Убрать из очереди SRS, но оставить в колоде (знаю / не повторять). */
+export async function suspendFlashcard(
+  cardIdOrHanzi: string,
+  language?: LearningLanguage
+): Promise<void> {
+  const map = await loadMap();
+  let key = cardIdOrHanzi;
+  if (!map[key]) {
+    const lang = inferFlashcardLanguage(cardIdOrHanzi, language);
+    const found = findExisting(map, cardIdOrHanzi, lang);
+    if (found) key = found.key;
+  }
+  const card = map[key];
+  if (!card) return;
+  map[key] = {
+    ...normalizeCard(card),
+    suspended: true,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveMap(map);
+  await scheduleSyncSafe();
+}
+
+/**
+ * «Уже знаю»: убрать из повторений (suspend) и удалить из колоды по желанию.
+ * По умолчанию — suspend + remove, чтобы не таскать бесполезные.
+ */
+export async function markFlashcardKnown(
+  cardIdOrHanzi: string,
+  language?: LearningLanguage,
+  options: { remove?: boolean } = { remove: true }
+): Promise<void> {
+  if (options.remove !== false) {
+    await removeFlashcard(cardIdOrHanzi, language);
+    return;
+  }
+  await suspendFlashcard(cardIdOrHanzi, language);
 }
 
 /** Сессия из до `limit` карточек с фильтрами языка/книги */

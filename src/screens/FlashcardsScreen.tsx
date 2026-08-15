@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,13 +16,20 @@ import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   DEFAULT_SESSION_SIZE,
   getFlashcardSources,
+  getFlashcards,
   getFlashcardsCount,
   getReviewSession,
+  markFlashcardKnown,
   removeFlashcard,
   reviewFlashcard,
   type DeckStats,
 } from '../services/flashcardsStore';
+import {
+  exportFlashcardsAnki,
+  exportFlashcardsCsv,
+} from '../services/flashcardsExport';
 import { getLearningLanguage } from '../services/onboardingService';
+import { ttsService } from '../services/ttsService';
 import { useTheme } from '../theme/ThemeContext';
 import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
 import { showConfirm } from '../utils/alert';
@@ -36,7 +44,8 @@ interface FlashcardsScreenProps {
 }
 
 type DeckFilter = LearningLanguage | 'all';
-type Phase = 'hub' | 'session' | 'done';
+type Phase = 'hub' | 'browse' | 'session' | 'done';
+type StudyMode = 'recognition' | 'recall' | 'cloze' | 'listen';
 
 type SourceOpt = { bookId?: string; title: string; count: number };
 
@@ -45,6 +54,12 @@ type GradeButton = {
   label: string;
   hint: string;
 };
+
+function clozeFront(card: Flashcard): string {
+  const ctx = card.contextSentence?.trim();
+  if (!ctx || !card.hanzi) return '';
+  return ctx.split(card.hanzi).join('____');
+}
 
 function buildGradeButtons(
   t: (key: UiMessageKey, vars?: Record<string, string | number>) => string
@@ -71,6 +86,27 @@ function buildGradeButtons(
       hint: t('flashcards.grade.easyHint'),
     },
   ];
+}
+
+function sourceQueryFromKey(
+  sources: SourceOpt[],
+  sourceKey: string | null
+): { sourceBookId?: string | null; sourceTitle?: string | null } {
+  const selected =
+    sourceKey != null
+      ? sources.find((s) => (s.bookId || s.title) === sourceKey) ?? null
+      : null;
+  if (!selected) return {};
+  return {
+    sourceBookId: selected.bookId ?? null,
+    sourceTitle: selected.bookId ? null : selected.title,
+  };
+}
+
+function ttsLangForCard(card: Flashcard): 'zh-CN' | 'en-US' | 'ru-RU' {
+  if (card.language === 'en') return 'en-US';
+  if (card.language === 'ru') return 'ru-RU';
+  return 'zh-CN';
 }
 
 /** SRS · сессия из 10 карточек + фильтры языка / книги */
@@ -102,6 +138,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [filterReady, setFilterReady] = useState(false);
   const [sources, setSources] = useState<SourceOpt[]>([]);
   const [sourceKey, setSourceKey] = useState<string | null>(null);
+  const [studyMode, setStudyMode] = useState<StudyMode>('recognition');
+  const [deckCards, setDeckCards] = useState<Flashcard[]>([]);
+  const [browseQuery, setBrowseQuery] = useState('');
 
   useEffect(() => {
     void (async () => {
@@ -138,18 +177,37 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     if (phase === 'hub') void reloadHub();
   }, [phase, reloadHub]);
 
+  const reloadBrowse = useCallback(async () => {
+    if (!filterReady) return;
+    const query = sourceQueryFromKey(sources, sourceKey);
+    const cards = await getFlashcards(filter, query);
+    setDeckCards(cards);
+  }, [filter, filterReady, sourceKey, sources]);
+
+  useEffect(() => {
+    if (phase === 'browse') void reloadBrowse();
+  }, [phase, reloadBrowse]);
+
+  const filteredBrowseCards = useMemo(() => {
+    const q = browseQuery.trim().toLowerCase();
+    if (!q) return deckCards;
+    return deckCards.filter((card) => {
+      const hay = [
+        card.hanzi,
+        card.translation,
+        card.pinyin,
+        card.sourceTitle,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [deckCards, browseQuery]);
+
   const startSession = async () => {
     setLoading(true);
-    const selected =
-      sourceKey != null
-        ? sources.find((s) => (s.bookId || s.title) === sourceKey) ?? null
-        : null;
-    const query = selected
-      ? {
-          sourceBookId: selected.bookId ?? null,
-          sourceTitle: selected.bookId ? null : selected.title,
-        }
-      : {};
+    const query = sourceQueryFromKey(sources, sourceKey);
     const cards = await getReviewSession({
       language: filter,
       limit: DEFAULT_SESSION_SIZE,
@@ -168,9 +226,33 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     setPhase('session');
   };
 
+  const handleExport = async (kind: 'csv' | 'anki') => {
+    const query = sourceQueryFromKey(sources, sourceKey);
+    const cards = await getFlashcards(filter, query);
+    if (kind === 'csv') {
+      await exportFlashcardsCsv(cards);
+    } else {
+      await exportFlashcardsAnki(cards);
+    }
+  };
+
   const current = queue[index] ?? null;
   const isEnglish = (current?.language ?? 'zh') === 'en';
   const isRussian = (current?.language ?? 'zh') === 'ru';
+
+  const effectiveMode: StudyMode = useMemo(() => {
+    if (!current) return studyMode;
+    if (studyMode === 'cloze' && !clozeFront(current)) return 'recognition';
+    return studyMode;
+  }, [current, studyMode]);
+
+  useEffect(() => {
+    if (phase !== 'session' || effectiveMode !== 'listen' || !current) return;
+    void ttsService.speak(current.hanzi, 0.9, ttsLangForCard(current));
+    return () => {
+      ttsService.stop();
+    };
+  }, [phase, effectiveMode, index, current?.id, current?.hanzi, current?.language]);
 
   const handleGrade = async (grade: FlashcardGrade) => {
     if (!current || grading) return;
@@ -238,12 +320,58 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     );
   };
 
+  const handleMarkKnown = () => {
+    if (!current || grading) return;
+    const card = current;
+    const at = index;
+    showConfirm(
+      t('word.markKnown'),
+      t('word.knownRemoved'),
+      () => {
+        void (async () => {
+          setGrading(true);
+          try {
+            await markFlashcardKnown(card.id || card.hanzi, card.language);
+            const nextQueue = queue.filter((_, i) => i !== at);
+            advanceAfterRemove(at, nextQueue);
+          } finally {
+            setGrading(false);
+          }
+        })();
+      },
+      t('word.markKnown'),
+      t('action.cancel')
+    );
+  };
+
+  const handleBrowseDelete = (card: Flashcard) => {
+    showConfirm(
+      t('flashcards.deleteConfirm'),
+      t('flashcards.deleteConfirmBody', { word: card.hanzi }),
+      () => {
+        void (async () => {
+          await removeFlashcard(card.id || card.hanzi, card.language);
+          await reloadBrowse();
+        })();
+      },
+      t('action.delete'),
+      t('action.cancel')
+    );
+  };
+
+  const speakCurrent = () => {
+    if (!current) return;
+    void ttsService.speak(current.hanzi, 0.9, ttsLangForCard(current));
+  };
+
   const titleKey: UiMessageKey =
-    phase === 'session'
-      ? 'flashcards.title.session'
-      : phase === 'done'
-        ? 'flashcards.title.done'
-        : 'flashcards.title.hub';
+    phase === 'browse'
+      ? 'flashcards.browseTitle'
+      : phase === 'session'
+        ? 'flashcards.title.session'
+        : phase === 'done'
+          ? 'flashcards.title.done'
+          : 'flashcards.title.hub';
 
   const emptyHintKey: UiMessageKey =
     filter === 'en'
@@ -251,6 +379,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       : filter === 'zh'
         ? 'flashcards.emptyHint.zh'
         : 'flashcards.emptyHint.other';
+
+  const studyModes: Array<{ id: StudyMode; labelKey: UiMessageKey }> = [
+    { id: 'recognition', labelKey: 'flashcards.mode.recognition' },
+    { id: 'recall', labelKey: 'flashcards.mode.recall' },
+    { id: 'cloze', labelKey: 'flashcards.mode.cloze' },
+    { id: 'listen', labelKey: 'flashcards.mode.listen' },
+  ];
 
   if (loading || !filterReady) {
     return (
@@ -267,6 +402,20 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     );
   }
 
+  const frontPrimary = (() => {
+    if (!current) return '';
+    if (effectiveMode === 'recall') {
+      return current.translation || t('flashcards.noTranslation');
+    }
+    if (effectiveMode === 'cloze') {
+      return clozeFront(current);
+    }
+    if (effectiveMode === 'listen') {
+      return '🔊 …';
+    }
+    return current.hanzi;
+  })();
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.bg }]}
@@ -278,7 +427,11 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
           <View style={styles.headerTop}>
             <Pressable
               onPress={() => {
-                if (phase === 'session' || phase === 'done') {
+                if (
+                  phase === 'session' ||
+                  phase === 'done' ||
+                  phase === 'browse'
+                ) {
                   setPhase('hub');
                   void reloadHub();
                   return;
@@ -334,6 +487,43 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 color={theme.success}
                 theme={theme}
               />
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+              {t('flashcards.modeLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {studyModes.map((opt) => {
+                const active = studyMode === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setStudyMode(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accent : theme.border,
+                        backgroundColor: active
+                          ? theme.mode === 'midnight'
+                            ? 'rgba(100,200,180,0.18)'
+                            : 'rgba(16,185,129,0.12)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accent : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
@@ -461,6 +651,57 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               </>
             ) : null}
 
+            <View style={styles.hubActions}>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.accent },
+                ]}
+                onPress={() => {
+                  setBrowseQuery('');
+                  setPhase('browse');
+                }}
+              >
+                <Text
+                  style={[styles.secondaryButtonText, { color: theme.accent }]}
+                >
+                  {t('flashcards.browse')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleExport('csv')}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.exportCsv')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleExport('anki')}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.exportAnki')}
+                </Text>
+              </Pressable>
+            </View>
+
             <Pressable
               style={[
                 styles.sessionButton,
@@ -492,6 +733,87 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               </Text>
             )}
           </ScrollView>
+        ) : null}
+
+        {phase === 'browse' ? (
+          <View style={styles.browseWrap}>
+            <TextInput
+              value={browseQuery}
+              onChangeText={setBrowseQuery}
+              placeholder={t('flashcards.searchPlaceholder')}
+              placeholderTextColor={theme.textDim}
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor:
+                    theme.mode === 'midnight'
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(0,0,0,0.03)',
+                },
+              ]}
+            />
+            {filteredBrowseCards.length === 0 ? (
+              <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
+                {t('flashcards.emptyBrowse')}
+              </Text>
+            ) : (
+              <ScrollView
+                contentContainerStyle={styles.browseList}
+                showsVerticalScrollIndicator={false}
+              >
+                {filteredBrowseCards.map((card) => (
+                  <View
+                    key={card.id || `${card.language}:${card.hanzi}`}
+                    style={[
+                      styles.browseRow,
+                      {
+                        borderColor: theme.border,
+                        backgroundColor:
+                          theme.mode === 'midnight'
+                            ? 'rgba(255,255,255,0.04)'
+                            : 'rgba(0,0,0,0.03)',
+                      },
+                    ]}
+                  >
+                    <View style={styles.browseRowText}>
+                      <Text
+                        style={[styles.browseHanzi, { color: theme.text }]}
+                        numberOfLines={1}
+                      >
+                        {card.hanzi}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.browseTranslation,
+                          { color: theme.textMuted },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {card.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleBrowseDelete(card)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('flashcards.delete')}
+                    >
+                      <Text
+                        style={[
+                          styles.deleteLinkText,
+                          { color: theme.danger },
+                        ]}
+                      >
+                        {t('flashcards.delete')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         ) : null}
 
         {phase === 'done' ? (
@@ -546,18 +868,50 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 : ''}
             </Text>
 
-            <Pressable
-              onPress={handleDelete}
-              disabled={grading}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('flashcards.delete')}
-              style={styles.deleteLink}
-            >
-              <Text style={[styles.deleteLinkText, { color: theme.danger }]}>
-                {t('flashcards.delete')}
-              </Text>
-            </Pressable>
+            <View style={styles.cardActions}>
+              <Pressable
+                onPress={handleMarkKnown}
+                disabled={grading}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('word.markKnown')}
+                style={styles.deleteLink}
+              >
+                <Text
+                  style={[styles.deleteLinkText, { color: theme.accent }]}
+                >
+                  {t('word.markKnown')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                disabled={grading}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('flashcards.delete')}
+                style={styles.deleteLink}
+              >
+                <Text style={[styles.deleteLinkText, { color: theme.danger }]}>
+                  {t('flashcards.delete')}
+                </Text>
+              </Pressable>
+              {effectiveMode === 'listen' ? (
+                <Pressable
+                  onPress={speakCurrent}
+                  disabled={grading}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('flashcards.speakCard')}
+                  style={styles.deleteLink}
+                >
+                  <Text
+                    style={[styles.deleteLinkText, { color: theme.accentPink }]}
+                  >
+                    {t('flashcards.speakCard')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             <Pressable
               onPress={() => setRevealed(true)}
@@ -640,14 +994,18 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
 
               <Text
                 style={[
-                  isEnglish ? styles.surfaceEn : styles.hanzi,
+                  effectiveMode === 'recall' || effectiveMode === 'cloze'
+                    ? styles.surfaceEn
+                    : isEnglish
+                      ? styles.surfaceEn
+                      : styles.hanzi,
                   { color: theme.text },
                 ]}
               >
-                {current.hanzi}
+                {frontPrimary}
               </Text>
 
-              {current.contextSentence ? (
+              {effectiveMode === 'recognition' && current.contextSentence ? (
                 <View
                   style={[
                     styles.contextBox,
@@ -665,32 +1023,111 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                     「{current.contextSentence}」
                   </Text>
                 </View>
-              ) : (
+              ) : effectiveMode === 'recognition' ? (
                 <Text style={[styles.noContext, { color: theme.textDim }]}>
                   {t('flashcards.noContextYet')}
                 </Text>
-              )}
+              ) : null}
 
               {revealed ? (
                 <View style={styles.answerBlock}>
-                  {!isEnglish && current.pinyin ? (
-                    <Text
-                      style={[
-                        styles.pinyin,
-                        {
-                          color:
-                            isRussian || theme.mode === 'midnight'
-                              ? '#FF6584'
-                              : theme.accentPink,
-                        },
-                      ]}
-                    >
-                      {current.pinyin}
-                    </Text>
+                  {effectiveMode === 'recognition' ? (
+                    <>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
                   ) : null}
-                  <Text style={[styles.translation, { color: theme.text }]}>
-                    {current.translation || t('flashcards.noTranslation')}
-                  </Text>
+
+                  {effectiveMode === 'recall' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {effectiveMode === 'cloze' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
+                  ) : null}
+
+                  {effectiveMode === 'listen' ? (
+                    <>
+                      <Text
+                        style={[
+                          isEnglish ? styles.surfaceEn : styles.hanzi,
+                          { color: theme.text, fontSize: isEnglish ? 36 : 44 },
+                        ]}
+                      >
+                        {current.hanzi}
+                      </Text>
+                      {!isEnglish && current.pinyin ? (
+                        <Text
+                          style={[
+                            styles.pinyin,
+                            {
+                              color:
+                                isRussian || theme.mode === 'midnight'
+                                  ? '#FF6584'
+                                  : theme.accentPink,
+                            },
+                          ]}
+                        >
+                          {current.pinyin}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.translation, { color: theme.text }]}>
+                        {current.translation || t('flashcards.noTranslation')}
+                      </Text>
+                    </>
+                  ) : null}
                 </View>
               ) : (
                 <Text style={[styles.hiddenHint, { color: theme.textDim }]}>
@@ -855,6 +1292,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
+  hubActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 20,
+  },
+  secondaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   statChip: {
     flex: 1,
@@ -878,6 +1331,39 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
+  browseWrap: {
+    flex: 1,
+    paddingHorizontal: 20,
+    maxWidth: 640,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  searchInput: {
+    marginTop: 8,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  browseList: {
+    paddingBottom: 100,
+    gap: 10,
+  },
+  browseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  browseRowText: { flex: 1, minWidth: 0 },
+  browseHanzi: { fontSize: 18, fontWeight: '800' },
+  browseTranslation: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -913,6 +1399,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     fontWeight: '600',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
   },
   deleteLink: {
     alignSelf: 'center',

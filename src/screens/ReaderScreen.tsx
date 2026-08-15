@@ -363,6 +363,8 @@ function GrammarPopover({
 }) {
   const { point, x, y } = popover;
   const { t } = useI18n();
+  const [grammarBusy, setGrammarBusy] = useState(false);
+  const [grammarInDeck, setGrammarInDeck] = useState(false);
   const popoverWidth = 300;
   const left = Math.min(Math.max(x - popoverWidth / 2, 16), SCREEN_WIDTH - popoverWidth - 16);
   const explanation = useLocalizedGrammarExplanation(
@@ -372,6 +374,22 @@ function GrammarPopover({
   const badgeLabel =
     t('reader.grammarBadge') +
     (point.hskLevel != null ? ` HSK ${point.hskLevel}` : '');
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { hasFlashcard } = await import('../services/flashcardsStore');
+        const ok = await hasFlashcard(point.structure, 'zh');
+        if (!cancelled) setGrammarInDeck(ok);
+      } catch {
+        if (!cancelled) setGrammarInDeck(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [point.structure]);
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
@@ -390,6 +408,47 @@ function GrammarPopover({
           {point.example ? (
             <Text style={styles.grammarPopoverExample}>{point.example}</Text>
           ) : null}
+          <Pressable
+            disabled={grammarBusy || grammarInDeck}
+            onPress={() => {
+              void (async () => {
+                setGrammarBusy(true);
+                try {
+                  const { addFlashcard } = await import('../services/flashcardsStore');
+                  await addFlashcard({
+                    hanzi: point.structure,
+                    translation: explanation || point.explanation || '',
+                    language: 'zh',
+                    kind: 'grammar',
+                    hskLevel: point.hskLevel,
+                    contextSentence: point.example,
+                  });
+                  setGrammarInDeck(true);
+                } finally {
+                  setGrammarBusy(false);
+                }
+              })();
+            }}
+            style={{
+              marginTop: 12,
+              paddingVertical: 10,
+              borderRadius: 10,
+              backgroundColor: grammarInDeck ? '#e5e7eb' : '#D0FF00',
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: '700',
+                color: grammarInDeck ? '#9ca3af' : '#0D0D11',
+                fontSize: 13,
+              }}
+            >
+              {grammarInDeck
+                ? t('flashcards.grammarAdded')
+                : t('flashcards.addGrammar')}
+            </Text>
+          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -1093,6 +1152,15 @@ export default function ReaderScreen({
       };
       setBook(updatedBook);
       onBookUpdate?.(updatedBook);
+      if (status === 'known') {
+        try {
+          const { markFlashcardKnown } = await import('../services/flashcardsStore');
+          const language = book.language === 'en' ? 'en' : book.language === 'ru' ? 'ru' : 'zh';
+          await markFlashcardKnown(word.hanzi, language, { remove: true });
+        } catch {
+          /* ignore */
+        }
+      }
       setPopover(null);
     },
     [book, onBookUpdate]
