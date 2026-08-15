@@ -577,6 +577,15 @@ export const useAppStore = create<AppStore>()(
           let streakLastActiveDate = state.streakLastActiveDate;
           let streakUpdatedAt = state.streakUpdatedAt;
 
+          // Просроченный стрик (пропуск >1 дня) сбрасываем до инкремента
+          if (
+            streakLastActiveDate &&
+            streakLastActiveDate !== today &&
+            streakLastActiveDate !== yesterday
+          ) {
+            streakCurrent = 0;
+          }
+
           // Стрик только от целевых действий: чтение или карточки (не просто минуты в UI)
           const meaningful = words > 0 || cards > 0;
           if (meaningful && streakLastActiveDate !== today) {

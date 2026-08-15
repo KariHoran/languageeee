@@ -848,15 +848,17 @@ export async function applyLocalSnapshot(snapshot: SyncSnapshot): Promise<void> 
   if (snapshot.prefs?.streak) {
     const { setStreakFromCloud } = await import('./streakStore');
     await setStreakFromCloud(snapshot.prefs.streak);
-  } else {
-    useAppStore.getState().setActivityFromCloud({
-      streak: { current: 0, lastActiveDate: null, updatedAt: new Date().toISOString() },
-    });
   }
+  // Нет prefs.streak — не обнуляем локальный стрик (гость / старый meta).
   // После clear / replaceLocal — подставляем облачную карту как есть
-  useAppStore.setState({
-    activityByDay: pruneActivityByDay(snapshot.prefs?.activityByDay ?? {}),
-  });
+  if (snapshot.prefs?.activityByDay) {
+    useAppStore.setState({
+      activityByDay: pruneActivityByDay(snapshot.prefs.activityByDay),
+    });
+  } else if (snapshot.prefs) {
+    // prefs есть, но activity пустая — явная замена (pull-replace без истории)
+    useAppStore.setState({ activityByDay: {} });
+  }
   if (snapshot.prefs?.learningLanguage === 'zh' ||
       snapshot.prefs?.learningLanguage === 'en' ||
       snapshot.prefs?.learningLanguage === 'ru' ||
@@ -1549,19 +1551,47 @@ function preemptSyncForBootstrap(): void {
 }
 
 /**
- * Снимок мог быть собран до LanguageSwitcher: подставляем живые языки из Zustand,
- * чтобы apply/write не откатывали nativeLanguage и не портили prefs.
+ * Снимок мог быть собран до LanguageSwitcher / trackActivity: подставляем
+ * живые языки и стрик из Zustand, чтобы apply/write не откатывали UI.
  */
 function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
-  const { learningLanguage, nativeLanguage } = useAppStore.getState();
+  const {
+    learningLanguage,
+    nativeLanguage,
+    streakCurrent,
+    streakLastActiveDate,
+    streakUpdatedAt,
+    activityByDay,
+  } = useAppStore.getState();
+  const liveStreak = {
+    current: streakCurrent,
+    lastActiveDate: streakLastActiveDate,
+    updatedAt: streakUpdatedAt,
+  };
+  const snapStreak = snapshot.prefs?.streak;
+  // Не затираем больший remote/local current живым меньшим значением
+  let streak = liveStreak;
+  if (snapStreak) {
+    if (snapStreak.current > liveStreak.current) {
+      streak = snapStreak;
+    } else if (
+      snapStreak.current === liveStreak.current &&
+      toMs(snapStreak.updatedAt) > toMs(liveStreak.updatedAt)
+    ) {
+      streak = snapStreak;
+    }
+  }
   return {
     ...snapshot,
     prefs: {
       ...snapshot.prefs,
       learningLanguage,
       nativeLanguage,
-      streak: snapshot.prefs?.streak,
-      activityByDay: snapshot.prefs?.activityByDay,
+      streak,
+      activityByDay: mergeActivityByDay(
+        activityByDay,
+        snapshot.prefs?.activityByDay
+      ),
     },
   };
 }

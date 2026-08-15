@@ -37,6 +37,28 @@ export function yesterdayLocalKey(d = new Date()): string {
   return localDayKey(y);
 }
 
+/** Стрик «жив», если активность была сегодня или вчера. */
+export function isStreakAlive(
+  lastActiveDate: string | null | undefined,
+  now = new Date()
+): boolean {
+  if (!lastActiveDate) return false;
+  return (
+    lastActiveDate === localDayKey(now) ||
+    lastActiveDate === yesterdayLocalKey(now)
+  );
+}
+
+/** Число для UI: просроченный стрик показываем как 0. */
+export function displayStreak(
+  current: number,
+  lastActiveDate: string | null | undefined,
+  now = new Date()
+): number {
+  if (!isStreakAlive(lastActiveDate, now)) return 0;
+  return Math.max(0, Math.floor(current) || 0);
+}
+
 export function normalizeDayActivity(raw: unknown): DayActivity | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;

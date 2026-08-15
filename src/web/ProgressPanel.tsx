@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   buildActivityHeatmap,
+  displayStreak,
   getDayActivity,
   heatmapLevelColor,
   localDayKey,
@@ -64,8 +65,13 @@ export function ProgressPanel({
 }: ProgressPanelProps) {
   const theme = useWebTheme();
   const { t } = useI18n();
-  const streak = useAppStore((s) => s.streakCurrent);
+  const streakCurrent = useAppStore((s) => s.streakCurrent);
+  const streakLastActiveDate = useAppStore((s) => s.streakLastActiveDate);
   const activityByDay = useAppStore((s) => s.activityByDay);
+  const streak = useMemo(
+    () => displayStreak(streakCurrent, streakLastActiveDate),
+    [streakCurrent, streakLastActiveDate]
+  );
 
   const today = useMemo(
     () => getDayActivity(activityByDay, localDayKey()),

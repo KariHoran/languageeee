@@ -1,7 +1,34 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Book } from '../types';
+import type { Book, Paragraph } from '../types';
 
 const PROGRESS_KEY = '@languageeee/reading_progress_v1';
+
+/**
+ * Счётчик «слов» в абзаце для геймификации.
+ * После cloud sync `words` часто пустой (slim payload) — тогда считаем по тексту.
+ */
+export function paragraphActivityWordCount(
+  paragraph: Paragraph | undefined,
+  language?: Book['language']
+): number {
+  if (!paragraph) return 0;
+  const tagged = paragraph.words?.length ?? 0;
+  if (tagged > 0) return tagged;
+
+  const text = (
+    paragraph.chineseText ||
+    paragraph.originalText ||
+    paragraph.englishText ||
+    ''
+  ).trim();
+  if (!text) return 0;
+
+  const lang = language === 'en' || language === 'ru' ? language : 'zh';
+  if (lang === 'zh') {
+    return (text.match(/[\u4e00-\u9fff]/g) ?? []).length;
+  }
+  return text.split(/\s+/).filter(Boolean).length;
+}
 
 /** Сохранённая позиция чтения в книге */
 export interface ReadingProgress {
@@ -45,15 +72,30 @@ export function countUniqueWordsUpTo(
   paragraphIndex: number
 ): number {
   const seen = new Set<string>();
-  const lang = book.language === 'en' ? 'en' : 'zh';
+  const lang =
+    book.language === 'en' || book.language === 'ru' ? book.language : 'zh';
   const max = Math.max(0, Math.min(paragraphIndex, book.paragraphs.length - 1));
   for (let i = 0; i <= max; i++) {
     const p = book.paragraphs[i];
     if (!p) continue;
-    for (const w of p.words ?? []) {
-      const surface = w.hanzi?.trim();
-      if (!surface) continue;
-      seen.add(lang === 'en' ? surface.toLowerCase() : surface);
+    const words = p.words ?? [];
+    if (words.length > 0) {
+      for (const w of words) {
+        const surface = w.hanzi?.trim();
+        if (!surface) continue;
+        seen.add(lang === 'en' || lang === 'ru' ? surface.toLowerCase() : surface);
+      }
+      continue;
+    }
+    // Slim cloud book: приближённый unique-счётчик по токенам текста
+    const text = (p.chineseText || p.originalText || p.englishText || '').trim();
+    if (!text) continue;
+    if (lang === 'zh') {
+      for (const ch of text.match(/[\u4e00-\u9fff]/g) ?? []) seen.add(ch);
+    } else {
+      for (const tok of text.split(/\s+/).filter(Boolean)) {
+        seen.add(tok.toLowerCase());
+      }
     }
   }
   return seen.size;
@@ -134,10 +176,11 @@ export async function saveReadingProgress(
   queueCloudSync();
 
   // Геймификация: слова в новых абзацах → дневная активность + стрик
+  // (words[] может быть пуст после cloud slim — считаем по тексту)
   if (progress.paragraphIndex > prevIdx) {
     let wordsDelta = 0;
     for (let i = prevIdx + 1; i <= progress.paragraphIndex; i++) {
-      wordsDelta += book.paragraphs[i]?.words?.length ?? 0;
+      wordsDelta += paragraphActivityWordCount(book.paragraphs[i], book.language);
     }
     if (wordsDelta > 0) {
       try {
