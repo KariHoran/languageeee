@@ -17,12 +17,14 @@ import {
   getFlashcardSources,
   getFlashcardsCount,
   getReviewSession,
+  removeFlashcard,
   reviewFlashcard,
   type DeckStats,
 } from '../services/flashcardsStore';
 import { getLearningLanguage } from '../services/onboardingService';
 import { useTheme } from '../theme/ThemeContext';
 import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
+import { showConfirm } from '../utils/alert';
 import { getHskBadgeColors } from '../utils/hskColors';
 import { softShadow } from '../utils/shadow';
 
@@ -192,6 +194,48 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     } finally {
       setGrading(false);
     }
+  };
+
+  const advanceAfterRemove = (fromIndex: number, nextQueue: Flashcard[]) => {
+    setRevealed(false);
+    if (nextQueue.length === 0) {
+      setQueue([]);
+      setIndex(0);
+      setPhase('done');
+      return;
+    }
+    if (fromIndex >= nextQueue.length) {
+      setQueue(nextQueue);
+      setIndex(0);
+      setPhase('done');
+      return;
+    }
+    setQueue(nextQueue);
+    setIndex(fromIndex);
+  };
+
+  const handleDelete = () => {
+    if (!current || grading) return;
+    const card = current;
+    const at = index;
+    showConfirm(
+      t('flashcards.deleteConfirm'),
+      t('flashcards.deleteConfirmBody', { word: card.hanzi }),
+      () => {
+        void (async () => {
+          setGrading(true);
+          try {
+            await removeFlashcard(card.id || card.hanzi, card.language);
+            const nextQueue = queue.filter((_, i) => i !== at);
+            advanceAfterRemove(at, nextQueue);
+          } finally {
+            setGrading(false);
+          }
+        })();
+      },
+      t('action.delete'),
+      t('action.cancel')
+    );
   };
 
   const titleKey: UiMessageKey =
@@ -501,6 +545,19 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 ? t('flashcards.progressWithAnswers', { n: sessionDone })
                 : ''}
             </Text>
+
+            <Pressable
+              onPress={handleDelete}
+              disabled={grading}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('flashcards.delete')}
+              style={styles.deleteLink}
+            >
+              <Text style={[styles.deleteLinkText, { color: theme.danger }]}>
+                {t('flashcards.delete')}
+              </Text>
+            </Pressable>
 
             <Pressable
               onPress={() => setRevealed(true)}
@@ -854,8 +911,18 @@ const styles = StyleSheet.create({
   progress: {
     textAlign: 'center',
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 8,
     fontWeight: '600',
+  },
+  deleteLink: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  deleteLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   card: {
     borderRadius: 8,

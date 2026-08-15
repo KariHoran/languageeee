@@ -538,6 +538,20 @@ export async function removeFlashcard(
   } catch (err) {
     console.warn('[flashcards] remove sync failed:', err);
   }
+  try {
+    const { useAppStore } = await import('../store/useAppStore');
+    useAppStore.setState((state) => {
+      if (!state.flashcards[idForTombstone] && !state.flashcards[key]) {
+        return state;
+      }
+      const next = { ...state.flashcards };
+      delete next[idForTombstone];
+      delete next[key];
+      return { flashcards: next };
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function getFlashcardsCount(

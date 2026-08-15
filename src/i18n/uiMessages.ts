@@ -338,6 +338,9 @@ export type UiMessageKey =
   | 'flashcards.grade.hardHint'
   | 'flashcards.grade.goodHint'
   | 'flashcards.grade.easyHint'
+  | 'flashcards.delete'
+  | 'flashcards.deleteConfirm'
+  | 'flashcards.deleteConfirmBody'
   | 'addBook.screenSubtitle.en'
   | 'addBook.screenSubtitle.zh'
   | 'addBook.screenSubtitle.ru'
@@ -796,6 +799,10 @@ const ru: Dictionary = {
   'flashcards.grade.hardHint': 'сложнее',
   'flashcards.grade.goodHint': 'ок',
   'flashcards.grade.easyHint': 'легко',
+  'flashcards.delete': 'Удалить карточку',
+  'flashcards.deleteConfirm': 'Удалить карточку?',
+  'flashcards.deleteConfirmBody':
+    '«{word}» больше не будет попадаться в повторениях.',
   'addBook.screenSubtitle.en':
     'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
   'addBook.screenSubtitle.zh':
@@ -1267,6 +1274,10 @@ const en: Dictionary = {
   'flashcards.grade.hardHint': 'harder',
   'flashcards.grade.goodHint': 'ok',
   'flashcards.grade.easyHint': 'easy',
+  'flashcards.delete': 'Delete card',
+  'flashcards.deleteConfirm': 'Delete this card?',
+  'flashcards.deleteConfirmBody':
+    '“{word}” will no longer appear in reviews.',
   'addBook.screenSubtitle.en':
     'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
   'addBook.screenSubtitle.zh':
@@ -1730,6 +1741,9 @@ const zh: Dictionary = {
   'flashcards.grade.hardHint': '更难',
   'flashcards.grade.goodHint': '还行',
   'flashcards.grade.easyHint': '轻松',
+  'flashcards.delete': '删除卡片',
+  'flashcards.deleteConfirm': '删除这张卡片？',
+  'flashcards.deleteConfirmBody': '「{word}」将不再出现在复习中。',
   'addBook.screenSubtitle.en':
     '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
   'addBook.screenSubtitle.zh':
