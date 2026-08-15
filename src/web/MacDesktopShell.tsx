@@ -49,6 +49,7 @@ import { OnboardingTour } from './OnboardingTour';
 import { ProgressPanel } from './ProgressPanel';
 import { PublicCollectionPanel } from './PublicCollectionPanel';
 import { PublicDeckPanel } from './PublicDeckPanel';
+import { PublicProfilePanel } from './PublicProfilePanel';
 import { ReaderPanel } from './ReaderPanel';
 import { StarryBackground } from './StarryBackground';
 import { applyDocumentTheme, useWebTheme } from './webTheme';
@@ -77,9 +78,24 @@ function parseDeckSlugFromPath(): string | null {
   }
 }
 
+function parseProfileSlugFromPath(): string | null {
+  if (typeof window === 'undefined') return null;
+  const m = window.location.pathname.match(/^\/u\/([^/]+)\/?$/i);
+  if (!m?.[1]) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
 function clearSharePath() {
   if (typeof window === 'undefined') return;
-  if (/^\/c\//i.test(window.location.pathname) || /^\/d\//i.test(window.location.pathname)) {
+  if (
+    /^\/c\//i.test(window.location.pathname) ||
+    /^\/d\//i.test(window.location.pathname) ||
+    /^\/u\//i.test(window.location.pathname)
+  ) {
     window.history.replaceState({}, '', '/');
   }
 }
@@ -126,6 +142,9 @@ export default function MacDesktopShell() {
   );
   const [deckSlug, setDeckSlug] = useState<string | null>(() =>
     parseDeckSlugFromPath()
+  );
+  const [profileSlug, setProfileSlug] = useState<string | null>(() =>
+    parseProfileSlugFromPath()
   );
 
   const theme = useWebTheme();
@@ -285,6 +304,7 @@ export default function MacDesktopShell() {
     const onPop = () => {
       setShareSlug(parseShareSlugFromPath());
       setDeckSlug(parseDeckSlugFromPath());
+      setProfileSlug(parseProfileSlugFromPath());
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -311,6 +331,7 @@ export default function MacDesktopShell() {
     clearSharePath();
     setShareSlug(null);
     setDeckSlug(null);
+    setProfileSlug(null);
     setTab('home');
   }, []);
 
@@ -321,6 +342,7 @@ export default function MacDesktopShell() {
     window.history.pushState({}, '', path);
     setShareSlug(clean);
     setDeckSlug(null);
+    setProfileSlug(null);
   }, []);
 
   const openPublicDeck = useCallback((slug: string) => {
@@ -330,6 +352,17 @@ export default function MacDesktopShell() {
     window.history.pushState({}, '', path);
     setDeckSlug(clean);
     setShareSlug(null);
+    setProfileSlug(null);
+  }, []);
+
+  const openPublicProfile = useCallback((slug: string) => {
+    const clean = slug.trim();
+    if (!clean || typeof window === 'undefined') return;
+    const path = `/u/${encodeURIComponent(clean)}`;
+    window.history.pushState({}, '', path);
+    setProfileSlug(clean);
+    setShareSlug(null);
+    setDeckSlug(null);
   }, []);
 
   const handleOpenPublicBook = useCallback(
@@ -522,10 +555,11 @@ export default function MacDesktopShell() {
           active="flashcards"
           flashcardsDue={cardsDue}
           onSelect={(t) => {
-            if (shareSlug || deckSlug) {
+            if (shareSlug || deckSlug || profileSlug) {
               clearSharePath();
               setShareSlug(null);
               setDeckSlug(null);
+              setProfileSlug(null);
             }
             setTab(t);
           }}
@@ -628,6 +662,10 @@ export default function MacDesktopShell() {
               }}
             />
           </Div>
+        ) : profileSlug ? (
+          <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
+            <PublicProfilePanel slug={profileSlug} onClose={closePublicShare} />
+          </Div>
         ) : tab === 'home' || tab === 'explore' || tab === 'library' ? (
           <>
             <Div className="hidden xl:block h-full shrink-0">
@@ -683,6 +721,7 @@ export default function MacDesktopShell() {
                 <ReaderPanel
                   book={activeBook}
                   chapterTitle={chapterTitle}
+                  coverage={bookCoverage}
                   onNotes={handleNotes}
                   onBack={() => goBack('library')}
                   onDelete={
@@ -864,10 +903,11 @@ export default function MacDesktopShell() {
         active={dockTab}
         flashcardsDue={cardsDue}
         onSelect={(t) => {
-          if (shareSlug || deckSlug) {
+          if (shareSlug || deckSlug || profileSlug) {
             clearSharePath();
             setShareSlug(null);
             setDeckSlug(null);
+            setProfileSlug(null);
           }
           setTab(t);
         }}

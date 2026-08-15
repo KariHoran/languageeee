@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   buildActivityHeatmap,
   displayStreak,
@@ -8,10 +8,12 @@ import {
   sumActivityRange,
 } from '../services/activityAnalytics';
 import type { BookCoverage } from '../services/bookCoverageService';
+import { publishPublicProfile } from '../services/publicProfilesService';
 import type { ReadingProgress } from '../services/readingProgressStore';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../i18n/useI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
+import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
 import { GlassWindow } from './GlassWindow';
 import { useWebTheme } from './webTheme';
@@ -75,6 +77,7 @@ export function ProgressPanel({
   const dailyWordsGoal = useAppStore((s) => s.dailyWordsGoal);
   const dailyCardsGoal = useAppStore((s) => s.dailyCardsGoal);
   const setDailyGoals = useAppStore((s) => s.setDailyGoals);
+  const [shareBusy, setShareBusy] = useState(false);
   const streak = useMemo(
     () => displayStreak(streakCurrent, streakLastActiveDate),
     [streakCurrent, streakLastActiveDate]
@@ -207,6 +210,45 @@ export function ProgressPanel({
           })}
         </Div>
       </Div>
+
+      <Button
+        type="button"
+        disabled={shareBusy}
+        className={`w-full mb-3 rounded-xl px-3 py-2 text-xs font-bold transition ${theme.cta} disabled:opacity-50`}
+        onClick={() => {
+          if (shareBusy) return;
+          setShareBusy(true);
+          void (async () => {
+            try {
+              const { url } = await publishPublicProfile({
+                streak,
+                wordsLearned,
+                cardsCount: wordsLearned,
+                weekWords: week.wordsRead,
+                weekCards: week.cardsReviewed,
+              });
+              try {
+                await navigator.clipboard.writeText(url);
+                showAlert(
+                  t('progress.shareProfileOk'),
+                  t('progress.shareProfileCopied', { url })
+                );
+              } catch {
+                showAlert(t('progress.shareProfileOk'), url);
+              }
+            } catch (e) {
+              showAlert(
+                t('alert.error'),
+                e instanceof Error ? e.message : t('progress.shareProfileFail')
+              );
+            } finally {
+              setShareBusy(false);
+            }
+          })();
+        }}
+      >
+        {shareBusy ? t('progress.shareProfileBusy') : t('progress.shareProfile')}
+      </Button>
 
       <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
         {t('progress.dailyGoal')}

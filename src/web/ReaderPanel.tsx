@@ -20,6 +20,7 @@ import {
   pinyinFor,
 } from '../services/hskLocalService';
 import { prefetchTranslationCache } from '../services/translationCache';
+import type { BookCoverage } from '../services/bookCoverageService';
 import {
   resolveReadingProgress,
   saveReadingProgress,
@@ -315,6 +316,8 @@ interface ReaderPanelProps {
   book: Book | null;
   chapterTitle?: string;
   showPinyin?: boolean;
+  /** Уровень текста / % в карточках — видно и без боковой Progress-панели */
+  coverage?: BookCoverage | null;
   onNotes?: () => void;
   onBack?: () => void;
   onDelete?: () => void;
@@ -327,6 +330,7 @@ export function ReaderPanel({
   book,
   chapterTitle,
   showPinyin: showPinyinProp = true,
+  coverage = null,
   onNotes,
   onBack,
   onDelete,
@@ -361,6 +365,7 @@ export function ReaderPanel({
   const [readPercent, setReadPercent] = useState(0);
   const [activeParaIndex, setActiveParaIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [levelBannerDismissed, setLevelBannerDismissed] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -385,6 +390,7 @@ export function ReaderPanel({
     restoreDone.current = null;
     setReadPercent(0);
     setActiveParaIndex(0);
+    setLevelBannerDismissed(false);
   }, [book?.id, showPinyinProp]);
 
   // Закрытие панели настроек по клику снаружи / Escape
@@ -891,6 +897,36 @@ export function ReaderPanel({
               } as React.CSSProperties
             }
           >
+            {coverage && !levelBannerDismissed ? (
+              <Div
+                className={`flex items-start justify-between gap-2 rounded-2xl px-3 py-2 text-[11px] border ${
+                  theme.isDark
+                    ? 'bg-[#1E1E28]/85 border-[#2A2A3A] text-white/90'
+                    : 'bg-white/90 border-gray-200 text-gray-800'
+                }`}
+              >
+                <Div>
+                  <Span className={`font-bold ${theme.accent}`}>
+                    {t('reader.levelFitTitle')}
+                  </Span>
+                  <Div className={`mt-0.5 leading-snug ${theme.textMuted}`}>
+                    {t('reader.levelFitBody', {
+                      label: coverage.recommendedLabel,
+                      known: coverage.knownPercent,
+                      unique: coverage.totalUniqueWords,
+                    })}
+                  </Div>
+                </Div>
+                <Button
+                  type="button"
+                  className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-lg ${theme.textMuted}`}
+                  onClick={() => setLevelBannerDismissed(true)}
+                  aria-label={t('action.close')}
+                >
+                  ×
+                </Button>
+              </Div>
+            ) : null}
             {readPercent > 0 || rendered.length > 0 ? (
               <Div className="reader-chrome-muted text-center text-[11px] font-semibold">
                 {t('reader.readProgressLine', {

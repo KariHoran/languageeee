@@ -153,6 +153,10 @@ export type UiMessageKey =
   | 'tour.addBookBody'
   | 'tour.languageTitle'
   | 'tour.languageBody'
+  | 'tour.cardsTitle'
+  | 'tour.cardsBody'
+  | 'tour.goalsTitle'
+  | 'tour.goalsBody'
   | 'catalog.searchPlaceholder'
   | 'catalog.searchAria'
   | 'catalog.allTags'
@@ -217,6 +221,12 @@ export type UiMessageKey =
   | 'public.editHint'
   | 'public.texts'
   | 'public.emptyBooks'
+  | 'profile.title'
+  | 'profile.notFound'
+  | 'profile.loading'
+  | 'profile.goHome'
+  | 'profile.cardsInDeck'
+  | 'profile.weekLine'
   | 'progress.easy'
   | 'progress.medium'
   | 'progress.hard'
@@ -257,6 +267,8 @@ export type UiMessageKey =
   | 'reader.readProgressLine'
   | 'reader.autoScrollBadge'
   | 'reader.practiceModeHint'
+  | 'reader.levelFitTitle'
+  | 'reader.levelFitBody'
   | 'reader.peekTranslation'
   | 'reader.grammarCount'
   | 'mini.nowPlaying'
@@ -386,6 +398,11 @@ export type UiMessageKey =
   | 'progress.dueBannerCta'
   | 'progress.weekTitle'
   | 'progress.weekStats'
+  | 'progress.shareProfile'
+  | 'progress.shareProfileBusy'
+  | 'progress.shareProfileOk'
+  | 'progress.shareProfileCopied'
+  | 'progress.shareProfileFail'
   | 'catalog.publicDecks'
   | 'catalog.noPublicDecks'
   | 'catalog.deckCardsCount'
@@ -640,6 +657,12 @@ const ru: Dictionary = {
   'tour.languageTitle': 'Языки',
   'tour.languageBody':
     'В шапке или в Настройках выбирайте изучаемый и родной язык (中文 / RU / EN) — интерфейс и переводы подстроятся.',
+  'tour.cardsTitle': 'Карточки и режимы',
+  'tour.cardsBody':
+    'Во вкладке Карточки повторяйте слова (SRS): режимы узнать / вспомнить / cloze / слушать, weak-колода и экспорт.',
+  'tour.goalsTitle': 'Цель дня и стрик',
+  'tour.goalsBody':
+    'В Прогрессе задайте дневную цель по словам и карточкам — стрик растёт от чтения и повторений.',
   'catalog.searchPlaceholder':
     'Поиск по названию, тексту, тегу, автору…',
   'catalog.searchAria': 'Поиск в каталоге',
@@ -706,6 +729,12 @@ const ru: Dictionary = {
   'public.editHint': 'Редактировать и удалять может только автор подборки.',
   'public.texts': 'Тексты',
   'public.emptyBooks': 'В подборке пока нет текстов.',
+  'profile.title': 'Публичный прогресс',
+  'profile.notFound': 'Профиль не найден или скрыт',
+  'profile.loading': 'Загрузка профиля…',
+  'profile.goHome': 'На главную',
+  'profile.cardsInDeck': 'Карточек в колоде: {n}',
+  'profile.weekLine': '{words} слов · {cards} карточек за неделю',
   'progress.easy': 'Базовые',
   'progress.medium': 'Средние',
   'progress.hard': 'Сложные',
@@ -765,6 +794,9 @@ const ru: Dictionary = {
   'reader.readProgressLine': 'Прочитано {pct}% · абз. {current}/{total}',
   'reader.autoScrollBadge': ' · автоскролл',
   'reader.practiceModeHint': 'Перевод скрыт · практика чтения · клик по абзацу = подсмотреть',
+  'reader.levelFitTitle': 'Уровень текста',
+  'reader.levelFitBody':
+    '{label} · {unique} уник. слов · уже в карточках {known}%',
   'reader.peekTranslation': 'подсмотреть перевод',
   'reader.grammarCount': 'Грамматика / Конструкции · {n}',
   'mini.nowPlaying': 'Сейчас играет',
@@ -899,6 +931,11 @@ const ru: Dictionary = {
   'progress.dueBannerCta': "К карточкам",
   'progress.weekTitle': "Эта неделя",
   'progress.weekStats': "{words} слов · {cards} карточек · {min} мин",
+  'progress.shareProfile': 'Поделиться прогрессом',
+  'progress.shareProfileBusy': 'Публикуем…',
+  'progress.shareProfileOk': 'Профиль опубликован',
+  'progress.shareProfileCopied': 'Ссылка скопирована:\n{url}',
+  'progress.shareProfileFail': 'Не удалось опубликовать профиль',
   'catalog.publicDecks': "Публичные колоды",
   'catalog.noPublicDecks': "Пока нет публичных колод",
   'catalog.deckCardsCount': "{n} карточек",
@@ -1166,6 +1203,12 @@ const en: Dictionary = {
   'tour.languageTitle': 'Languages',
   'tour.languageBody':
     'In the header or Settings pick learning and native languages (中文 / RU / EN) — UI and glosses follow.',
+  'tour.cardsTitle': 'Cards and modes',
+  'tour.cardsBody':
+    'In Flashcards review with SRS: recognition / recall / cloze / listen, weak deck, and export.',
+  'tour.goalsTitle': 'Daily goal and streak',
+  'tour.goalsBody':
+    'In Progress set a daily words/cards goal — your streak grows from reading and reviews.',
   'catalog.searchPlaceholder': 'Search by title, text, tag, author…',
   'catalog.searchAria': 'Search catalog',
   'catalog.allTags': 'All tags',
@@ -1231,6 +1274,12 @@ const en: Dictionary = {
   'public.editHint': 'Only the collection author can edit or delete it.',
   'public.texts': 'Texts',
   'public.emptyBooks': 'This collection has no texts yet.',
+  'profile.title': 'Public progress',
+  'profile.notFound': 'Profile not found or private',
+  'profile.loading': 'Loading profile…',
+  'profile.goHome': 'Go home',
+  'profile.cardsInDeck': 'Cards in deck: {n}',
+  'profile.weekLine': '{words} words · {cards} cards this week',
   'progress.easy': 'Basic',
   'progress.medium': 'Medium',
   'progress.hard': 'Hard',
@@ -1290,6 +1339,9 @@ const en: Dictionary = {
   'reader.readProgressLine': 'Read {pct}% · para. {current}/{total}',
   'reader.autoScrollBadge': ' · auto-scroll',
   'reader.practiceModeHint': 'Translation hidden · reading practice · tap a paragraph to peek',
+  'reader.levelFitTitle': 'Text level',
+  'reader.levelFitBody':
+    '{label} · {unique} unique words · {known}% already in cards',
   'reader.peekTranslation': 'peek translation',
   'reader.grammarCount': 'Grammar / Structures · {n}',
   'mini.nowPlaying': 'Now playing',
@@ -1425,6 +1477,11 @@ const en: Dictionary = {
   'progress.dueBannerCta': "Open cards",
   'progress.weekTitle': "This week",
   'progress.weekStats': "{words} words · {cards} cards · {min} min",
+  'progress.shareProfile': 'Share progress',
+  'progress.shareProfileBusy': 'Publishing…',
+  'progress.shareProfileOk': 'Profile published',
+  'progress.shareProfileCopied': 'Link copied:\n{url}',
+  'progress.shareProfileFail': 'Could not publish profile',
   'catalog.publicDecks': "Public decks",
   'catalog.noPublicDecks': "No public decks yet",
   'catalog.deckCardsCount': "{n} cards",
@@ -1688,6 +1745,12 @@ const zh: Dictionary = {
   'tour.languageTitle': '语言',
   'tour.languageBody':
     '在顶栏或设置中选择学习语言与母语（中文 / RU / EN）——界面与释义会随之切换。',
+  'tour.cardsTitle': '闪卡与模式',
+  'tour.cardsBody':
+    '在「闪卡」用 SRS 复习：认读 / 回忆 / 完形 / 听力、薄弱卡组与导出。',
+  'tour.goalsTitle': '每日目标与连续天',
+  'tour.goalsBody':
+    '在进度中设置每日词数/卡片目标——阅读与复习会延长连续天数。',
   'catalog.searchPlaceholder': '按标题、正文、标签、作者搜索…',
   'catalog.searchAria': '搜索小说',
   'catalog.allTags': '全部标签',
@@ -1753,6 +1816,12 @@ const zh: Dictionary = {
   'public.editHint': '仅合集作者可以编辑或删除。',
   'public.texts': '文本',
   'public.emptyBooks': '合集中还没有文本。',
+  'profile.title': '公开进度',
+  'profile.notFound': '未找到或未公开该主页',
+  'profile.loading': '正在加载主页…',
+  'profile.goHome': '返回首页',
+  'profile.cardsInDeck': '卡组卡片：{n}',
+  'profile.weekLine': '本周 {words} 词 · {cards} 卡',
   'progress.easy': '基础',
   'progress.medium': '中等',
   'progress.hard': '较难',
@@ -1811,6 +1880,9 @@ const zh: Dictionary = {
   'reader.readProgressLine': '已读 {pct}% · 第 {current}/{total} 段',
   'reader.autoScrollBadge': ' · 自动滚动',
   'reader.practiceModeHint': '译文已隐藏 · 阅读练习 · 点击段落可偷看',
+  'reader.levelFitTitle': '文本等级',
+  'reader.levelFitBody':
+    '{label} · {unique} 个不同词 · 已在卡片中 {known}%',
   'reader.peekTranslation': '偷看译文',
   'reader.grammarCount': '语法 / 结构 · {n}',
   'mini.nowPlaying': '正在播放',
@@ -1942,6 +2014,11 @@ const zh: Dictionary = {
   'progress.dueBannerCta': "去卡片",
   'progress.weekTitle': "本周",
   'progress.weekStats': "{words} 词 · {cards} 卡 · {min} 分钟",
+  'progress.shareProfile': '分享进度',
+  'progress.shareProfileBusy': '发布中…',
+  'progress.shareProfileOk': '主页已发布',
+  'progress.shareProfileCopied': '链接已复制：\n{url}',
+  'progress.shareProfileFail': '无法发布主页',
   'catalog.publicDecks': "公开卡组",
   'catalog.noPublicDecks': "暂无公开卡组",
   'catalog.deckCardsCount': "{n} 张卡片",

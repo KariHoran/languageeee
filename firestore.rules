@@ -153,5 +153,35 @@ service cloud.firestore {
 
       allow delete: if isDocOwner();
     }
+
+    /**
+     * Публичные профили прогресса: publicProfiles/{slug}
+     * Без приватных книг — только стрик / слова / неделя.
+     */
+    match /publicProfiles/{slug} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.isPublic == true
+          || resource.data.userId == request.auth.uid
+        );
+
+      allow create: if createWithOwnUserId()
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true
+        && (
+          !request.resource.data.keys().hasAny(['ownerUserId'])
+          || request.resource.data.ownerUserId == request.auth.uid
+        )
+        && (
+          !request.resource.data.keys().hasAny(['authorId'])
+          || request.resource.data.authorId == request.auth.uid
+        );
+
+      allow update: if isDocOwner()
+        && keepsOwnUserId()
+        && request.resource.data.slug == slug;
+
+      allow delete: if isDocOwner();
+    }
   }
 }
