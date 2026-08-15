@@ -381,6 +381,7 @@ export function ReaderPanel({
   } | null>(null);
 
   const stickyNotes = useAppStore((s) => s.stickyNotes);
+  const addStickyNote = useAppStore((s) => s.addStickyNote);
   const bookNotes = useMemo(
     () => (book ? stickyNotes.filter((n) => n.bookId === book.id) : []),
     [stickyNotes, book?.id]
@@ -1238,6 +1239,22 @@ export function ReaderPanel({
           language={selected.tokenLanguage}
           nativeLanguage={nativeLanguage}
           onClose={() => setSelected(null)}
+          onAddToNotebook={
+            book
+              ? ({ selectedText, note }) => {
+                  addStickyNote({
+                    id: `note-${Date.now()}`,
+                    bookId: book.id,
+                    paragraphIndex: activeParaIndex,
+                    selectedText,
+                    note,
+                    color: '#dcc8ff',
+                    createdAt: Date.now(),
+                  });
+                  setToastMessage(t('word.addedToNotebook'));
+                }
+              : undefined
+          }
         />
       ) : null}
 

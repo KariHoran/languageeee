@@ -128,6 +128,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [stats, setStats] = useState<DeckStats>({
     total: 0,
     due: 0,
+    dueTomorrow: 0,
     new: 0,
     learning: 0,
     learned: 0,

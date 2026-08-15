@@ -170,6 +170,8 @@ export type UiMessageKey =
   | 'word.transFail'
   | 'word.addCard'
   | 'word.alreadyInCard'
+  | 'word.addToNotebook'
+  | 'word.addedToNotebook'
   | 'word.waitTranslate'
   | 'word.retry'
   | 'word.grammar'
@@ -190,6 +192,10 @@ export type UiMessageKey =
   | 'tour.cardsBody'
   | 'tour.goalsTitle'
   | 'tour.goalsBody'
+  | 'tour.notebookTitle'
+  | 'tour.notebookBody'
+  | 'tour.installTitle'
+  | 'tour.installBody'
   | 'catalog.searchPlaceholder'
   | 'catalog.searchAria'
   | 'catalog.allTags'
@@ -429,6 +435,9 @@ export type UiMessageKey =
   | 'progress.dueBannerTitle'
   | 'progress.dueBannerHint'
   | 'progress.dueBannerCta'
+  | 'progress.dueTomorrowTitle'
+  | 'progress.dueTomorrowHint'
+  | 'progress.dueTomorrowCta'
   | 'progress.weekTitle'
   | 'progress.weekStats'
   | 'progress.shareProfile'
@@ -686,6 +695,8 @@ const ru: Dictionary = {
   'word.transFail': 'Не удалось получить перевод. Попробуйте ещё раз.',
   'word.addCard': '+ В карточки',
   'word.alreadyInCard': 'Уже в карточках',
+  'word.addToNotebook': '📝 В блокнот',
+  'word.addedToNotebook': 'Добавлено в блокнот',
   'word.waitTranslate': 'Ждём перевод…',
   'word.retry': 'Повторить перевод',
   'word.grammar': 'Грамматика / Конструкция',
@@ -714,6 +725,12 @@ const ru: Dictionary = {
   'tour.goalsTitle': 'Цель дня и стрик',
   'tour.goalsBody':
     'В Прогрессе задайте дневную цель по словам и карточкам — стрик растёт от чтения и повторений.',
+  'tour.notebookTitle': 'Блокнот',
+  'tour.notebookBody':
+    'В ридере кнопка 📝 и «+ заметка» у абзаца. Можно выделить текст или добавить слово из карточки в блокнот.',
+  'tour.installTitle': 'На телефон',
+  'tour.installBody':
+    'В Настройках — «Скачать приложение»: установка с сайта на Android (Chrome), без Google Play.',
   'catalog.searchPlaceholder':
     'Поиск по названию, тексту, тегу, автору…',
   'catalog.searchAria': 'Поиск в каталоге',
@@ -1001,6 +1018,9 @@ const ru: Dictionary = {
   'progress.dueBannerTitle': "К повторению: {n}",
   'progress.dueBannerHint': "Короткая сессия укрепит стрик",
   'progress.dueBannerCta': "К карточкам",
+  'progress.dueTomorrowTitle': "Завтра к повторению: {n}",
+  'progress.dueTomorrowHint': "Сегодня можно отдохнуть или разобрать колоду заранее",
+  'progress.dueTomorrowCta': "Открыть колоду",
   'progress.weekTitle': "Эта неделя",
   'progress.weekStats': "{words} слов · {cards} карточек · {min} мин",
   'progress.shareProfile': 'Поделиться прогрессом',
@@ -1271,6 +1291,8 @@ const en: Dictionary = {
   'word.transFail': 'Could not get a translation. Please try again.',
   'word.addCard': '+ Add to cards',
   'word.alreadyInCard': 'Already in cards',
+  'word.addToNotebook': '📝 To notebook',
+  'word.addedToNotebook': 'Saved to notebook',
   'word.waitTranslate': 'Waiting for translation…',
   'word.retry': 'Retry translation',
   'word.grammar': 'Grammar / Structure',
@@ -1299,6 +1321,12 @@ const en: Dictionary = {
   'tour.goalsTitle': 'Daily goal and streak',
   'tour.goalsBody':
     'In Progress set a daily words/cards goal — your streak grows from reading and reviews.',
+  'tour.notebookTitle': 'Notebook',
+  'tour.notebookBody':
+    'In the reader use 📝 or “+ note” on a paragraph. Select text or add a word from the card into the notebook.',
+  'tour.installTitle': 'On your phone',
+  'tour.installBody':
+    'In Settings → “Download app”: install from this site on Android (Chrome), no Google Play.',
   'catalog.searchPlaceholder': 'Search by title, text, tag, author…',
   'catalog.searchAria': 'Search catalog',
   'catalog.allTags': 'All tags',
@@ -1586,6 +1614,9 @@ const en: Dictionary = {
   'progress.dueBannerTitle': "Due today: {n}",
   'progress.dueBannerHint': "A short session keeps your streak alive",
   'progress.dueBannerCta': "Open cards",
+  'progress.dueTomorrowTitle': "Due tomorrow: {n}",
+  'progress.dueTomorrowHint': "Rest today, or browse the deck ahead of time",
+  'progress.dueTomorrowCta': "Open deck",
   'progress.weekTitle': "This week",
   'progress.weekStats': "{words} words · {cards} cards · {min} min",
   'progress.shareProfile': 'Share progress',
@@ -1851,6 +1882,8 @@ const zh: Dictionary = {
   'word.transFail': '无法获取翻译，请重试。',
   'word.addCard': '+ 加入卡片',
   'word.alreadyInCard': '已在卡片中',
+  'word.addToNotebook': '📝 加入笔记本',
+  'word.addedToNotebook': '已加入笔记本',
   'word.waitTranslate': '等待翻译…',
   'word.retry': '重试翻译',
   'word.grammar': '语法 / 结构',
@@ -1878,6 +1911,12 @@ const zh: Dictionary = {
   'tour.goalsTitle': '每日目标与连续天',
   'tour.goalsBody':
     '在进度中设置每日词数/卡片目标——阅读与复习会延长连续天数。',
+  'tour.notebookTitle': '笔记本',
+  'tour.notebookBody':
+    '阅读器里点 📝 或段落的「+ 笔记」。也可选中文字，或从单词卡片加入笔记本。',
+  'tour.installTitle': '装到手机',
+  'tour.installBody':
+    '设置 →「下载应用」：从本站安装到 Android（Chrome），无需 Google Play。',
   'catalog.searchPlaceholder': '按标题、正文、标签、作者搜索…',
   'catalog.searchAria': '搜索小说',
   'catalog.allTags': '全部标签',
@@ -2160,6 +2199,9 @@ const zh: Dictionary = {
   'progress.dueBannerTitle': "今日待复习：{n}",
   'progress.dueBannerHint': "短时复习可保持连续天数",
   'progress.dueBannerCta': "去卡片",
+  'progress.dueTomorrowTitle': "明天待复习：{n}",
+  'progress.dueTomorrowHint': "今天可以休息，或提前浏览卡组",
+  'progress.dueTomorrowCta': "打开卡组",
   'progress.weekTitle': "本周",
   'progress.weekStats': "{words} 词 · {cards} 卡 · {min} 分钟",
   'progress.shareProfile': '分享进度',

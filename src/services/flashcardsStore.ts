@@ -236,9 +236,34 @@ export function filterFlashcards(
 export interface DeckStats {
   total: number;
   due: number;
+  /** Карточки, у которых nextReview выпадает на завтрашний календарный день */
+  dueTomorrow: number;
   new: number;
   learning: number;
   learned: number;
+}
+
+function startOfLocalDay(d: Date): number {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x.getTime();
+}
+
+/** Сколько карточек станут due завтра (не сегодня). */
+export function countDueTomorrow(
+  cards: Flashcard[],
+  now = new Date()
+): number {
+  const today = startOfLocalDay(now);
+  const tomorrow = today + 24 * 60 * 60 * 1000;
+  let n = 0;
+  for (const raw of cards) {
+    const c = normalizeCard(raw);
+    if (c.suspended) continue;
+    const reviewDay = startOfLocalDay(new Date(c.nextReviewDate));
+    if (reviewDay === tomorrow) n += 1;
+  }
+  return n;
 }
 
 export function computeDeckStats(
@@ -262,6 +287,7 @@ export function computeDeckStats(
   return {
     total: cards.filter((c) => !normalizeCard(c).suspended).length,
     due,
+    dueTomorrow: countDueTomorrow(cards, now),
     new: neu,
     learning,
     learned,

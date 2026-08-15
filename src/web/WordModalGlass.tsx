@@ -68,6 +68,11 @@ interface WordModalGlassProps {
   translationDirection?: string;
   onClose: () => void;
   onAddedToFlashcards?: () => void;
+  /** Добавить слово / цитату в блокнот книги */
+  onAddToNotebook?: (payload: {
+    selectedText: string;
+    note: string;
+  }) => void;
 }
 
 export function WordModalGlass({
@@ -79,6 +84,7 @@ export function WordModalGlass({
   nativeLanguage: nativeProp,
   onClose,
   onAddedToFlashcards,
+  onAddToNotebook,
 }: WordModalGlassProps) {
   const theme = useWebTheme();
   const { t } = useI18n();
@@ -86,6 +92,7 @@ export function WordModalGlass({
   const nativeLanguage = nativeProp ?? storeNative;
   const [inDeck, setInDeck] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const isEnglish = language === 'en';
   const isRussian = language === 'ru';
@@ -445,6 +452,36 @@ export function WordModalGlass({
                 ? t('word.waitTranslate')
                 : t('word.addCard')}
           </Button>
+
+          {onAddToNotebook && sourceBookId ? (
+            <Button
+              type="button"
+              className={`mt-2 w-full rounded-2xl py-2 text-sm font-bold transition ${
+                noteSaved
+                  ? theme.isDark
+                    ? 'bg-[#2A2A3A] text-white/40 cursor-default'
+                    : 'bg-gray-100 text-gray-400 cursor-default'
+                  : theme.isDark
+                    ? 'bg-[#8B5CF6]/20 text-[#c4b5fd] hover:bg-[#8B5CF6]/30'
+                    : 'bg-violet-50 text-violet-700 hover:bg-violet-100'
+              }`}
+              disabled={busy || noteSaved}
+              onClick={() => {
+                const surface = word.hanzi.trim();
+                if (!surface) return;
+                const gloss = displayTranslation.trim();
+                onAddToNotebook({
+                  selectedText: surface,
+                  note: gloss
+                    ? `${surface}${word.pinyin ? ` (${word.pinyin})` : ''} — ${gloss}`
+                    : surface,
+                });
+                setNoteSaved(true);
+              }}
+            >
+              {noteSaved ? t('word.addedToNotebook') : t('word.addToNotebook')}
+            </Button>
+          ) : null}
 
           {inDeck ? (
             <Button

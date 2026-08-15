@@ -121,6 +121,7 @@ export default function MacDesktopShell() {
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [wordsLearned, setWordsLearned] = useState(0);
   const [cardsDue, setCardsDue] = useState(0);
+  const [cardsDueTomorrow, setCardsDueTomorrow] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bookCoverage, setBookCoverage] = useState<BookCoverage | null>(null);
   const [readingProgress, setReadingProgress] =
@@ -188,6 +189,7 @@ export default function MacDesktopShell() {
       const langCounts = await getFlashcardsCount(lang);
       setWordsLearned(langCounts.total);
       setCardsDue(langCounts.due);
+      setCardsDueTomorrow(langCounts.dueTomorrow);
       setStreak(streakState.current);
       // Welcome-тур только для зарегистрированных пользователей, ещё не прошедших онбординг
       const isAuthed =
@@ -320,6 +322,7 @@ export default function MacDesktopShell() {
       const lang = useAppStore.getState().learningLanguage;
       const counts = await getFlashcardsCount(lang);
       setCardsDue(counts.due);
+      setCardsDueTomorrow(counts.dueTomorrow);
       setWordsLearned(counts.total);
     } catch {
       /* ignore */
@@ -588,6 +591,7 @@ export default function MacDesktopShell() {
       <OfflineBanner />
       <DueCardsBanner
         due={cardsDue}
+        dueTomorrow={cardsDueTomorrow}
         onOpenFlashcards={() => setTab('flashcards')}
       />
 
