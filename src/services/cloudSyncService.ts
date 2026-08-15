@@ -13,9 +13,9 @@ import type {
   Flashcard as DomainFlashcard,
 } from '../types/domain';
 import { Book, Collection, CollectionWord, Flashcard, Word } from '../types';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, resetInflatedReadingStatsIfNeeded } from '../store/useAppStore';
 import type { StickyNote } from '../types/stickyNote';
-import { mergeActivityByDay, pruneActivityByDay } from './activityAnalytics';
+import { mergeActivityByDay, mergeActivityByDayWithEpoch, pruneActivityByDay } from './activityAnalytics';
 import { getCloudUid, isCloudUser, resolveFirestoreUid, type AuthUser } from './authService';
 import { GUEST_OWNER_ID, getDataOwnerId } from './dataOwner';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
@@ -103,6 +103,8 @@ export interface SyncSnapshot {
       string,
       { wordsRead: number; cardsReviewed: number; minutes: number; updatedAt: string }
     >;
+    /** Поколение сброса reading-счётчиков (words/minutes). */
+    activityEpoch?: number;
   };
   tombstones: SyncTombstone[];
   updatedAt: string;
@@ -726,9 +728,11 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
             : localStreak;
   }
 
-  const activityByDay = mergeActivityByDay(
+  const activityMerged = mergeActivityByDayWithEpoch(
     local.prefs?.activityByDay,
-    remote.prefs?.activityByDay
+    local.prefs?.activityEpoch ?? 0,
+    remote.prefs?.activityByDay,
+    remote.prefs?.activityEpoch ?? 0
   );
 
   return {
@@ -789,7 +793,8 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot): SyncS
       nativeLanguage:
         local.prefs?.nativeLanguage ?? remote.prefs?.nativeLanguage ?? 'ru',
       streak,
-      activityByDay,
+      activityByDay: activityMerged.activityByDay,
+      activityEpoch: activityMerged.activityEpoch,
     },
     tombstones,
     updatedAt: new Date().toISOString(),
@@ -846,6 +851,7 @@ export async function loadLocalSnapshot(): Promise<SyncSnapshot> {
   const activityByDay = pruneActivityByDay(
     useAppStore.getState().activityByDay ?? {}
   );
+  const activityEpoch = useAppStore.getState().activityEpoch ?? 0;
 
   return {
     books: ownedBooks,
@@ -857,7 +863,13 @@ export async function loadLocalSnapshot(): Promise<SyncSnapshot> {
     userTracks: ownedTracks,
     stickyNotes: readStickyNotesFromZustand(),
     domain: readDomainFromZustand(),
-    prefs: { learningLanguage, nativeLanguage, streak, activityByDay },
+    prefs: {
+      learningLanguage,
+      nativeLanguage,
+      streak,
+      activityByDay,
+      activityEpoch,
+    },
     tombstones,
     updatedAt: new Date().toISOString(),
   };
@@ -914,15 +926,30 @@ export async function applyLocalSnapshot(snapshot: SyncSnapshot): Promise<void> 
     await setStreakFromCloud(snapshot.prefs.streak);
   }
   // Нет prefs.streak — не обнуляем локальный стрик (гость / старый meta).
-  // После clear / replaceLocal — подставляем облачную карту как есть
-  if (snapshot.prefs?.activityByDay) {
+  // Activity: epoch-aware merge, чтобы сброс words/minutes не затёрся pull-replace.
+  if (snapshot.prefs?.activityByDay || typeof snapshot.prefs?.activityEpoch === 'number') {
+    const current = useAppStore.getState();
+    const merged = mergeActivityByDayWithEpoch(
+      current.activityByDay,
+      current.activityEpoch ?? 0,
+      snapshot.prefs.activityByDay,
+      snapshot.prefs.activityEpoch ?? 0
+    );
     useAppStore.setState({
-      activityByDay: pruneActivityByDay(snapshot.prefs.activityByDay),
+      activityByDay: merged.activityByDay,
+      activityEpoch: merged.activityEpoch,
     });
   } else if (snapshot.prefs) {
     // prefs есть, но activity пустая — явная замена (pull-replace без истории)
-    useAppStore.setState({ activityByDay: {} });
+    const current = useAppStore.getState();
+    const localEpoch = current.activityEpoch ?? 0;
+    if (localEpoch <= 0) {
+      useAppStore.setState({ activityByDay: {}, activityEpoch: 0 });
+    }
   }
+  // После pull-replace/merge облако может вернуть раздутые слова — сброс здесь,
+  // иначе миграция на гидрации уже отработала на пустом state до логина.
+  resetInflatedReadingStatsIfNeeded();
   if (snapshot.prefs?.learningLanguage === 'zh' ||
       snapshot.prefs?.learningLanguage === 'en' ||
       snapshot.prefs?.learningLanguage === 'ru' ||
@@ -1627,6 +1654,7 @@ function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
     streakLastActiveDate,
     streakUpdatedAt,
     activityByDay,
+    activityEpoch,
   } = useAppStore.getState();
   const liveStreak = {
     current: streakCurrent,
@@ -1646,6 +1674,12 @@ function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
       streak = snapStreak;
     }
   }
+  const activityMerged = mergeActivityByDayWithEpoch(
+    activityByDay,
+    activityEpoch ?? 0,
+    snapshot.prefs?.activityByDay,
+    snapshot.prefs?.activityEpoch ?? 0
+  );
   return {
     ...snapshot,
     prefs: {
@@ -1653,10 +1687,8 @@ function overlayLiveLanguagePrefs(snapshot: SyncSnapshot): SyncSnapshot {
       learningLanguage,
       nativeLanguage,
       streak,
-      activityByDay: mergeActivityByDay(
-        activityByDay,
-        snapshot.prefs?.activityByDay
-      ),
+      activityByDay: activityMerged.activityByDay,
+      activityEpoch: activityMerged.activityEpoch,
     },
   };
 }
@@ -1777,6 +1809,12 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
               } catch (err) {
                 console.warn('[cloudSync] hasCompletedOnboarding:', err);
               }
+              // pull-replace не пишет обратно — иначе раздутый activity остаётся в Firestore
+              if (!isSyncEpochCurrent(epoch)) return;
+              await writeRemoteSnapshot(
+                uid,
+                overlayLiveLanguagePrefs(await loadLocalSnapshot())
+              );
             } else {
               const local = await loadLocalSnapshot();
               if (!isSyncEpochCurrent(epoch)) return;
@@ -1790,7 +1828,11 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
                 console.warn('[cloudSync] hasCompletedOnboarding:', err);
               }
               if (!isSyncEpochCurrent(epoch)) return;
-              await writeRemoteSnapshot(uid, merged);
+              // Пишем актуальное локальное (после apply + возможного сброса слов)
+              await writeRemoteSnapshot(
+                uid,
+                overlayLiveLanguagePrefs(await loadLocalSnapshot())
+              );
             }
           } else if (mode === 'push') {
             const local = overlayLiveLanguagePrefs(await loadLocalSnapshot());
@@ -1813,7 +1855,10 @@ async function runExclusiveSync(mode: SyncMode): Promise<SyncState> {
             );
             await applyLocalSnapshot(merged);
             if (!isSyncEpochCurrent(epoch)) return;
-            await writeRemoteSnapshot(uid, merged);
+            await writeRemoteSnapshot(
+              uid,
+              overlayLiveLanguagePrefs(await loadLocalSnapshot())
+            );
           }
 
           if (!isSyncEpochCurrent(epoch)) return;

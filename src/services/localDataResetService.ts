@@ -150,6 +150,7 @@ export function resetZustandUserState(): void {
       streakLastActiveDate: null,
       streakUpdatedAt: new Date().toISOString(),
       activityByDay: {},
+      activityEpoch: 0,
     });
     try {
       void useAppStore.persist?.clearStorage?.();

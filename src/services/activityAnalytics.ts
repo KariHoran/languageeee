@@ -151,6 +151,58 @@ export function sumActivityRange(
   };
 }
 
+/**
+ * Обнулить слова/минуты (ложный скролл / простой вкладки), карточки оставить.
+ * updatedAt → now, чтобы LWW/epoch-синк отдал приоритет сбросу.
+ */
+export function clearReadingActivityCounters(
+  map: ActivityByDay,
+  now = new Date()
+): ActivityByDay {
+  const updatedAt = now.toISOString();
+  const next: ActivityByDay = {};
+  for (const [key, row] of Object.entries(map)) {
+    if (!row) continue;
+    next[key] = {
+      wordsRead: 0,
+      cardsReviewed: Math.max(0, Math.floor(row.cardsReviewed || 0)),
+      minutes: 0,
+      updatedAt,
+    };
+  }
+  return pruneActivityByDay(next, ACTIVITY_HISTORY_DAYS, now);
+}
+
+/**
+ * Слияние карт с учётом epoch сброса: больший epoch побеждает целиком,
+ * при равенстве — max по полям (мультидевайс).
+ */
+export function mergeActivityByDayWithEpoch(
+  local: ActivityByDay | undefined,
+  localEpoch: number,
+  remote: ActivityByDay | undefined,
+  remoteEpoch: number
+): { activityByDay: ActivityByDay; activityEpoch: number } {
+  const le = Math.max(0, Math.floor(localEpoch) || 0);
+  const re = Math.max(0, Math.floor(remoteEpoch) || 0);
+  if (le > re) {
+    return {
+      activityByDay: pruneActivityByDay(local ?? {}),
+      activityEpoch: le,
+    };
+  }
+  if (re > le) {
+    return {
+      activityByDay: pruneActivityByDay(remote ?? {}),
+      activityEpoch: re,
+    };
+  }
+  return {
+    activityByDay: mergeActivityByDay(local, remote),
+    activityEpoch: le,
+  };
+}
+
 /** Ячейки heatmap: weeks колонок × 7 строк (вс→сб или пн→вс). GitHub-style: колонки = недели. */
 export interface HeatmapCell {
   date: string;

@@ -999,16 +999,21 @@ export default function ReaderScreen({
   );
 
   const PROGRESS_SAVE_DEBOUNCE_MS = 700;
+  /** Сколько держать абзац в фокусе, прежде чем засчитать слова в активность */
+  const WORD_CREDIT_DWELL_MS = 2500;
 
   const persistProgress = useCallback(
-    (index: number) => {
+    (index: number, creditWords = false) => {
       if (book.paragraphs.length === 0) return;
-      if (index === lastSavedIndex.current) return;
-      lastSavedIndex.current = index;
-      void saveReadingProgress(book, index);
+      if (!creditWords && index === lastSavedIndex.current) return;
+      if (!creditWords) lastSavedIndex.current = index;
+      void saveReadingProgress(book, index, { creditWords });
     },
     [book]
   );
+
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dwellTargetRef = useRef<number | null>(null);
 
   const handleScrollProgress = useCallback(
     (scrollY: number) => {
@@ -1025,8 +1030,17 @@ export default function ReaderScreen({
       if (progressTimer.current) clearTimeout(progressTimer.current);
       progressTimer.current = setTimeout(() => {
         pendingProgressIndex.current = null;
-        persistProgress(best);
+        persistProgress(best, false);
       }, PROGRESS_SAVE_DEBOUNCE_MS);
+
+      if (dwellTargetRef.current !== best) {
+        dwellTargetRef.current = best;
+        if (dwellTimer.current) clearTimeout(dwellTimer.current);
+        dwellTimer.current = setTimeout(() => {
+          dwellTimer.current = null;
+          persistProgress(best, true);
+        }, WORD_CREDIT_DWELL_MS);
+      }
     },
     [persistProgress]
   );
@@ -1065,9 +1079,11 @@ export default function ReaderScreen({
   useEffect(() => {
     return () => {
       if (progressTimer.current) clearTimeout(progressTimer.current);
+      if (dwellTimer.current) clearTimeout(dwellTimer.current);
+      dwellTargetRef.current = null;
       const pending = pendingProgressIndex.current;
       if (pending != null && pending !== lastSavedIndex.current) {
-        void saveReadingProgress(book, pending);
+        void saveReadingProgress(book, pending, { creditWords: false });
       }
     };
   }, [book]);
@@ -1076,6 +1092,11 @@ export default function ReaderScreen({
     restoreDone.current = null;
     lastSavedIndex.current = -1;
     paraLayouts.current = {};
+    dwellTargetRef.current = null;
+    if (dwellTimer.current) {
+      clearTimeout(dwellTimer.current);
+      dwellTimer.current = null;
+    }
     setShowPinyin(true);
   }, [book.id]);
 

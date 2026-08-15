@@ -62,6 +62,8 @@ import { WordModalGlass } from './WordModalGlass';
 import { useWebTheme, type WebThemeClasses } from './webTheme';
 
 const PROGRESS_SAVE_DEBOUNCE_MS = 700;
+/** Сколько держать абзац в фокусе, прежде чем засчитать слова в «Эту неделю» */
+const WORD_CREDIT_DWELL_MS = 2500;
 /** Медленная автопрокрутка: px в секунду */
 const AUTO_SCROLL_PX_PER_SEC = 28;
 
@@ -452,6 +454,8 @@ export function ReaderPanel({
   const restoreDone = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoScrollRaf = useRef<number | null>(null);
+  const dwellTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dwellTargetRef = useRef<number | null>(null);
 
   const jumpToParagraph = useCallback((index: number) => {
     const el = paraRefs.current[index];
@@ -474,6 +478,11 @@ export function ReaderPanel({
     setAutoScroll(false);
     lastSavedIndex.current = -1;
     restoreDone.current = null;
+    dwellTargetRef.current = null;
+    if (dwellTimer.current) {
+      clearTimeout(dwellTimer.current);
+      dwellTimer.current = null;
+    }
     setReadPercent(0);
     setActiveParaIndex(0);
     setLevelBannerDismissed(false);
@@ -551,12 +560,12 @@ export function ReaderPanel({
   );
 
   const persistProgress = useCallback(
-    (index: number) => {
+    (index: number, creditWords = false) => {
       if (!book || book.paragraphs.length === 0) return;
       setActiveParaIndex(index);
-      if (index === lastSavedIndex.current) return;
-      lastSavedIndex.current = index;
-      void saveReadingProgress(book, index).then((p) => {
+      if (!creditWords && index === lastSavedIndex.current) return;
+      if (!creditWords) lastSavedIndex.current = index;
+      void saveReadingProgress(book, index, { creditWords }).then((p) => {
         setReadPercent(p.percent);
         onProgressChange?.(p);
       });
@@ -584,8 +593,18 @@ export function ReaderPanel({
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       pendingIndexRef.current = null;
-      persistProgress(best);
+      persistProgress(best, false);
     }, PROGRESS_SAVE_DEBOUNCE_MS);
+
+    // Слова в статистику — только если абзац реально «подержали» в кадре
+    if (dwellTargetRef.current !== best) {
+      dwellTargetRef.current = best;
+      if (dwellTimer.current) clearTimeout(dwellTimer.current);
+      dwellTimer.current = setTimeout(() => {
+        dwellTimer.current = null;
+        persistProgress(best, true);
+      }, WORD_CREDIT_DWELL_MS);
+    }
   }, [rendered, persistProgress]);
 
   // Плавная автопрокрутка текста
@@ -655,17 +674,22 @@ export function ReaderPanel({
     };
   }, [book?.id, rendered.length, persistProgress, onProgressChange]);
 
-  // Flush отложенного save при размонтировании / смене книги
+  // Flush отложенного save при размонтировании / смене книги (только закладка, без слов)
   useEffect(() => {
     return () => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
       }
+      if (dwellTimer.current) {
+        clearTimeout(dwellTimer.current);
+        dwellTimer.current = null;
+      }
+      dwellTargetRef.current = null;
       const pending = pendingIndexRef.current;
       if (pending != null && book && pending !== lastSavedIndex.current) {
         pendingIndexRef.current = null;
-        void saveReadingProgress(book, pending);
+        void saveReadingProgress(book, pending, { creditWords: false });
       }
     };
   }, [book]);

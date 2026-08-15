@@ -66,31 +66,35 @@ async function idbRemove(key: string): Promise<void> {
   });
 }
 
-/** Web: IndexedDB с зеркалом в localStorage для мгновенного гидрата. */
+/**
+ * Web: localStorage = источник свежести (синхронная запись),
+ * IndexedDB = вместилище для больших снимков.
+ * Раньше getItem предпочитал IDB → устаревшая запись могла пережить
+ * более новый localStorage (гонка async put) и вернуть раздутый activityByDay.
+ */
 function createWebStorage(): StateStorage {
+  /** Цепочка put, чтобы старый idbSet не затирал более новый. */
+  let idbWriteChain: Promise<void> = Promise.resolve();
+
   return {
     getItem: async (name) => {
       try {
-        const fromIdb = await idbGet(name);
-        if (fromIdb != null) return fromIdb;
-        try {
-          if (typeof localStorage === 'undefined') return null;
+        if (typeof localStorage !== 'undefined') {
           const fromLs = localStorage.getItem(name);
           if (fromLs != null) {
-            void idbSet(name, fromLs).catch(() => undefined);
+            idbWriteChain = idbWriteChain
+              .then(() => idbSet(name, fromLs))
+              .catch(() => undefined);
             return fromLs;
           }
-        } catch {
-          /* private mode */
         }
-        return null;
       } catch {
-        try {
-          if (typeof localStorage === 'undefined') return null;
-          return localStorage.getItem(name);
-        } catch {
-          return null;
-        }
+        /* private mode / quota */
+      }
+      try {
+        return await idbGet(name);
+      } catch {
+        return null;
       }
     },
     setItem: async (name, value) => {
@@ -101,11 +105,10 @@ function createWebStorage(): StateStorage {
       } catch {
         /* quota */
       }
-      try {
-        await idbSet(name, value);
-      } catch {
-        /* IDB недоступен — localStorage уже записан */
-      }
+      idbWriteChain = idbWriteChain
+        .then(() => idbSet(name, value))
+        .catch(() => undefined);
+      await idbWriteChain;
     },
     removeItem: async (name) => {
       try {
@@ -115,11 +118,10 @@ function createWebStorage(): StateStorage {
       } catch {
         /* ignore */
       }
-      try {
-        await idbRemove(name);
-      } catch {
-        /* ignore */
-      }
+      idbWriteChain = idbWriteChain
+        .then(() => idbRemove(name))
+        .catch(() => undefined);
+      await idbWriteChain;
     },
   };
 }

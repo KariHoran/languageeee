@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
+  clearReadingActivityCounters,
   emptyDayActivity,
   localDayKey,
   mergeActivityByDay,
+  mergeActivityByDayWithEpoch,
   normalizeDayActivity,
   pruneActivityByDay,
   yesterdayLocalKey,
@@ -149,6 +151,11 @@ export interface ActivitySlice {
   streakLastActiveDate: string | null;
   streakUpdatedAt: string;
   activityByDay: ActivityByDay;
+  /**
+   * Поколение сброса reading-счётчиков. Большее значение побеждает при sync,
+   * чтобы max-merge не вернул раздутые words/minutes из облака.
+   */
+  activityEpoch: number;
   /** Дневная цель: слова прочитано */
   dailyWordsGoal: number;
   /** Дневная цель: карточки повторено */
@@ -174,6 +181,7 @@ export interface ActivitySlice {
       updatedAt?: string;
     };
     activityByDay?: ActivityByDay;
+    activityEpoch?: number;
   }) => void;
   getTodayActivity: () => DayActivity;
 }
@@ -561,6 +569,7 @@ export const useAppStore = create<AppStore>()(
       streakLastActiveDate: null as string | null,
       streakUpdatedAt: new Date().toISOString(),
       activityByDay: {} as ActivityByDay,
+      activityEpoch: 0,
       dailyWordsGoal: 50,
       dailyCardsGoal: 10,
 
@@ -650,11 +659,15 @@ export const useAppStore = create<AppStore>()(
               next.streakUpdatedAt = new Date().toISOString();
             }
           }
-          if (payload.activityByDay) {
-            next.activityByDay = mergeActivityByDay(
+          if (payload.activityByDay || typeof payload.activityEpoch === 'number') {
+            const merged = mergeActivityByDayWithEpoch(
               state.activityByDay,
-              payload.activityByDay
+              state.activityEpoch,
+              payload.activityByDay,
+              payload.activityEpoch ?? 0
             );
+            next.activityByDay = merged.activityByDay;
+            next.activityEpoch = merged.activityEpoch;
           }
           return next;
         });
@@ -721,6 +734,7 @@ export const useAppStore = create<AppStore>()(
         streakLastActiveDate: state.streakLastActiveDate,
         streakUpdatedAt: state.streakUpdatedAt,
         activityByDay: state.activityByDay,
+        activityEpoch: state.activityEpoch,
         dailyWordsGoal: state.dailyWordsGoal,
         dailyCardsGoal: state.dailyCardsGoal,
       }),
@@ -785,6 +799,9 @@ export const useAppStore = create<AppStore>()(
             }
             state.activityByDay = pruneActivityByDay(cleaned);
           }
+          if (typeof state.activityEpoch !== 'number' || state.activityEpoch < 0) {
+            state.activityEpoch = 0;
+          }
           if (typeof state.dailyWordsGoal !== 'number' || state.dailyWordsGoal < 5) {
             state.dailyWordsGoal = 50;
           }
@@ -809,11 +826,69 @@ export const useAppStore = create<AppStore>()(
           }
           // Миграция legacy AsyncStorage streak → Zustand (один раз)
           void migrateLegacyStreakIntoZustand();
+          // Сброс раздутых words/minutes от скролла (синхронно + persist)
+          resetInflatedReadingStatsIfNeeded();
         }
       },
     }
   )
 );
+
+/**
+ * Минимальный activityEpoch после сброса накрутки от скролла.
+ * Маркер в том же persist-снимке, что и activityByDay.
+ */
+const READING_STATS_RESET_EPOCH = 3;
+
+/** Явно раздутый счётчик (баг скролла) — сбрасываем даже если epoch уже высокий. */
+const INFLATED_WORDS_THRESHOLD = 2500;
+
+function totalWordsRead(map: ActivityByDay): number {
+  let n = 0;
+  for (const row of Object.values(map || {})) {
+    n += row?.wordsRead || 0;
+  }
+  return n;
+}
+
+/**
+ * Обнулить words/minutes при низком epoch или явно раздутом счётчике.
+ * Возвращает true, если сброс выполнен (нужен push в облако).
+ */
+export function resetInflatedReadingStatsIfNeeded(): boolean {
+  try {
+    const state = useAppStore.getState();
+    const epoch = Math.max(0, Math.floor(state.activityEpoch || 0));
+    const words = totalWordsRead(state.activityByDay);
+    const needsEpochReset = epoch < READING_STATS_RESET_EPOCH;
+    const needsHeuristicReset = words >= INFLATED_WORDS_THRESHOLD;
+    if (!needsEpochReset && !needsHeuristicReset) return false;
+
+    const cleared = clearReadingActivityCounters(state.activityByDay);
+    // Date.now() бьёт любой старый epoch в Firestore (в т.ч. после pull-replace).
+    useAppStore.setState({
+      activityByDay: cleared,
+      activityEpoch: Math.max(
+        READING_STATS_RESET_EPOCH,
+        epoch + 1,
+        Date.now()
+      ),
+    });
+    // Debounced sync: внутри runExclusiveSync запись уже идёт через loadLocalSnapshot().
+    queueCloudSync();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// HMR / уже гидратированный store: onRehydrateStorage больше не вызовется
+if (useAppStore.persist.hasHydrated()) {
+  resetInflatedReadingStatsIfNeeded();
+}
+useAppStore.persist.onFinishHydration(() => {
+  resetInflatedReadingStatsIfNeeded();
+});
 
 /** Один раз перенести legacy `@languageeee/streak` в Zustand ActivitySlice. */
 async function migrateLegacyStreakIntoZustand(): Promise<void> {
