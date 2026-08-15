@@ -17,7 +17,7 @@
     "web:clear": "npm run build:css && expo start --web --offline --clear",
     "build:css": "tailwindcss -i ./src/styles/global.css -o ./src/styles/global.generated.css --minify",
     "export:web": "npm run build:css && expo export -p web",
-    "vercel-build": "npm run export:web",
+    "vercel-build": "npm run export:web && node scripts/spaFallback.js",
     "build:pwa": "npm run export:web",
     "firebase:rules": "npx firebase-tools deploy --only firestore:rules"
   },
