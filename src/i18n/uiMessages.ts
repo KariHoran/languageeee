@@ -102,6 +102,12 @@ export type UiMessageKey =
   | 'notebook.edit'
   | 'notebook.delete'
   | 'notebook.addToParagraph'
+  | 'notebook.export'
+  | 'notebook.fromSelection'
+  | 'settings.installTitle'
+  | 'settings.installHint'
+  | 'settings.installUnavailable'
+  | 'catalog.importFail'
   | 'reader.pageLight'
   | 'reader.pageDark'
   | 'reader.pageSepia'
@@ -628,6 +634,8 @@ const ru: Dictionary = {
   'notebook.edit': 'Изменить',
   'notebook.delete': 'Удалить',
   'notebook.addToParagraph': '+ заметка',
+  'notebook.export': 'Экспорт',
+  'notebook.fromSelection': '📝 В блокнот',
   'reader.pageLight': 'Светлый',
   'reader.pageDark': 'Тёмный',
   'reader.pageSepia': 'Сепия',
@@ -845,6 +853,11 @@ const ru: Dictionary = {
   'mini.uploadTimeout':
     'Загрузка заняла слишком много времени. Файл мог сохраниться локально — обновите список или выберите файл поменьше.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': 'Установить приложение',
+  'settings.installHint': 'PWA на домашний экран — офлайн и быстрее',
+  'settings.installUnavailable':
+    'Установка сейчас недоступна. Откройте сайт в Chrome/Edge или уже установили приложение.',
+  'catalog.importFail': 'Не удалось добавить текст в библиотеку',
   'library.newCategory': 'Новая категория',
   'library.newCategoryPlaceholder': 'Например: Избранное',
   'library.editBook': 'Редактировать книгу',
@@ -1191,6 +1204,8 @@ const en: Dictionary = {
   'notebook.edit': 'Edit',
   'notebook.delete': 'Delete',
   'notebook.addToParagraph': '+ note',
+  'notebook.export': 'Export',
+  'notebook.fromSelection': '📝 Notebook',
   'reader.pageLight': 'Light',
   'reader.pageDark': 'Dark',
   'reader.pageSepia': 'Sepia',
@@ -1405,6 +1420,11 @@ const en: Dictionary = {
   'mini.uploadTimeout':
     'Upload took too long. The file may already be saved locally — refresh the list or pick a smaller file.',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': 'Install app',
+  'settings.installHint': 'PWA on your home screen — offline and faster',
+  'settings.installUnavailable':
+    'Install is unavailable right now. Use Chrome/Edge, or the app is already installed.',
+  'catalog.importFail': 'Could not add this text to your library',
   'library.newCategory': 'New category',
   'library.newCategoryPlaceholder': 'e.g. Favorites',
   'library.editBook': 'Edit book',
@@ -1748,6 +1768,8 @@ const zh: Dictionary = {
   'notebook.edit': '编辑',
   'notebook.delete': '删除',
   'notebook.addToParagraph': '+ 笔记',
+  'notebook.export': '导出',
+  'notebook.fromSelection': '📝 笔记本',
   'reader.pageLight': '浅色',
   'reader.pageDark': '深色',
   'reader.pageSepia': '羊皮纸',
@@ -1959,6 +1981,11 @@ const zh: Dictionary = {
   'mini.upload': '+ 上传文件（最大 {n} MB）',
   'mini.uploadTimeout': '上传超时。文件可能已保存在本地 — 请刷新列表或选择更小的文件。',
   'settings.addBookHint': 'HSK · MyMemory · cloud',
+  'settings.installTitle': '安装应用',
+  'settings.installHint': '安装为 PWA，可离线更快打开',
+  'settings.installUnavailable':
+    '当前无法安装。请用 Chrome/Edge 打开，或应用已安装。',
+  'catalog.importFail': '无法将文本加入图书馆',
   'library.newCategory': '新建分类',
   'library.newCategoryPlaceholder': '例如：收藏',
   'library.editBook': '编辑书籍',

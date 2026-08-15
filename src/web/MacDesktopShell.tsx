@@ -51,6 +51,11 @@ import { PublicCollectionPanel } from './PublicCollectionPanel';
 import { PublicDeckPanel } from './PublicDeckPanel';
 import { PublicProfilePanel } from './PublicProfilePanel';
 import { ReaderPanel } from './ReaderPanel';
+import {
+  canPromptPwaInstall,
+  promptPwaInstall,
+  subscribePwaInstallAvailability,
+} from './registerPwa';
 import { StarryBackground } from './StarryBackground';
 import { applyDocumentTheme, useWebTheme } from './webTheme';
 import { pinBookForOffline } from '../services/offlineLibraryService';
@@ -138,6 +143,7 @@ export default function MacDesktopShell() {
   const [mobileSheet, setMobileSheet] = useState<null | 'progress' | 'music'>(
     null
   );
+  const [canInstallPwa, setCanInstallPwa] = useState(() => canPromptPwaInstall());
   const [shareSlug, setShareSlug] = useState<string | null>(() =>
     parseShareSlugFromPath()
   );
@@ -157,6 +163,10 @@ export default function MacDesktopShell() {
   useEffect(() => {
     applyDocumentTheme(theme.isDark);
   }, [theme.isDark]);
+
+  useEffect(() => subscribePwaInstallAvailability(() => {
+    setCanInstallPwa(canPromptPwaInstall());
+  }), []);
 
   const ownedCatalogIds = useMemo(() => {
     const ids = new Set<string>();
@@ -804,6 +814,27 @@ export default function MacDesktopShell() {
                     : `☀️ ${t('settings.themeLight')}`}
                 </Div>
               </Button>
+              {canInstallPwa ? (
+                <Button
+                  type="button"
+                  className={`w-full text-left rounded-2xl ${theme.card} px-4 py-3 transition`}
+                  onClick={() => {
+                    void (async () => {
+                      const result = await promptPwaInstall();
+                      if (result === 'unavailable') {
+                        showAlert(t('settings.installTitle'), t('settings.installUnavailable'));
+                      }
+                    })();
+                  }}
+                >
+                  <Div className={`font-bold ${theme.accent} text-sm`}>
+                    {t('settings.installTitle')}
+                  </Div>
+                  <Div className={`text-xs ${theme.textMuted} mt-0.5`}>
+                    {t('settings.installHint')}
+                  </Div>
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 className={`w-full text-left rounded-2xl px-4 py-3 transition ${theme.cta}`}

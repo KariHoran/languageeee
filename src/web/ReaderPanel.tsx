@@ -372,6 +372,13 @@ export function ReaderPanel({
   const [levelBannerDismissed, setLevelBannerDismissed] = useState(false);
   const [notebookOpen, setNotebookOpen] = useState(false);
   const [notebookEditId, setNotebookEditId] = useState<string | null>(null);
+  const [seedSelectedText, setSeedSelectedText] = useState('');
+  const [selectionQuote, setSelectionQuote] = useState<{
+    text: string;
+    paragraphIndex: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const stickyNotes = useAppStore((s) => s.stickyNotes);
   const bookNotes = useMemo(
@@ -389,10 +396,53 @@ export function ReaderPanel({
     return map;
   }, [bookNotes]);
 
-  const openNotebook = useCallback((editId?: string | null) => {
+  const openNotebook = useCallback((editId?: string | null, quote?: string) => {
     setNotebookEditId(editId ?? null);
+    if (quote != null) setSeedSelectedText(quote);
     setNotebookOpen(true);
   }, []);
+
+  const handleTextSelection = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (typeof window === 'undefined') return;
+      const sel = window.getSelection();
+      const text = (sel?.toString() ?? '').trim();
+      if (!text || text.length > 200 || !sel || sel.rangeCount === 0) {
+        setSelectionQuote(null);
+        return;
+      }
+      let node: Node | null = sel.anchorNode;
+      let paraIndex = activeParaIndex;
+      while (node) {
+        if (node instanceof HTMLElement && node.dataset?.paraIndex != null) {
+          const n = Number(node.dataset.paraIndex);
+          if (Number.isFinite(n)) paraIndex = n;
+          break;
+        }
+        node = node.parentNode;
+      }
+      try {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        setSelectionQuote({
+          text: text.slice(0, 160),
+          paragraphIndex: paraIndex,
+          x: Math.min(
+            Math.max(rect.left + rect.width / 2, 72),
+            window.innerWidth - 72
+          ),
+          y: Math.max(rect.top - 8, 56),
+        });
+      } catch {
+        setSelectionQuote({
+          text: text.slice(0, 160),
+          paragraphIndex: paraIndex,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }
+    },
+    [activeParaIndex]
+  );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
@@ -428,6 +478,8 @@ export function ReaderPanel({
     setLevelBannerDismissed(false);
     setNotebookOpen(false);
     setNotebookEditId(null);
+    setSeedSelectedText('');
+    setSelectionQuote(null);
   }, [book?.id, showPinyinProp]);
 
   // Закрытие панели настроек по клику снаружи / Escape
@@ -946,6 +998,7 @@ export function ReaderPanel({
                 ['--reader-font-scale' as string]: String(readerFontScale),
               } as React.CSSProperties
             }
+            onMouseUp={handleTextSelection}
           >
             {coverage && !levelBannerDismissed ? (
               <Div
@@ -1117,6 +1170,7 @@ export function ReaderPanel({
                       }`}
                       onClick={() => {
                         setActiveParaIndex(para.index);
+                        setSeedSelectedText('');
                         openNotebook();
                       }}
                     >
@@ -1126,7 +1180,10 @@ export function ReaderPanel({
 
                   <ParagraphNoteChips
                     notes={notesByParagraph.get(para.index) ?? []}
-                    onOpen={(note) => openNotebook(note?.id ?? null)}
+                    onOpen={(note) => {
+                      setSeedSelectedText('');
+                      openNotebook(note?.id ?? null);
+                    }}
                   />
                 </Div>
               );
@@ -1135,19 +1192,39 @@ export function ReaderPanel({
         )}
       </GlassWindow>
 
+      {selectionQuote ? (
+        <Button
+          type="button"
+          className="fixed z-[65] -translate-x-1/2 -translate-y-full rounded-full px-3 py-1.5 text-[11px] font-bold shadow-lg border bg-[#D0FF00] text-[#0D0D11] border-[#0D0D11]/20"
+          style={{ left: selectionQuote.x, top: selectionQuote.y }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setActiveParaIndex(selectionQuote.paragraphIndex);
+            openNotebook(null, selectionQuote.text);
+            setSelectionQuote(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        >
+          {t('notebook.fromSelection')}
+        </Button>
+      ) : null}
+
       <ReaderNotebookPanel
         open={notebookOpen}
         bookId={book?.id ?? null}
+        bookTitle={book ? formatBookTitleLine(book, uiLang) : ''}
         paragraphIndex={activeParaIndex}
         paragraphPreview={
           rendered[activeParaIndex]?.readingText ??
           rendered[activeParaIndex]?.paragraph?.chineseText ??
           ''
         }
+        seedSelectedText={seedSelectedText}
         editNoteId={notebookEditId}
         onClose={() => {
           setNotebookOpen(false);
           setNotebookEditId(null);
+          setSeedSelectedText('');
         }}
         onJumpToParagraph={jumpToParagraph}
       />

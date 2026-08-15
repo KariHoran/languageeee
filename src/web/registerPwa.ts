@@ -1,14 +1,68 @@
 /**
- * Регистрация Service Worker для PWA (web only).
- * Дублирует inline-скрипт в public/index.html на случай hot-reload / SPA.
- * Кэширует shell (HTML/CSS/JS/шрифты) — см. public/sw.js.
+ * Регистрация Service Worker + PWA install prompt (web only).
  */
 import { Platform } from 'react-native';
 import { warmOfflineShellCache } from '../services/offlineSyncQueue';
 
+export type BeforeInstallPromptEventLike = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
+type InstallListener = () => void;
+
+let deferredPrompt: BeforeInstallPromptEventLike | null = null;
+const installListeners = new Set<InstallListener>();
+
+function emitInstall() {
+  installListeners.forEach((fn) => fn());
+}
+
+export function canPromptPwaInstall(): boolean {
+  return deferredPrompt != null;
+}
+
+export function subscribePwaInstallAvailability(
+  listener: InstallListener
+): () => void {
+  installListeners.add(listener);
+  listener();
+  return () => {
+    installListeners.delete(listener);
+  };
+}
+
+export async function promptPwaInstall(): Promise<
+  'accepted' | 'dismissed' | 'unavailable'
+> {
+  if (!deferredPrompt) return 'unavailable';
+  const event = deferredPrompt;
+  deferredPrompt = null;
+  emitInstall();
+  try {
+    await event.prompt();
+    const { outcome } = await event.userChoice;
+    return outcome;
+  } catch {
+    return 'unavailable';
+  }
+}
+
 export function registerPwaServiceWorker(): void {
   if (typeof window === 'undefined') return;
   if (Platform.OS !== 'web') return;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEventLike;
+    emitInstall();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    emitInstall();
+  });
+
   if (!('serviceWorker' in navigator)) return;
 
   const run = () => {
@@ -43,7 +97,6 @@ export function registerPwaServiceWorker(): void {
         console.warn('[pwa] SW register failed:', err);
       });
 
-    // Background Sync / SW → клиент: сбросить облачную очередь
     navigator.serviceWorker.addEventListener('message', (event) => {
       const data = event.data;
       if (!data || data.type !== 'FLUSH_SYNC') return;

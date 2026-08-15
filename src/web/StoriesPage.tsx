@@ -35,6 +35,7 @@ import type {
   PublicCollectionDoc,
 } from '../types';
 import { HighlightText } from '../utils/searchHighlight';
+import { showAlert } from '../utils/alert';
 import { StoryList, type StoryShelfTab } from './StoryList';
 import { Button, Div, Input, Span } from './dom';
 import { useWebTheme } from './webTheme';
@@ -236,6 +237,10 @@ export function StoriesPage({
       }
     } catch (err) {
       console.error('[StoriesPage] import failed', err);
+      showAlert(
+        t('alert.error'),
+        err instanceof Error ? err.message : t('catalog.importFail')
+      );
     } finally {
       setBusyId(null);
     }
