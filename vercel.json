@@ -6,8 +6,11 @@
   "framework": null,
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/u/:path*", "destination": "/index.html" },
+    { "source": "/c/:path*", "destination": "/index.html" },
+    { "source": "/d/:path*", "destination": "/index.html" },
     {
-      "source": "/((?!sw\\.js$|manifest\\.json$|icon-.*\\.png$|downloads/).*)",
+      "source": "/((?!sw\\.js$|manifest\\.json$|icon-.*\\.png$|downloads/|assets/).*)",
       "destination": "/index.html"
     }
   ],
