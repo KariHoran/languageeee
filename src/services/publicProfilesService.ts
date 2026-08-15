@@ -3,7 +3,7 @@
  * Шаринг стрика / выученных слов / недельной активности без приватных книг.
  */
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getCloudUid } from './authService';
+import { resolveFirestoreUid } from './authService';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import { generateShareSlug } from './publicCollectionsService';
 
@@ -41,6 +41,14 @@ function defaultDisplayName(uid: string): string {
   return `Learner ${uid.slice(0, 6)}`;
 }
 
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out as T;
+}
+
 export async function publishPublicProfile(options: {
   displayName?: string;
   streak: number;
@@ -53,19 +61,37 @@ export async function publishPublicProfile(options: {
   if (!isFirebaseConfigured()) {
     throw new Error('Cloud is not configured');
   }
-  const uid = getCloudUid();
+  const uid = await resolveFirestoreUid();
   if (!uid) throw new Error('Sign in to share your profile');
 
   const firebase = await getFirebase();
   if (!firebase) throw new Error('Cloud is not configured');
+  if (firebase.auth.currentUser?.uid !== uid) {
+    throw new Error('Sign in to share your profile');
+  }
 
-  const existingSlug = await findOwnProfileSlug(uid);
-  const slug =
-    existingSlug || generateShareSlug(options.displayName || 'progress');
+  const userRef = doc(firebase.db, 'users', uid);
+  const userSnap = await getDoc(userRef);
+  const savedSlug =
+    typeof userSnap.data()?.publicProfileSlug === 'string'
+      ? String(userSnap.data()?.publicProfileSlug).trim()
+      : '';
+
+  let slug = savedSlug;
+  let prev: PublicProfileDoc | null = null;
+  if (slug) {
+    prev = await fetchPublicProfile(slug);
+    if (prev && prev.userId !== uid) {
+      slug = '';
+      prev = null;
+    }
+  }
+  if (!slug) {
+    slug = generateShareSlug(options.displayName || 'progress');
+  }
+
   const now = new Date().toISOString();
-  const prev = existingSlug ? await fetchPublicProfile(existingSlug) : null;
-
-  const payload: PublicProfileDoc = {
+  const payload = stripUndefined({
     slug,
     userId: uid,
     ownerUserId: uid,
@@ -74,7 +100,7 @@ export async function publishPublicProfile(options: {
       options.displayName?.trim() ||
       prev?.displayName ||
       defaultDisplayName(uid),
-    isPublic: true,
+    isPublic: true as const,
     streak: Math.max(0, Math.round(options.streak)),
     wordsLearned: Math.max(0, Math.round(options.wordsLearned)),
     cardsCount: Math.max(0, Math.round(options.cardsCount)),
@@ -85,30 +111,16 @@ export async function publishPublicProfile(options: {
       : prev?.recentActivity,
     createdAt: prev?.createdAt || now,
     updatedAt: now,
-  };
+  }) as PublicProfileDoc;
 
   await setDoc(doc(firebase.db, 'publicProfiles', slug), payload);
-  return { slug, url: publicProfileUrl(slug) };
-}
+  await setDoc(
+    userRef,
+    { publicProfileSlug: slug, updatedAt: Date.now() },
+    { merge: true }
+  );
 
-async function findOwnProfileSlug(uid: string): Promise<string | null> {
-  try {
-    const firebase = await getFirebase();
-    if (!firebase) return null;
-    const { collection, getDocs, query, where, limit } = await import(
-      'firebase/firestore'
-    );
-    const q = query(
-      collection(firebase.db, 'publicProfiles'),
-      where('userId', '==', uid),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    const first = snap.docs[0];
-    return first ? first.id : null;
-  } catch {
-    return null;
-  }
+  return { slug, url: publicProfileUrl(slug) };
 }
 
 export async function fetchPublicProfile(
@@ -117,12 +129,18 @@ export async function fetchPublicProfile(
   if (!slug || !isFirebaseConfigured()) return null;
   const firebase = await getFirebase();
   if (!firebase) return null;
-  const snap = await getDoc(doc(firebase.db, 'publicProfiles', slug));
-  if (!snap.exists()) return null;
-  const data = snap.data() as PublicProfileDoc;
-  if (!data?.isPublic && data?.userId !== getCloudUid()) return null;
-  return {
-    ...data,
-    slug: data.slug || slug,
-  };
+  try {
+    const snap = await getDoc(doc(firebase.db, 'publicProfiles', slug));
+    if (!snap.exists()) return null;
+    const data = snap.data() as PublicProfileDoc;
+    const uid = firebase.auth.currentUser?.uid ?? null;
+    if (!data?.isPublic && data?.userId !== uid) return null;
+    return {
+      ...data,
+      slug: data.slug || slug,
+    };
+  } catch (err) {
+    console.warn('[publicProfiles] fetch failed:', err);
+    return null;
+  }
 }

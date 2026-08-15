@@ -149,7 +149,7 @@ service cloud.firestore {
     /**
      * Публичные колоды карточек: publicDecks/{slug}
      * read: авторизованные + isPublic (или свой документ)
-     * write: только владелец
+     * write: только владелец (create/update одинаково строгие по uid)
      */
     match /publicDecks/{slug} {
       allow read: if isSignedIn()
@@ -158,23 +158,23 @@ service cloud.firestore {
           || resource.data.userId == request.auth.uid
         );
 
-      allow create: if createWithOwnUserId()
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.slug == slug
-        && request.resource.data.isPublic == true
-        && (
-          !request.resource.data.keys().hasAny(['ownerUserId'])
-          || request.resource.data.ownerUserId == request.auth.uid
-        )
-        && (
-          !request.resource.data.keys().hasAny(['authorId'])
-          || request.resource.data.authorId == request.auth.uid
-        );
+        && request.resource.data.isPublic == true;
 
-      allow update: if isDocOwner()
-        && keepsOwnUserId()
-        && request.resource.data.slug == slug;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
 
-      allow delete: if isDocOwner();
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
     }
 
     /**
@@ -188,23 +188,23 @@ service cloud.firestore {
           || resource.data.userId == request.auth.uid
         );
 
-      allow create: if createWithOwnUserId()
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.slug == slug
-        && request.resource.data.isPublic == true
-        && (
-          !request.resource.data.keys().hasAny(['ownerUserId'])
-          || request.resource.data.ownerUserId == request.auth.uid
-        )
-        && (
-          !request.resource.data.keys().hasAny(['authorId'])
-          || request.resource.data.authorId == request.auth.uid
-        );
+        && request.resource.data.isPublic == true;
 
-      allow update: if isDocOwner()
-        && keepsOwnUserId()
-        && request.resource.data.slug == slug;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.slug == slug
+        && request.resource.data.isPublic == true;
 
-      allow delete: if isDocOwner();
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
     }
   }
 }
