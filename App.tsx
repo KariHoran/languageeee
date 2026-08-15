@@ -17,6 +17,7 @@ import CollectionDetailScreen from './src/screens/CollectionDetailScreen';
 import FlashcardsScreen from './src/screens/FlashcardsScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import MyLibraryScreen from './src/screens/MyLibraryScreen';
+import PublicCollectionScreen from './src/screens/PublicCollectionScreen';
 import ReaderScreen from './src/screens/ReaderScreen';
 import { initAuth, waitAndConsumeGoogleBootstrap } from './src/services/authService';
 import {
@@ -457,6 +458,29 @@ function AppRoot() {
             scheduleSyncDebounced();
             openBook(book);
           }}
+          onOpenPublicCollection={(slug) =>
+            setScreen({ name: 'publicCollection', slug })
+          }
+          onLibraryChanged={() => setScreen({ name: 'myLibrary' })}
+        />
+      )}
+
+      {screen.name === 'publicCollection' && (
+        <PublicCollectionScreen
+          slug={screen.slug}
+          onBack={() => setScreen({ name: 'catalog' })}
+          onOpenBook={(book) => {
+            const lang =
+              book.language === 'en'
+                ? 'en'
+                : book.language === 'ru'
+                  ? 'ru'
+                  : 'zh';
+            void setLearningLanguage(lang);
+            scheduleSyncDebounced();
+            openBook(book);
+          }}
+          onImported={() => setScreen({ name: 'myLibrary' })}
         />
       )}
 

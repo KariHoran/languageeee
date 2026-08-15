@@ -219,6 +219,7 @@ export async function createUserCollection(
     authorId: userId,
     isPublic: false,
     shareSlug: null,
+    importedFromSlug: null,
     publishedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -365,6 +366,7 @@ function migrateCollection(col: Collection & { name?: string }): Collection {
     authorId,
     isPublic: !!col.isPublic,
     shareSlug: col.shareSlug ?? null,
+    importedFromSlug: col.importedFromSlug ?? null,
     publishedAt: col.publishedAt ?? null,
   };
 }
@@ -421,6 +423,7 @@ export async function updateCollection(
       | 'color'
       | 'isPublic'
       | 'shareSlug'
+      | 'importedFromSlug'
       | 'publishedAt'
       | 'userId'
       | 'ownerUserId'

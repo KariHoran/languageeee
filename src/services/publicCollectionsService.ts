@@ -26,6 +26,7 @@ import {
   createUserCollection,
   getBook,
   getBooksByCollection,
+  getCollections,
   saveBook,
   updateCollection,
 } from './storageService';
@@ -428,11 +429,32 @@ export async function importPublicCollection(
     throw new Error('EMPTY_PUBLIC_COLLECTION');
   }
 
-  const local = await createUserCollection(
-    pub.title?.trim() || slug,
-    pub.color || '#8B5CF6',
-    pub.description ?? undefined
-  );
+  const existingCols = await getCollections();
+  let local =
+    existingCols.find((c) => c.importedFromSlug === slug) ?? null;
+
+  if (!local) {
+    local = await createUserCollection(
+      pub.title?.trim() || slug,
+      pub.color || '#8B5CF6',
+      pub.description ?? undefined
+    );
+    const tagged = await updateCollection(local.id, {
+      importedFromSlug: slug,
+      title: pub.title?.trim() || local.title,
+      description: pub.description ?? local.description,
+      color: pub.color || local.color,
+    });
+    if (tagged) local = tagged;
+  } else {
+    // Обновим метаданные при повторном импорте (название/описание могли измениться)
+    const tagged = await updateCollection(local.id, {
+      title: pub.title?.trim() || local.title,
+      description: pub.description ?? local.description,
+      color: pub.color || local.color,
+    });
+    if (tagged) local = tagged;
+  }
 
   const ownerUserId = getDataOwnerId();
   let added = 0;
@@ -448,7 +470,7 @@ export async function importPublicCollection(
     try {
       const existing = await getBook(personalId);
       if (existing) {
-        if (!existing.collectionId) {
+        if (existing.collectionId !== local.id) {
           await saveBook({
             ...existing,
             collectionId: local.id,

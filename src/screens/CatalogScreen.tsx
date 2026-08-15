@@ -19,13 +19,20 @@ import {
   catalogStoryDescription,
   catalogStoryLevelLabel,
   catalogTagLabel,
+  catalogTextsCountLabel,
 } from '../i18n/catalogI18n';
 import { useI18n } from '../i18n/useI18n';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { ensureAnonymousAuthForPublicView } from '../services/authService';
 import {
   getCatalogStories,
   importCatalogStory,
 } from '../services/catalogService';
+import {
+  importPublicCollection,
+  listPublicCollections,
+} from '../services/publicCollectionsService';
+import { isPublicCollectionOwner } from '../services/rbac';
 import { getBooks } from '../services/storageService';
 import { useAppStore } from '../store/useAppStore';
 import { useTheme } from '../theme/ThemeContext';
@@ -35,7 +42,9 @@ import type {
   CatalogLevelId,
   CatalogStory,
   LearningLanguage,
+  PublicCollectionDoc,
 } from '../types';
+import { showAlert } from '../utils/alert';
 import { HighlightTextNative } from '../utils/searchHighlight';
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -44,6 +53,8 @@ interface CatalogScreenProps {
   preferredLanguage?: LearningLanguage;
   onBack: () => void;
   onOpenBook: (book: Book) => void;
+  onOpenPublicCollection?: (slug: string) => void;
+  onLibraryChanged?: () => void;
 }
 
 const TONE: Record<CatalogStory['coverTone'], string> = {
@@ -60,6 +71,8 @@ export default function CatalogScreen({
   preferredLanguage = 'zh',
   onBack,
   onOpenBook,
+  onOpenPublicCollection,
+  onLibraryChanged,
 }: CatalogScreenProps) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -74,6 +87,9 @@ export default function CatalogScreen({
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [publicCols, setPublicCols] = useState<PublicCollectionDoc[]>([]);
+  const [publicLoading, setPublicLoading] = useState(true);
+  const [importSlug, setImportSlug] = useState<string | null>(null);
 
   const tagOptions = useMemo(() => getCatalogTagOptions(), []);
   const languageOptions = useMemo(() => catalogLanguageOptions(uiLang), [uiLang]);
@@ -95,6 +111,70 @@ export default function CatalogScreen({
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setPublicLoading(true);
+      try {
+        const authOk = await ensureAnonymousAuthForPublicView();
+        if (!authOk) {
+          if (!cancelled) setPublicCols([]);
+          return;
+        }
+        const cols = await listPublicCollections(debouncedQuery);
+        if (!cancelled) setPublicCols(cols);
+      } catch (err) {
+        console.warn('[CatalogScreen] public collections failed', err);
+        if (!cancelled) setPublicCols([]);
+      } finally {
+        if (!cancelled) setPublicLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery]);
+
+  const handleImportPublic = useCallback(
+    async (col: PublicCollectionDoc) => {
+      if (importSlug || busyId) return;
+      if (!(col.books?.length > 0)) {
+        showAlert(t('alert.error'), t('public.importEmpty'));
+        return;
+      }
+      setImportSlug(col.slug);
+      try {
+        const authOk = await ensureAnonymousAuthForPublicView();
+        if (!authOk) {
+          showAlert(t('alert.error'), t('public.loadFailAuthDisabled'));
+          return;
+        }
+        const result = await importPublicCollection(col);
+        showAlert(
+          t('public.imported'),
+          t('public.importedBody', {
+            added: result.added,
+            skipped: result.skipped,
+          })
+        );
+        onLibraryChanged?.();
+      } catch (err) {
+        const empty =
+          err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';
+        showAlert(
+          t('alert.error'),
+          empty
+            ? t('public.importEmpty')
+            : err instanceof Error
+              ? err.message
+              : t('public.importFail')
+        );
+      } finally {
+        setImportSlug(null);
+      }
+    },
+    [importSlug, busyId, onLibraryChanged, t]
+  );
   const stories = useMemo(
     () =>
       getCatalogStories({
@@ -288,6 +368,78 @@ export default function CatalogScreen({
         </ScrollView>
       ) : null}
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {!publicLoading && publicCols.length > 0 ? (
+          <View style={styles.publicBlock}>
+            <Text style={[styles.publicHeading, { color: theme.accent }]}>
+              {t('catalog.publicCollections')}
+            </Text>
+            {publicCols.map((col) => {
+              const isMine = isPublicCollectionOwner(col);
+              const importing = importSlug === col.slug;
+              return (
+                <View
+                  key={col.slug}
+                  style={[
+                    styles.card,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}
+                >
+                  <View style={styles.body}>
+                    <View
+                      style={[
+                        styles.publicSwatch,
+                        { backgroundColor: col.color || '#8B5CF6' },
+                      ]}
+                    />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>
+                      {col.title}
+                    </Text>
+                    <Text style={[styles.meta, { color: theme.textMuted }]}>
+                      {catalogTextsCountLabel(col.books?.length ?? 0, uiLang)}
+                      {' · '}
+                      {isMine
+                        ? t('catalog.youAreAuthor')
+                        : t('catalog.readOnly')}
+                    </Text>
+                    <Pressable
+                      disabled={!onOpenPublicCollection || importing}
+                      onPress={() => onOpenPublicCollection?.(col.slug)}
+                      style={[
+                        styles.primaryBtn,
+                        {
+                          backgroundColor: theme.accentLime,
+                          opacity: importing ? 0.5 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.primaryBtnText}>{t('action.read')}</Text>
+                    </Pressable>
+                    {!isMine && (col.books?.length ?? 0) > 0 ? (
+                      <Pressable
+                        disabled={!!importSlug || !!busyId}
+                        onPress={() => void handleImportPublic(col)}
+                        style={[
+                          styles.secondaryBtn,
+                          {
+                            borderColor: theme.border,
+                            opacity: importSlug || busyId ? 0.5 : 1,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.secondaryBtnText, { color: theme.text }]}>
+                          {importing
+                            ? t('public.importBusy')
+                            : t('public.importAll')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
         {stories.map((story) => {
           const isOwned = owned.has(story.id);
           const busy = busyId === story.id;
@@ -470,4 +622,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   secondaryBtnText: { fontWeight: '700', fontSize: 13 },
+  publicBlock: { gap: 12, marginBottom: 8 },
+  publicHeading: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  publicSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
 });

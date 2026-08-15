@@ -104,6 +104,8 @@ export interface Collection {
   isPublic?: boolean;
   /** Уникальный slug публичной ссылки `/c/{shareSlug}` */
   shareSlug?: string | null;
+  /** Откуда импортирована (slug чужой публичной подборки) — для дедупа повторного импорта */
+  importedFromSlug?: string | null;
   /** Когда подборка была опубликована */
   publishedAt?: string | null;
   createdAt?: string;
@@ -215,7 +217,8 @@ export type AppScreen =
   | { name: 'flashcards' }
   | { name: 'catalog' }
   | { name: 'myLibrary' }
-  | { name: 'collectionDetail'; collectionId: string };
+  | { name: 'collectionDetail'; collectionId: string }
+  | { name: 'publicCollection'; slug: string };
 
 /** Уровень сложности в публичном каталоге */
 export type CatalogLevelId = 'beginner' | 'intermediate' | 'advanced';

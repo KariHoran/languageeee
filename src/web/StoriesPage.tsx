@@ -18,11 +18,12 @@ import {
   getCatalogStories,
   importCatalogStory,
 } from '../services/catalogService';
-import { listPublicCollections } from '../services/publicCollectionsService';
+import { listPublicCollections, importPublicCollection } from '../services/publicCollectionsService';
 import {
   listPublicDecks,
   type PublicDeckDoc,
 } from '../services/publicDecksService';
+import { ensureAnonymousAuthForPublicView } from '../services/authService';
 import { getAllReadingProgress } from '../services/readingProgressStore';
 import { isPublicCollectionOwner } from '../services/rbac';
 import { getBooks } from '../services/storageService';
@@ -133,6 +134,7 @@ export function StoriesPage({
   const [publicDecks, setPublicDecks] = useState<PublicDeckDoc[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
   const [publicError, setPublicError] = useState(false);
+  const [importSlug, setImportSlug] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [progressByCatalogId, setProgressByCatalogId] = useState<
     Record<string, { percent: number }>
@@ -184,6 +186,15 @@ export function StoriesPage({
       setPublicLoading(true);
       setPublicError(false);
       try {
+        const authOk = await ensureAnonymousAuthForPublicView();
+        if (!authOk) {
+          if (!cancelled) {
+            setPublicCols([]);
+            setPublicDecks([]);
+            setPublicError(true);
+          }
+          return;
+        }
         const [cols, decks] = await Promise.all([
           listPublicCollections(debouncedQuery),
           listPublicDecks(debouncedQuery),
@@ -207,6 +218,46 @@ export function StoriesPage({
     };
   }, [debouncedQuery]);
 
+  const handleImportPublicCollection = useCallback(
+    async (col: PublicCollectionDoc) => {
+      if (importSlug || busyId) return;
+      if (!(col.books?.length > 0)) {
+        showAlert(t('alert.error'), t('public.importEmpty'));
+        return;
+      }
+      setImportSlug(col.slug);
+      try {
+        const authOk = await ensureAnonymousAuthForPublicView();
+        if (!authOk) {
+          showAlert(t('alert.error'), t('public.loadFailAuthDisabled'));
+          return;
+        }
+        const result = await importPublicCollection(col);
+        showAlert(
+          t('public.imported'),
+          t('public.importedBody', {
+            added: result.added,
+            skipped: result.skipped,
+          })
+        );
+        onOpenMyLibrary?.();
+      } catch (err) {
+        const empty =
+          err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';
+        showAlert(
+          t('alert.error'),
+          empty
+            ? t('public.importEmpty')
+            : err instanceof Error
+              ? err.message
+              : t('public.importFail')
+        );
+      } finally {
+        setImportSlug(null);
+      }
+    },
+    [importSlug, busyId, onOpenMyLibrary, t]
+  );
   const stories = useMemo(
     () =>
       getCatalogStories({
@@ -446,47 +497,64 @@ export function StoriesPage({
             <Div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {publicCols.map((col) => {
                 const isMine = isPublicCollectionOwner(col);
+                const importing = importSlug === col.slug;
                 return (
-                  <Button
+                  <Div
                     key={col.slug}
-                    type="button"
-                    className={`${glassCard} text-left p-2.5 hover:border-[#8B5CF6]/50 transition`}
-                    onClick={() => onOpenPublicCollection?.(col.slug)}
-                    disabled={!onOpenPublicCollection}
+                    className={`${glassCard} text-left p-2.5 space-y-2`}
                   >
-                    <Div className="flex items-start gap-2.5">
-                      <Div
-                        className="w-8 h-8 rounded-lg shrink-0"
-                        style={{ background: col.color || '#8B5CF6' }}
-                      />
-                      <Div className="min-w-0 flex-1 space-y-0.5">
-                        <Div className="flex flex-wrap gap-1">
-                          <Span className={BADGE_PUBLIC}>
-                            {t('catalog.badgePublic')}
-                          </Span>
-                          {isMine ? (
-                            <Span className={BADGE_OWNER}>
-                              {t('catalog.badgeOwner')}
-                            </Span>
-                          ) : null}
-                        </Div>
-                        <HighlightText
-                          text={col.title}
-                          query={debouncedQuery}
-                          className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
-                        />
+                    <Button
+                      type="button"
+                      className="w-full text-left hover:opacity-90 transition"
+                      onClick={() => onOpenPublicCollection?.(col.slug)}
+                      disabled={!onOpenPublicCollection || importing}
+                    >
+                      <Div className="flex items-start gap-2.5">
                         <Div
-                          className={`text-[10px] font-semibold ${theme.textMuted}`}
-                        >
-                          {catalogTextsCountLabel(col.books?.length ?? 0, uiLang)}
-                          {' · '}
-                          {isMine
-                            ? t('catalog.youAreAuthor')
-                            : t('catalog.readOnly')}
+                          className="w-8 h-8 rounded-lg shrink-0"
+                          style={{ background: col.color || '#8B5CF6' }}
+                        />
+                        <Div className="min-w-0 flex-1 space-y-0.5">
+                          <Div className="flex flex-wrap gap-1">
+                            <Span className={BADGE_PUBLIC}>
+                              {t('catalog.badgePublic')}
+                            </Span>
+                            {isMine ? (
+                              <Span className={BADGE_OWNER}>
+                                {t('catalog.badgeOwner')}
+                              </Span>
+                            ) : null}
+                          </Div>
+                          <HighlightText
+                            text={col.title}
+                            query={debouncedQuery}
+                            className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
+                          />
+                          <Div
+                            className={`text-[10px] font-semibold ${theme.textMuted}`}
+                          >
+                            {catalogTextsCountLabel(col.books?.length ?? 0, uiLang)}
+                            {' · '}
+                            {isMine
+                              ? t('catalog.youAreAuthor')
+                              : t('catalog.readOnly')}
+                          </Div>
                         </Div>
                       </Div>
-                    </Div>
-                  </Button>
+                    </Button>
+                    {!isMine && (col.books?.length ?? 0) > 0 ? (
+                      <Button
+                        type="button"
+                        disabled={!!importSlug || !!busyId}
+                        className={`w-full rounded-xl py-1.5 text-[11px] font-bold ${theme.cta} disabled:opacity-50`}
+                        onClick={() => void handleImportPublicCollection(col)}
+                      >
+                        {importing
+                          ? t('public.importBusy')
+                          : t('public.importAll')}
+                      </Button>
+                    ) : null}
+                  </Div>
                 );
               })}
             </Div>
