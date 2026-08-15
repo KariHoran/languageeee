@@ -23,6 +23,7 @@ import { loadStreak } from '../services/streakStore';
 import { useActivitySessionTimer } from './useActivitySessionTimer';
 import { deleteBook, getBooks } from '../services/storageService';
 import {
+  ensureAnonymousAuthForPublicView,
   getAuthState,
   subscribeAuthState,
   type AuthState,
@@ -142,6 +143,10 @@ export default function MacDesktopShell() {
   );
   const [shareSlug, setShareSlug] = useState<string | null>(() =>
     parseShareSlugFromPath()
+  );
+  /** Auth для /c/{slug}: pending → ensureAnonymous, ok/fail до fetch. */
+  const [shareAuth, setShareAuth] = useState<'pending' | 'ok' | 'fail'>(
+    'pending'
   );
   const [deckSlug, setDeckSlug] = useState<string | null>(() =>
     parseDeckSlugFromPath()
@@ -319,6 +324,22 @@ export default function MacDesktopShell() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  // Публичная подборка /c/{slug}: анонимный Firebase Auth до любого getDoc
+  useEffect(() => {
+    if (!shareSlug) {
+      setShareAuth('pending');
+      return;
+    }
+    let cancelled = false;
+    setShareAuth('pending');
+    void ensureAnonymousAuthForPublicView().then((ok) => {
+      if (!cancelled) setShareAuth(ok ? 'ok' : 'fail');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareSlug]);
 
   const refreshCardsDue = useCallback(async () => {
     try {
@@ -655,6 +676,7 @@ export default function MacDesktopShell() {
           <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
             <PublicCollectionPanel
               slug={shareSlug}
+              authStatus={shareAuth}
               onOpenBook={handleOpenPublicBook}
               onClose={closePublicShare}
               onAddedToLibrary={() => void reloadLibrary()}

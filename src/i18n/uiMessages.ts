@@ -261,6 +261,7 @@ export type UiMessageKey =
   | 'catalog.cefrLevel'
   | 'public.notFound'
   | 'public.loadFail'
+  | 'public.loadFailAuthDisabled'
   | 'public.title'
   | 'public.loading'
   | 'public.goHome'
@@ -833,6 +834,8 @@ const ru: Dictionary = {
   'catalog.cefrLevel': 'CEFR · lvl {n}',
   'public.notFound': 'Подборка не найдена или приватная',
   'public.loadFail': 'Не удалось загрузить текст',
+  'public.loadFailAuthDisabled':
+    'Не удалось открыть подборку, попробуйте позже',
   'public.title': 'Публичная подборка',
   'public.loading': 'Загрузка…',
   'public.goHome': 'На главную',
@@ -1468,6 +1471,8 @@ const en: Dictionary = {
   'catalog.cefrLevel': 'CEFR · lvl {n}',
   'public.notFound': 'Collection not found or private',
   'public.loadFail': 'Could not load the text',
+  'public.loadFailAuthDisabled':
+    'Could not open the collection, please try again later',
   'public.title': 'Public collection',
   'public.loading': 'Loading…',
   'public.goHome': 'Go home',
@@ -2097,6 +2102,7 @@ const zh: Dictionary = {
   'catalog.cefrLevel': 'CEFR · lvl {n}',
   'public.notFound': '未找到合集或为私密',
   'public.loadFail': '无法加载文本',
+  'public.loadFailAuthDisabled': '暂时无法打开合集，请稍后再试',
   'public.title': '公开合集',
   'public.loading': '加载中…',
   'public.goHome': '返回主页',

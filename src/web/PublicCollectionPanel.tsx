@@ -18,12 +18,21 @@ import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
 import { useWebTheme } from './webTheme';
 
+export type PublicCollectionAuthStatus = 'pending' | 'ok' | 'fail';
+
 interface PublicCollectionPanelProps {
   slug: string;
+  /**
+   * Результат ensureAnonymousAuthForPublicView из MacDesktopShell.
+   * fetch только при `ok`; при `fail` — отдельная ошибка без getDoc.
+   */
+  authStatus: PublicCollectionAuthStatus;
   onOpenBook: (book: Book) => void;
   onClose: () => void;
   onAddedToLibrary?: () => void;
 }
+
+type LoadErrorKind = 'notFound' | 'auth';
 
 /**
  * Публичная подборка по ссылке `/c/{slug}`.
@@ -32,6 +41,7 @@ interface PublicCollectionPanelProps {
  */
 export function PublicCollectionPanel({
   slug,
+  authStatus,
   onOpenBook,
   onClose,
   onAddedToLibrary,
@@ -40,7 +50,7 @@ export function PublicCollectionPanel({
   const { t, lang } = useI18n();
   const [doc, setDoc] = useState<PublicCollectionDoc | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [errorKind, setErrorKind] = useState<LoadErrorKind | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,13 +58,27 @@ export function PublicCollectionPanel({
 
     async function load() {
       setLoading(true);
-      setError(false);
+      setErrorKind(null);
       setDoc(null);
+
+      if (authStatus === 'pending') {
+        // Ждём ensureAnonymousAuthForPublicView в shell
+        return;
+      }
+
+      if (authStatus === 'fail') {
+        if (!cancelled) {
+          setErrorKind('auth');
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         const data = await fetchPublicCollection(slug);
         if (cancelled) return;
         if (!data) {
-          setError(true);
+          setErrorKind('notFound');
           setDoc(null);
           return;
         }
@@ -62,7 +86,7 @@ export function PublicCollectionPanel({
       } catch (err) {
         if (cancelled) return;
         console.warn('[PublicCollectionPanel] load failed:', err);
-        setError(true);
+        setErrorKind('notFound');
         setDoc(null);
       } finally {
         // Всегда снимаем лоадер — даже при permission-denied / timeout
@@ -74,7 +98,7 @@ export function PublicCollectionPanel({
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, authStatus]);
 
   const openBook = useCallback(
     async (bookId: string, addToLibrary: boolean) => {
@@ -120,6 +144,12 @@ export function PublicCollectionPanel({
       ? 'rounded-2xl bg-[#1E1E28]/80 backdrop-blur-md border border-[#2A2A3A]'
       : 'rounded-2xl bg-white/90 border border-gray-200';
 
+  const showLoading = authStatus === 'pending' || loading;
+  const errorTitle =
+    errorKind === 'auth'
+      ? t('public.loadFailAuthDisabled')
+      : t('public.notFound');
+
   return (
     <Div
       className={`flex-1 min-w-0 min-h-0 flex flex-col rounded-2xl overflow-hidden border ${
@@ -152,13 +182,13 @@ export function PublicCollectionPanel({
       </Div>
 
       <Div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading ? (
+        {showLoading ? (
           <Div className={`text-center py-16 text-sm ${theme.textMuted}`}>
             {t('public.loading')}
           </Div>
-        ) : error ? (
+        ) : errorKind ? (
           <Div className={`${glass} p-6 text-center space-y-3`}>
-            <Div className={`font-bold ${theme.text}`}>{t('public.notFound')}</Div>
+            <Div className={`font-bold ${theme.text}`}>{errorTitle}</Div>
             <Button
               type="button"
               className={`rounded-xl px-4 py-2 text-sm font-bold ${theme.cta}`}
@@ -194,7 +224,8 @@ export function PublicCollectionPanel({
               </Div>
               <Div className={`text-[10px] ${theme.textMuted}`}>
                 {t('public.editHint')}
-              </Div>            </Div>
+              </Div>
+            </Div>
 
             <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}>
               {t('public.texts')}

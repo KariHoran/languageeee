@@ -3,6 +3,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithEmailAndPassword,
   signInWithRedirect,
   signOut as firebaseSignOut,
@@ -148,6 +149,61 @@ export function isCloudUser(state: AuthState = currentState): boolean {
     !state.user?.isAnonymous &&
     Boolean(state.user?.email)
   );
+}
+
+/**
+ * Анонимный Firebase Auth только для чтения публичных ссылок (/c/{slug}).
+ * Не трогает уже залогиненного пользователя и не делает isCloudUser() true
+ * (anonymous → status guest, без email).
+ */
+export async function ensureAnonymousAuthForPublicView(): Promise<boolean> {
+  if (!isFirebaseConfigured()) {
+    console.warn(
+      '[auth] ensureAnonymousAuthForPublicView: Firebase не настроен'
+    );
+    return false;
+  }
+
+  try {
+    await initAuth();
+  } catch (err) {
+    console.warn('[auth] ensureAnonymousAuthForPublicView: initAuth', err);
+  }
+
+  const firebase = await getFirebase();
+  if (!firebase) {
+    console.warn(
+      '[auth] ensureAnonymousAuthForPublicView: getFirebase() вернул null'
+    );
+    return false;
+  }
+
+  if (firebase.auth.currentUser) {
+    return true;
+  }
+
+  try {
+    const cred = await signInAnonymously(firebase.auth);
+    if (!cred.user?.uid) {
+      console.warn(
+        '[auth] ensureAnonymousAuthForPublicView: пустой anonymous uid'
+      );
+      return false;
+    }
+    // onAuthStateChanged выставит guest + user.isAnonymous; не форсим authenticated
+    return true;
+  } catch (err) {
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : 'unknown';
+    console.warn(
+      '[auth] ensureAnonymousAuthForPublicView failed:',
+      code,
+      err
+    );
+    return false;
+  }
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
