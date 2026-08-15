@@ -154,3 +154,48 @@ export async function importPublicDeck(
   }
   return { added, skipped };
 }
+
+/** Каталог публичных колод (Explore). */
+export async function listPublicDecks(
+  searchQuery?: string
+): Promise<PublicDeckDoc[]> {
+  try {
+    if (!isFirebaseConfigured()) return [];
+    const firebase = await getFirebase();
+    if (!firebase) return [];
+    const { collection, getDocs, query, where, limit } = await import(
+      'firebase/firestore'
+    );
+    const q = query(
+      collection(firebase.db, 'publicDecks'),
+      where('isPublic', '==', true),
+      limit(60)
+    );
+    const snap = await getDocs(q);
+    let items: PublicDeckDoc[] = snap.docs.map((d) => {
+      const data = d.data() as PublicDeckDoc;
+      return {
+        ...data,
+        slug: data.slug || d.id,
+        isPublic: true,
+        cards: Array.isArray(data.cards) ? data.cards : [],
+        cardCount: data.cardCount ?? (data.cards?.length || 0),
+      };
+    });
+    const needle = searchQuery?.trim().toLowerCase() ?? '';
+    if (needle) {
+      items = items.filter((deck) => {
+        const hay = [deck.title, deck.language, ...(deck.cards ?? []).map((c) => c.hanzi)]
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(needle);
+      });
+    }
+    return items.sort((a, b) =>
+      (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '')
+    );
+  } catch (err) {
+    console.warn('[publicDecks] list failed:', err);
+    return [];
+  }
+}

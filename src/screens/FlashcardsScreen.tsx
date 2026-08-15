@@ -27,7 +27,9 @@ import {
 import {
   exportFlashcardsAnki,
   exportFlashcardsCsv,
+  pickAndImportAnkiFile,
 } from '../services/flashcardsExport';
+import { seedDemoDeck } from '../services/demoDeckService';
 import { publishPublicDeck } from '../services/publicDecksService';
 import { getAuthState } from '../services/authService';
 import { getLearningLanguage } from '../services/onboardingService';
@@ -48,6 +50,7 @@ interface FlashcardsScreenProps {
 type DeckFilter = LearningLanguage | 'all';
 type Phase = 'hub' | 'browse' | 'session' | 'done';
 type StudyMode = 'recognition' | 'recall' | 'cloze' | 'listen';
+type QueueMode = 'default' | 'weak' | 'mixed';
 
 type SourceOpt = { bookId?: string; title: string; count: number };
 
@@ -141,8 +144,10 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const [sources, setSources] = useState<SourceOpt[]>([]);
   const [sourceKey, setSourceKey] = useState<string | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>('recognition');
+  const [queueMode, setQueueMode] = useState<QueueMode>('default');
   const [deckCards, setDeckCards] = useState<Flashcard[]>([]);
   const [browseQuery, setBrowseQuery] = useState('');
+  const [weakCount, setWeakCount] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -172,6 +177,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       : {};
     const counts = await getFlashcardsCount(filter, query);
     setStats(counts);
+    const allForWeak = await getFlashcards(filter, query);
+    const { filterWeakCards } = await import('../services/flashcardsStore');
+    setWeakCount(filterWeakCards(allForWeak).length);
     setLoading(false);
   }, [filter, filterReady, sourceKey]);
 
@@ -207,12 +215,21 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     });
   }, [deckCards, browseQuery]);
 
-  const startSession = async () => {
+  const emptyHintKeyEarly: UiMessageKey =
+    filter === 'en'
+      ? 'flashcards.emptyHint.en'
+      : filter === 'zh'
+        ? 'flashcards.emptyHint.zh'
+        : 'flashcards.emptyHint.other';
+
+  const startSession = async (modeOverride?: QueueMode) => {
     setLoading(true);
+    const mode = modeOverride ?? queueMode;
     const query = sourceQueryFromKey(sources, sourceKey);
     const cards = await getReviewSession({
       language: filter,
       limit: DEFAULT_SESSION_SIZE,
+      mode,
       ...query,
     });
     setQueue(cards);
@@ -223,6 +240,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     setLoading(false);
     if (cards.length === 0) {
       setPhase('hub');
+      showAlert(t('flashcards.nothingToReview'), t(emptyHintKeyEarly));
       return;
     }
     setPhase('session');
@@ -271,6 +289,29 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     }
   };
 
+  const handleDemoDeck = async () => {
+    const lang = filter === 'all' ? 'zh' : filter;
+    const result = await seedDemoDeck(lang);
+    showAlert(
+      t('flashcards.demoDeck'),
+      t('flashcards.demoDeckDone', { n: result.added })
+    );
+    await reloadHub();
+  };
+
+  const handleImportAnki = async () => {
+    const result = await pickAndImportAnkiFile();
+    if (!result) return;
+    showAlert(
+      t('flashcards.importAnki'),
+      t('flashcards.importAnkiDone', {
+        added: result.added,
+        skipped: result.skipped,
+      })
+    );
+    await reloadHub();
+  };
+
   const current = queue[index] ?? null;
   const isEnglish = (current?.language ?? 'zh') === 'en';
   const isRussian = (current?.language ?? 'zh') === 'ru';
@@ -312,6 +353,39 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
       setGrading(false);
     }
   };
+
+  // Клавиатура: Space = flip, 1–4 = Again/Hard/Good/Easy
+  useEffect(() => {
+    if (phase !== 'session' || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!revealed) setRevealed(true);
+        return;
+      }
+      if (!revealed || grading) return;
+      const map: Record<string, FlashcardGrade> = {
+        Digit1: 'again',
+        Numpad1: 'again',
+        Digit2: 'hard',
+        Numpad2: 'hard',
+        Digit3: 'good',
+        Numpad3: 'good',
+        Digit4: 'easy',
+        Numpad4: 'easy',
+      };
+      const grade = map[e.code];
+      if (grade) {
+        e.preventDefault();
+        void handleGrade(grade);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, revealed, grading, current?.id]);
 
   const advanceAfterRemove = (fromIndex: number, nextQueue: Flashcard[]) => {
     setRevealed(false);
@@ -562,6 +636,54 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             </View>
 
             <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+              {t('flashcards.queueLabel')}
+            </Text>
+            <View style={styles.filterRow}>
+              {(
+                [
+                  { id: 'default' as const, labelKey: 'flashcards.queue.default' as UiMessageKey },
+                  {
+                    id: 'weak' as const,
+                    labelKey: 'flashcards.queue.weak' as UiMessageKey,
+                  },
+                  {
+                    id: 'mixed' as const,
+                    labelKey: 'flashcards.queue.mixed' as UiMessageKey,
+                  },
+                ] as const
+              ).map((opt) => {
+                const active = queueMode === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setQueueMode(opt.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: active ? theme.accentPink : theme.border,
+                        backgroundColor: active
+                          ? 'rgba(255,101,132,0.15)'
+                          : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        {
+                          color: active ? theme.accentPink : theme.textMuted,
+                        },
+                      ]}
+                    >
+                      {t(opt.labelKey)}
+                      {opt.id === 'weak' && weakCount > 0 ? ` · ${weakCount}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
               {t('flashcards.langLabel')}
             </Text>
             <View style={styles.filterRow}>
@@ -751,6 +873,40 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   {t('flashcards.shareDeck')}
                 </Text>
               </Pressable>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { borderColor: theme.border },
+                ]}
+                onPress={() => void handleImportAnki()}
+              >
+                <Text
+                  style={[
+                    styles.secondaryButtonText,
+                    { color: theme.textMuted },
+                  ]}
+                >
+                  {t('flashcards.importAnki')}
+                </Text>
+              </Pressable>
+              {stats.total === 0 ? (
+                <Pressable
+                  style={[
+                    styles.secondaryButton,
+                    { borderColor: theme.accent },
+                  ]}
+                  onPress={() => void handleDemoDeck()}
+                >
+                  <Text
+                    style={[
+                      styles.secondaryButtonText,
+                      { color: theme.accent },
+                    ]}
+                  >
+                    {t('flashcards.demoDeck')}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <Pressable
@@ -917,6 +1073,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               {sessionDone > 0
                 ? t('flashcards.progressWithAnswers', { n: sessionDone })
                 : ''}
+            </Text>
+            <Text style={[styles.keyboardHint, { color: theme.textDim }]}>
+              {t('flashcards.keyboardHint')}
             </Text>
 
             <View style={styles.cardActions}>
@@ -1448,8 +1607,15 @@ const styles = StyleSheet.create({
   progress: {
     textAlign: 'center',
     fontSize: 14,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  keyboardHint: {
+    textAlign: 'center',
+    fontSize: 11,
     marginBottom: 8,
     fontWeight: '600',
+    opacity: 0.85,
   },
   cardActions: {
     flexDirection: 'row',

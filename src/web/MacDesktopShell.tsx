@@ -44,6 +44,7 @@ import { useI18n } from '../i18n/useI18n';
 import { MiniPlayPanel } from './MiniPlayPanel';
 import { MyLibraryPanel } from './MyLibraryPanel';
 import { OfflineBanner } from './OfflineBanner';
+import { DueCardsBanner } from './DueCardsBanner';
 import { OnboardingTour } from './OnboardingTour';
 import { ProgressPanel } from './ProgressPanel';
 import { PublicCollectionPanel } from './PublicCollectionPanel';
@@ -322,6 +323,15 @@ export default function MacDesktopShell() {
     setDeckSlug(null);
   }, []);
 
+  const openPublicDeck = useCallback((slug: string) => {
+    const clean = slug.trim();
+    if (!clean || typeof window === 'undefined') return;
+    const path = `/d/${encodeURIComponent(clean)}`;
+    window.history.pushState({}, '', path);
+    setDeckSlug(clean);
+    setShareSlug(null);
+  }, []);
+
   const handleOpenPublicBook = useCallback(
     (book: Book) => {
       const lang = normalizeLearningLanguage(book.language);
@@ -540,6 +550,10 @@ export default function MacDesktopShell() {
       </Div>
 
       <OfflineBanner />
+      <DueCardsBanner
+        due={cardsDue}
+        onOpenFlashcards={() => setTab('flashcards')}
+      />
 
       <Div className="relative z-10 shrink-0 px-3 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
         <Div className="min-w-0">
@@ -650,6 +664,7 @@ export default function MacDesktopShell() {
                   onOpenMyLibrary={() => setTab('library')}
                   onOpenBook={(book) => void handleOpenCatalogBook(book)}
                   onOpenPublicCollection={openPublicShare}
+                  onOpenPublicDeck={openPublicDeck}
                 />
               ) : tab === 'library' ? (
                 <MyLibraryPanel

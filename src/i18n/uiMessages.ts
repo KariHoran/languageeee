@@ -372,6 +372,23 @@ export type UiMessageKey =
   | 'progress.continueWithDue'
   | 'word.removeFromDeck'
   | 'word.knownRemoved'
+  | 'flashcards.queueLabel'
+  | 'flashcards.queue.default'
+  | 'flashcards.queue.weak'
+  | 'flashcards.queue.mixed'
+  | 'flashcards.keyboardHint'
+  | 'flashcards.demoDeck'
+  | 'flashcards.demoDeckDone'
+  | 'flashcards.importAnki'
+  | 'flashcards.importAnkiDone'
+  | 'progress.dueBannerTitle'
+  | 'progress.dueBannerHint'
+  | 'progress.dueBannerCta'
+  | 'progress.weekTitle'
+  | 'progress.weekStats'
+  | 'catalog.publicDecks'
+  | 'catalog.noPublicDecks'
+  | 'catalog.deckCardsCount'
   | 'addBook.screenSubtitle.en'
   | 'addBook.screenSubtitle.zh'
   | 'addBook.screenSubtitle.ru'
@@ -865,6 +882,23 @@ const ru: Dictionary = {
   'progress.continueWithDue': 'Продолжить · due {n}',
   'word.removeFromDeck': 'Убрать из колоды',
   'word.knownRemoved': 'Знаю — убрано из SRS',
+  'flashcards.queueLabel': "Очередь",
+  'flashcards.queue.default': "Обычная",
+  'flashcards.queue.weak': "Слабые",
+  'flashcards.queue.mixed': "Микс",
+  'flashcards.keyboardHint': "Space — ответ · 1–4 — оценка",
+  'flashcards.demoDeck': "Демо-колода",
+  'flashcards.demoDeckDone': "Добавлено демо-карточек: {n}",
+  'flashcards.importAnki': "Импорт Anki",
+  'flashcards.importAnkiDone': "Импортировано: {added}. Пропущено: {skipped}.",
+  'progress.dueBannerTitle': "К повторению: {n}",
+  'progress.dueBannerHint': "Короткая сессия укрепит стрик",
+  'progress.dueBannerCta': "К карточкам",
+  'progress.weekTitle': "Эта неделя",
+  'progress.weekStats': "{words} слов · {cards} карточек · {min} мин",
+  'catalog.publicDecks': "Публичные колоды",
+  'catalog.noPublicDecks': "Пока нет публичных колод",
+  'catalog.deckCardsCount': "{n} карточек",
   'addBook.screenSubtitle.en':
     'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
   'addBook.screenSubtitle.zh':
@@ -1371,6 +1405,23 @@ const en: Dictionary = {
   'progress.continueWithDue': 'Continue · due {n}',
   'word.removeFromDeck': 'Remove from deck',
   'word.knownRemoved': 'Known — removed from SRS',
+  'flashcards.queueLabel': "Queue",
+  'flashcards.queue.default': "Default",
+  'flashcards.queue.weak': "Weak",
+  'flashcards.queue.mixed': "Mixed",
+  'flashcards.keyboardHint': "Space — reveal · 1–4 — grade",
+  'flashcards.demoDeck': "Demo deck",
+  'flashcards.demoDeckDone': "Demo cards added: {n}",
+  'flashcards.importAnki': "Import Anki",
+  'flashcards.importAnkiDone': "Imported: {added}. Skipped: {skipped}.",
+  'progress.dueBannerTitle': "Due today: {n}",
+  'progress.dueBannerHint': "A short session keeps your streak alive",
+  'progress.dueBannerCta': "Open cards",
+  'progress.weekTitle': "This week",
+  'progress.weekStats': "{words} words · {cards} cards · {min} min",
+  'catalog.publicDecks': "Public decks",
+  'catalog.noPublicDecks': "No public decks yet",
+  'catalog.deckCardsCount': "{n} cards",
   'addBook.screenSubtitle.en':
     'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
   'addBook.screenSubtitle.zh':
@@ -1868,6 +1919,23 @@ const zh: Dictionary = {
   'progress.continueWithDue': '继续 · 待复习 {n}',
   'word.removeFromDeck': '移出卡组',
   'word.knownRemoved': '已掌握 — 已移出 SRS',
+  'flashcards.queueLabel': "队列",
+  'flashcards.queue.default': "默认",
+  'flashcards.queue.weak': "薄弱",
+  'flashcards.queue.mixed': "混合",
+  'flashcards.keyboardHint': "空格翻面 · 1–4 评分",
+  'flashcards.demoDeck': "演示卡组",
+  'flashcards.demoDeckDone': "已添加演示卡片：{n}",
+  'flashcards.importAnki': "导入 Anki",
+  'flashcards.importAnkiDone': "已导入：{added}。跳过：{skipped}。",
+  'progress.dueBannerTitle': "今日待复习：{n}",
+  'progress.dueBannerHint': "短时复习可保持连续天数",
+  'progress.dueBannerCta': "去卡片",
+  'progress.weekTitle': "本周",
+  'progress.weekStats': "{words} 词 · {cards} 卡 · {min} 分钟",
+  'catalog.publicDecks': "公开卡组",
+  'catalog.noPublicDecks': "暂无公开卡组",
+  'catalog.deckCardsCount': "{n} 张卡片",
   'addBook.screenSubtitle.en':
     '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
   'addBook.screenSubtitle.zh':

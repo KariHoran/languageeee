@@ -107,3 +107,103 @@ export async function exportFlashcardsAnki(cards: Flashcard[]): Promise<boolean>
     'text/tab-separated-values;charset=utf-8'
   );
 }
+
+/** Парсинг Anki TXT / TSV: Front \\t Back [\\t Extra] */
+export function parseAnkiTsv(raw: string): Array<{
+  hanzi: string;
+  translation: string;
+  contextSentence?: string;
+  pinyin?: string;
+}> {
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const out: Array<{
+    hanzi: string;
+    translation: string;
+    contextSentence?: string;
+    pinyin?: string;
+  }> = [];
+  for (const line of lines) {
+    if (line.startsWith('#') || line.startsWith('tags:')) continue;
+    const parts = line.split('\t');
+    if (parts.length < 2) continue;
+    const frontHtml = parts[0] ?? '';
+    const back = (parts[1] ?? '').replace(/<br\s*\/?>/gi, ' ').trim();
+    const extra = (parts[2] ?? '').replace(/<br\s*\/?>/gi, ' ').trim();
+    const frontParts = frontHtml.split(/<br\s*\/?>/i).map((s) =>
+      s.replace(/<[^>]+>/g, '').trim()
+    );
+    const hanzi = frontParts[0] || '';
+    const pinyin = frontParts[1]?.replace(/^\[grammar\]\s*/i, '') || undefined;
+    const surface = hanzi.replace(/^\[grammar\]\s*/i, '').trim();
+    if (!surface) continue;
+    out.push({
+      hanzi: surface,
+      translation: back,
+      pinyin,
+      contextSentence: extra || undefined,
+    });
+  }
+  return out;
+}
+
+export async function importFlashcardsFromAnkiText(
+  raw: string
+): Promise<{ added: number; skipped: number }> {
+  const { addFlashcard, hasFlashcard, inferFlashcardLanguage } = await import(
+    './flashcardsStore'
+  );
+  const rows = parseAnkiTsv(raw);
+  let added = 0;
+  let skipped = 0;
+  for (const row of rows) {
+    try {
+      const language = inferFlashcardLanguage(row.hanzi);
+      if (await hasFlashcard(row.hanzi, language)) {
+        skipped += 1;
+        continue;
+      }
+      await addFlashcard({
+        hanzi: row.hanzi,
+        translation: row.translation,
+        pinyin: row.pinyin,
+        language,
+        contextSentence: row.contextSentence,
+        sourceTitle: 'Anki import',
+      });
+      added += 1;
+    } catch {
+      skipped += 1;
+    }
+  }
+  return { added, skipped };
+}
+
+/** Выбор файла на web → импорт Anki TSV/TXT. */
+export async function pickAndImportAnkiFile(): Promise<{
+  added: number;
+  skipped: number;
+} | null> {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return null;
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.tsv,.csv,text/plain';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        void importFlashcardsFromAnkiText(String(reader.result || '')).then(
+          resolve,
+          () => resolve(null)
+        );
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    };
+    input.click();
+  });
+}

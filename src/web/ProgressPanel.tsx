@@ -5,6 +5,7 @@ import {
   getDayActivity,
   heatmapLevelColor,
   localDayKey,
+  sumActivityRange,
 } from '../services/activityAnalytics';
 import type { BookCoverage } from '../services/bookCoverageService';
 import type { ReadingProgress } from '../services/readingProgressStore';
@@ -81,6 +82,11 @@ export function ProgressPanel({
 
   const today = useMemo(
     () => getDayActivity(activityByDay, localDayKey()),
+    [activityByDay]
+  );
+
+  const week = useMemo(
+    () => sumActivityRange(activityByDay, 7),
     [activityByDay]
   );
 
@@ -186,6 +192,19 @@ export function ProgressPanel({
           <Div className="text-xl font-extrabold text-[#0D0D11] bg-[#D0FF00] inline-block px-1.5 rounded-md font-['Comfortaa']">
             {wordsLearned}
           </Div>
+        </Div>
+      </Div>
+
+      <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
+        {t('progress.weekTitle')}
+      </Div>
+      <Div className={`${glassCard} px-3 py-2.5 mb-3`}>
+        <Div className={`text-xs font-semibold ${theme.text}`}>
+          {t('progress.weekStats', {
+            words: week.wordsRead,
+            cards: week.cardsReviewed,
+            min: week.minutes,
+          })}
         </Div>
       </Div>
 

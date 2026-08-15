@@ -291,6 +291,18 @@ export interface CatalogStory {
   isComplete?: boolean;
 }
 
+/**
+ * Оценка ответа в сессии SRS.
+ * Legacy: `forgot` ≈ again, `remembered` ≈ good.
+ */
+export type FlashcardGrade =
+  | 'again'
+  | 'hard'
+  | 'good'
+  | 'easy'
+  | 'forgot'
+  | 'remembered';
+
 /** Карточка интервального повторения (SRS) */
 export interface Flashcard {
   /** Идентификатор = иероглиф / en:слово / grammar:… */
@@ -305,6 +317,12 @@ export interface Flashcard {
   kind?: 'word' | 'grammar';
   /** Не показывать в SRS (знаю / отложено) */
   suspended?: boolean;
+  /** Сколько раз жали Again (для weak deck) */
+  againCount?: number;
+  /** Последняя оценка в сессии */
+  lastGrade?: FlashcardGrade;
+  /** ISO последнего ответа */
+  lastReviewedAt?: string;
   /** Цитата из фанфика, где встретилось слово */
   contextSentence?: string;
   /** Название книги-источника */
@@ -322,18 +340,6 @@ export interface Flashcard {
   createdAt: string;
   updatedAt: string;
 }
-
-/**
- * Оценка ответа в сессии SRS.
- * Legacy: `forgot` ≈ again, `remembered` ≈ good.
- */
-export type FlashcardGrade =
-  | 'again'
-  | 'hard'
-  | 'good'
-  | 'easy'
-  | 'forgot'
-  | 'remembered';
 
 /** Статус карточки для очереди / UI */
 export type FlashcardSrsStatus = 'new' | 'learning' | 'learned';

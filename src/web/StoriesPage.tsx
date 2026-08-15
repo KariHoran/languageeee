@@ -18,6 +18,10 @@ import {
   importCatalogStory,
 } from '../services/catalogService';
 import { listPublicCollections } from '../services/publicCollectionsService';
+import {
+  listPublicDecks,
+  type PublicDeckDoc,
+} from '../services/publicDecksService';
 import { getAllReadingProgress } from '../services/readingProgressStore';
 import { isPublicCollectionOwner } from '../services/rbac';
 import { getBooks } from '../services/storageService';
@@ -67,6 +71,7 @@ interface StoriesPageProps {
   onOpenMyLibrary?: () => void;
   onOpenBook: (book: Book) => void;
   onOpenPublicCollection?: (slug: string) => void;
+  onOpenPublicDeck?: (slug: string) => void;
 }
 
 function Chip({
@@ -104,6 +109,7 @@ export function StoriesPage({
   onOpenMyLibrary,
   onOpenBook,
   onOpenPublicCollection,
+  onOpenPublicDeck,
 }: StoriesPageProps) {
   const theme = useWebTheme();
   const { t } = useI18n();
@@ -122,6 +128,7 @@ export function StoriesPage({
   const [owned, setOwned] = useState<Set<string>>(ownedBookIds ?? new Set());
   const [selected, setSelected] = useState<CatalogStory | null>(null);
   const [publicCols, setPublicCols] = useState<PublicCollectionDoc[]>([]);
+  const [publicDecks, setPublicDecks] = useState<PublicDeckDoc[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
   const [publicError, setPublicError] = useState(false);
   const [progressByCatalogId, setProgressByCatalogId] = useState<
@@ -174,8 +181,14 @@ export function StoriesPage({
       setPublicLoading(true);
       setPublicError(false);
       try {
-        const list = await listPublicCollections(debouncedQuery);
-        if (!cancelled) setPublicCols(list);
+        const [cols, decks] = await Promise.all([
+          listPublicCollections(debouncedQuery),
+          listPublicDecks(debouncedQuery),
+        ]);
+        if (!cancelled) {
+          setPublicCols(cols);
+          setPublicDecks(decks);
+        }
       } catch (err) {
         console.warn('[StoriesPage] public collections failed', err);
         if (!cancelled) {
@@ -435,6 +448,59 @@ export function StoriesPage({
                   </Button>
                 );
               })}
+            </Div>
+          )}
+        </Div>
+
+        <Div className="space-y-2.5">
+          <Div
+            className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent}`}
+          >
+            {t('catalog.publicDecks')}
+          </Div>
+          {publicLoading ? (
+            <Div className={`text-sm py-2 ${theme.textMuted}`}>…</Div>
+          ) : publicDecks.length === 0 ? (
+            <Div className={`text-sm py-2 ${theme.textMuted}`}>
+              {t('catalog.noPublicDecks')}
+              {query.trim() ? t('catalog.noPublicCollectionsQuery') : ''}.
+            </Div>
+          ) : (
+            <Div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {publicDecks.map((deck) => (
+                <Button
+                  key={deck.slug}
+                  type="button"
+                  className={`${glassCard} text-left p-3.5 hover:border-[#D0FF00]/40 transition`}
+                  onClick={() => onOpenPublicDeck?.(deck.slug)}
+                  disabled={!onOpenPublicDeck}
+                >
+                  <Div className="flex items-start gap-3">
+                    <Div className="w-10 h-10 rounded-xl shrink-0 bg-[#D0FF00]/20 flex items-center justify-center text-lg">
+                      🃏
+                    </Div>
+                    <Div className="min-w-0 flex-1 space-y-1">
+                      <Span className={BADGE_PUBLIC}>
+                        {t('catalog.badgePublic')}
+                      </Span>
+                      <HighlightText
+                        text={deck.title}
+                        query={debouncedQuery}
+                        className={`font-bold text-sm font-['Comfortaa'] line-clamp-2 block ${theme.text}`}
+                      />
+                      <Div
+                        className={`text-[10px] font-semibold ${theme.textMuted}`}
+                      >
+                        {t('catalog.deckCardsCount', {
+                          n: deck.cardCount || deck.cards.length,
+                        })}
+                        {' · '}
+                        {String(deck.language || 'all').toUpperCase()}
+                      </Div>
+                    </Div>
+                  </Div>
+                </Button>
+              ))}
             </Div>
           )}
         </Div>

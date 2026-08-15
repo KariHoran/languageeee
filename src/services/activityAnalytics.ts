@@ -123,6 +123,34 @@ export function getDayActivity(
   return map[day] ?? emptyDayActivity();
 }
 
+/** Сумма активности за последние `days` календарных дней (включая сегодня). */
+export function sumActivityRange(
+  map: ActivityByDay,
+  days = 7,
+  now = new Date()
+): DayActivity {
+  let wordsRead = 0;
+  let cardsReviewed = 0;
+  let minutes = 0;
+  let latest = '';
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const row = map[localDayKey(d)];
+    if (!row) continue;
+    wordsRead += row.wordsRead || 0;
+    cardsReviewed += row.cardsReviewed || 0;
+    minutes += row.minutes || 0;
+    if (row.updatedAt && row.updatedAt > latest) latest = row.updatedAt;
+  }
+  return {
+    wordsRead,
+    cardsReviewed,
+    minutes,
+    updatedAt: latest || now.toISOString(),
+  };
+}
+
 /** Ячейки heatmap: weeks колонок × 7 строк (вс→сб или пн→вс). GitHub-style: колонки = недели. */
 export interface HeatmapCell {
   date: string;
