@@ -23,6 +23,7 @@ import {
   useLocalizedGrammarExplanation,
   useNativeParagraphTranslation,
 } from '../hooks/useLocalizedText';
+import { useI18n } from '../i18n/useI18n';
 import { lookupBkrs } from '../services/bkrsService';
 import { segmentChineseText } from '../services/chineseTokenizer';
 import { addFlashcard, hasFlashcard } from '../services/flashcardsStore';
@@ -222,6 +223,7 @@ function WordPopover({
   inFlashcards: boolean;
 }) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { word, x, y } = popover;
   const popoverWidth = 280;
   const left = Math.min(Math.max(x - popoverWidth / 2, 16), SCREEN_WIDTH - popoverWidth - 16);
@@ -267,7 +269,7 @@ function WordPopover({
                 onPress={handleSpeak}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Озвучить ${word.hanzi}`}
+                accessibilityLabel={t('reader.ttsWord', { word: word.hanzi })}
               >
                 <Text style={styles.speakButtonText}>🔊</Text>
               </Pressable>
@@ -303,7 +305,7 @@ function WordPopover({
                     : styles.popoverButtonTextFlashcard
                 }
               >
-                {inFlashcards ? 'Уже в карточках' : '+ В карточки'}
+                {inFlashcards ? t('word.alreadyInCard') : t('word.addCard')}
               </Text>
             </Pressable>
 
@@ -312,7 +314,9 @@ function WordPopover({
                 style={[styles.popoverButton, styles.popoverButtonPrimary]}
                 onPress={() => onAddToDictionary(word)}
               >
-                <Text style={styles.popoverButtonTextPrimary}>Добавить в словарик</Text>
+                <Text style={styles.popoverButtonTextPrimary}>
+                  {t('word.addToDict')}
+                </Text>
               </Pressable>
             )}
             {word.status !== 'known' && (
@@ -320,14 +324,18 @@ function WordPopover({
                 style={[styles.popoverButton, styles.popoverButtonSecondary]}
                 onPress={() => onMarkKnown(word)}
               >
-                <Text style={styles.popoverButtonTextSecondary}>Уже знаю</Text>
+                <Text style={styles.popoverButtonTextSecondary}>
+                  {t('word.markKnown')}
+                </Text>
               </Pressable>
             )}
             {word.status === 'learning' && (
-              <Text style={styles.popoverStatusHint}>В словарике</Text>
+              <Text style={styles.popoverStatusHint}>{t('word.inDict')}</Text>
             )}
             {word.status === 'known' && (
-              <Text style={styles.popoverStatusHint}>Отмечено как известное</Text>
+              <Text style={styles.popoverStatusHint}>
+                {t('word.markedKnown')}
+              </Text>
             )}
 
             <CollectionWordPicker
@@ -354,6 +362,7 @@ function GrammarPopover({
   nativeLanguage: NativeLanguage;
 }) {
   const { point, x, y } = popover;
+  const { t } = useI18n();
   const popoverWidth = 300;
   const left = Math.min(Math.max(x - popoverWidth / 2, 16), SCREEN_WIDTH - popoverWidth - 16);
   const explanation = useLocalizedGrammarExplanation(
@@ -361,11 +370,8 @@ function GrammarPopover({
     nativeLanguage
   );
   const badgeLabel =
-    nativeLanguage === 'zh'
-      ? `语法${point.hskLevel != null ? ` HSK ${point.hskLevel}` : ''}`
-      : nativeLanguage === 'en'
-        ? `Grammar${point.hskLevel != null ? ` HSK ${point.hskLevel}` : ''}`
-        : `Грамматика${point.hskLevel != null ? ` HSK ${point.hskLevel}` : ''}`;
+    t('reader.grammarBadge') +
+    (point.hskLevel != null ? ` HSK ${point.hskLevel}` : '');
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
@@ -431,14 +437,12 @@ function GrammarAccordion({
   nativeLanguage: NativeLanguage;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useI18n();
   if (grammar.length === 0) return null;
 
-  const headerLabel =
-    nativeLanguage === 'zh'
-      ? `${expanded ? '▼' : '▶'} 语法 (${grammar.length})`
-      : nativeLanguage === 'en'
-        ? `${expanded ? '▼' : '▶'} Grammar (${grammar.length})`
-        : `${expanded ? '▼' : '▶'} Грамматика (${grammar.length})`;
+  const headerLabel = `${expanded ? '▼' : '▶'} ${t('reader.grammarToggle', {
+    n: grammar.length,
+  })}`;
 
   return (
     <View style={styles.grammarBlock}>
@@ -498,6 +502,7 @@ function ParallelParagraphRow({
   onLayoutPara?: (index: number, y: number, height: number) => void;
 }) {
   const theme = useTheme();
+  const { t } = useI18n();
   const grammarMatches = useMemo(
     () => findGrammarMatches(paragraph.chineseText),
     [paragraph.chineseText]
@@ -533,31 +538,17 @@ function ParallelParagraphRow({
   const displayText = nativeText || '—';
   const isHidden = !isRussianVisible && !isParagraphRevealed;
   const nativeColumnLabel =
-    nativeLanguage === 'zh' ? '中文' : nativeLanguage === 'en' ? 'English' : 'Русский';
-  const peekHint =
     nativeLanguage === 'zh'
-      ? '点击查看翻译'
+      ? t('catalog.lang.zh')
       : nativeLanguage === 'en'
-        ? 'Tap to peek translation'
-        : 'Нажмите, чтобы подсмотреть';
-  const peekA11y =
-    nativeLanguage === 'zh'
-      ? '显示段落翻译'
-      : nativeLanguage === 'en'
-        ? 'Show paragraph translation'
-        : 'Показать перевод абзаца';
+        ? t('catalog.lang.en')
+        : t('catalog.lang.ru');
+  const peekHint = t('reader.peekHint');
+  const peekA11y = t('reader.showParagraphTranslation');
   const hiddenSuffix = !isRussianVisible
     ? isParagraphRevealed
-      ? nativeLanguage === 'zh'
-        ? ' · 已查看'
-        : nativeLanguage === 'en'
-          ? ' · peeked'
-          : ' · подсмотр'
-      : nativeLanguage === 'zh'
-        ? ' · 已隐藏'
-        : nativeLanguage === 'en'
-          ? ' · hidden'
-          : ' · скрыт'
+      ? t('reader.peekedSuffix')
+      : t('reader.hiddenSuffix')
     : '';
 
   return (
@@ -607,7 +598,7 @@ function ParallelParagraphRow({
                 }}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Озвучить абзац"
+                accessibilityLabel={t('reader.ttsParagraph')}
               >
                 <Text style={styles.speakButtonText}>🔊</Text>
               </Pressable>
@@ -787,7 +778,9 @@ function ParallelParagraphRow({
               disabled={isRussianVisible}
               accessibilityRole={!isRussianVisible ? 'button' : undefined}
               accessibilityLabel={
-                !isRussianVisible ? 'Скрыть перевод абзаца' : undefined
+                !isRussianVisible
+                  ? t('reader.hideParagraphTranslation')
+                  : undefined
               }
             >
               <Text style={[styles.translationText, styles.paperMuted]}>
@@ -810,6 +803,7 @@ export default function ReaderScreen({
   onBookDeleted,
 }: ReaderScreenProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [book, setBook] = useState(initialBook);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [grammarPopover, setGrammarPopover] = useState<GrammarPopoverState | null>(null);
@@ -1045,20 +1039,24 @@ export default function ReaderScreen({
   }, []);
 
   const handleDeleteBook = useCallback(() => {
+    const title = formatBookTitleLine(book);
     showConfirm(
-      'Удалить фанфик?',
-      `Удалить фанфик «${formatBookTitleLine(book)}»? Это действие нельзя отменить.`,
+      t('alert.deleteFanfic'),
+      t('alert.deleteFanficNamed', { title }),
       async () => {
         try {
           await deleteBook(book.id);
           deleteBookFromStore(book.id);
           onBookDeleted?.();
         } catch (e) {
-          showAlert('Ошибка', e instanceof Error ? e.message : 'Не удалось удалить фанфик');
+          showAlert(
+            t('alert.error'),
+            e instanceof Error ? e.message : t('alert.deleteFail')
+          );
         }
       }
     );
-  }, [book, onBookDeleted, deleteBookFromStore]);
+  }, [book, onBookDeleted, deleteBookFromStore, t]);
 
   const handleWordPress = useCallback(
     async (word: Word, x: number, y: number, paragraphIndex: number) => {
@@ -1188,7 +1186,9 @@ export default function ReaderScreen({
         }
       } catch (err) {
         if (!cancelled) {
-          setTranslateError(err instanceof Error ? err.message : 'Не удалось перевести текст');
+          setTranslateError(
+            err instanceof Error ? err.message : t('reader.translateTextFail')
+          );
         }
       } finally {
         if (!cancelled) setIsTranslating(false);
@@ -1224,7 +1224,7 @@ export default function ReaderScreen({
             {onBack && (
               <Pressable onPress={onBack} style={styles.backButton}>
                 <Text style={[styles.backButtonText, { color: theme.accent }]}>
-                  ← Библиотека
+                  ← {t('nav.library')}
                 </Text>
               </Pressable>
             )}
@@ -1232,7 +1232,7 @@ export default function ReaderScreen({
               {formatBookTitleLine(book)}
             </Text>
             <Text style={[styles.hskBadge, { color: theme.accent }]}>
-              Целевой HSK {book.targetHskLevel} · notebook mode
+              {t('reader.targetHskNotebook', { n: book.targetHskLevel })}
             </Text>
             {storeBook?.hskStats ? (
               <View style={styles.readerStatsWrap}>
@@ -1245,7 +1245,7 @@ export default function ReaderScreen({
             ) : null}
             {book.originalRussianText ? (
               <Text style={[styles.sourceHint, { color: theme.textDim }]}>
-                Источник: оригинальный русский перевод
+                {t('reader.sourceParallel')}
               </Text>
             ) : null}
           </View>
@@ -1279,10 +1279,12 @@ export default function ReaderScreen({
               onPress={() => setShowPinyin((v) => !v)}
               accessibilityRole="switch"
               accessibilityState={{ checked: showPinyin }}
-              accessibilityLabel="Показать пиньинь"
+              accessibilityLabel={
+                showPinyin ? t('reader.hidePinyin') : t('reader.showPinyin')
+              }
             >
               <Text style={[styles.russianToggleText, { color: theme.accentPink }]}>
-                {showPinyin ? '隐藏拼音' : '拼音'}
+                {showPinyin ? t('reader.hidePinyin') : t('reader.showPinyin')}
               </Text>
             </Pressable>
 
@@ -1298,7 +1300,7 @@ export default function ReaderScreen({
               onPress={toggleRussianVisible}
               accessibilityRole="switch"
               accessibilityState={{ checked: isRussianVisible }}
-              accessibilityLabel="Показать русский перевод"
+              accessibilityLabel={t('reader.showNativeTranslation')}
             >
               <Text style={styles.russianToggleIcon}>{isRussianVisible ? '👁️' : '🙈'}</Text>
               <Text
@@ -1308,14 +1310,14 @@ export default function ReaderScreen({
                   !isRussianVisible && styles.russianToggleTextOff,
                 ]}
               >
-                {isRussianVisible ? 'Скрыть текст' : 'Показать текст'}
+                {isRussianVisible ? t('action.hideText') : t('action.showText')}
               </Text>
             </Pressable>
 
             <Pressable
               style={styles.deleteBookHeaderButton}
               onPress={handleDeleteBook}
-              accessibilityLabel="Удалить фанфик"
+              accessibilityLabel={t('reader.delete')}
               accessibilityRole="button"
             >
               <Text style={styles.deleteBookHeaderIcon}>🗑️</Text>
@@ -1328,7 +1330,7 @@ export default function ReaderScreen({
         <View style={[styles.translateBanner, { backgroundColor: theme.surfaceGlass }]}>
           <ActivityIndicator color={theme.accent} />
           <Text style={[styles.translateBannerText, { color: theme.textMuted }]}>
-            Разбираем текст и грамматику…
+            {t('reader.parsing')}
           </Text>
         </View>
       )}
@@ -1336,7 +1338,7 @@ export default function ReaderScreen({
         <View style={[styles.translateBanner, { backgroundColor: theme.surfaceGlass }]}>
           <ActivityIndicator color={theme.accent} />
           <Text style={[styles.translateBannerText, { color: theme.textMuted }]}>
-            Переводим абзацы на русский…
+            {t('reader.translatingParagraphs')}
           </Text>
         </View>
       )}

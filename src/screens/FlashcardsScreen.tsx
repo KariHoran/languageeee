@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StarfieldBackground from '../components/StarfieldBackground';
+import { useI18n } from '../i18n/useI18n';
+import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   DEFAULT_SESSION_SIZE,
   getFlashcardSources,
@@ -36,20 +38,44 @@ type Phase = 'hub' | 'session' | 'done';
 
 type SourceOpt = { bookId?: string; title: string; count: number };
 
-const GRADE_BUTTONS: Array<{
+type GradeButton = {
   id: FlashcardGrade;
   label: string;
   hint: string;
-}> = [
-  { id: 'again', label: 'Снова', hint: '1д' },
-  { id: 'hard', label: 'Трудно', hint: 'сложнее' },
-  { id: 'good', label: 'Хорошо', hint: 'ок' },
-  { id: 'easy', label: 'Легко', hint: 'легко' },
-];
+};
+
+function buildGradeButtons(
+  t: (key: UiMessageKey, vars?: Record<string, string | number>) => string
+): GradeButton[] {
+  return [
+    {
+      id: 'again',
+      label: t('flashcards.grade.again'),
+      hint: t('flashcards.grade.againHint'),
+    },
+    {
+      id: 'hard',
+      label: t('flashcards.grade.hard'),
+      hint: t('flashcards.grade.hardHint'),
+    },
+    {
+      id: 'good',
+      label: t('flashcards.grade.good'),
+      hint: t('flashcards.grade.goodHint'),
+    },
+    {
+      id: 'easy',
+      label: t('flashcards.grade.easy'),
+      hint: t('flashcards.grade.easyHint'),
+    },
+  ];
+}
 
 /** SRS · сессия из 10 карточек + фильтры языка / книги */
 export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const theme = useTheme();
+  const { t } = useI18n();
+  const gradeButtons = useMemo(() => buildGradeButtons(t), [t]);
   const [phase, setPhase] = useState<Phase>('hub');
   const [queue, setQueue] = useState<Flashcard[]>([]);
   const [index, setIndex] = useState(0);
@@ -168,6 +194,20 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
     }
   };
 
+  const titleKey: UiMessageKey =
+    phase === 'session'
+      ? 'flashcards.title.session'
+      : phase === 'done'
+        ? 'flashcards.title.done'
+        : 'flashcards.title.hub';
+
+  const emptyHintKey: UiMessageKey =
+    filter === 'en'
+      ? 'flashcards.emptyHint.en'
+      : filter === 'zh'
+        ? 'flashcards.emptyHint.zh'
+        : 'flashcards.emptyHint.other';
+
   if (loading || !filterReady) {
     return (
       <SafeAreaView
@@ -194,12 +234,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
           <View style={styles.headerTop}>
             <Pressable
               onPress={() => {
-                if (phase === 'session') {
-                  setPhase('hub');
-                  void reloadHub();
-                  return;
-                }
-                if (phase === 'done') {
+                if (phase === 'session' || phase === 'done') {
                   setPhase('hub');
                   void reloadHub();
                   return;
@@ -211,22 +246,16 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               <Text style={[styles.backButtonText, { color: theme.accent }]}>
                 ←{' '}
                 {phase === 'hub'
-                  ? 'Назад'
-                  : phase === 'session'
-                    ? 'К колоде'
-                    : 'К колоде'}
+                  ? t('flashcards.back')
+                  : t('flashcards.backToDeck')}
               </Text>
             </Pressable>
           </View>
           <Text style={[styles.brand, { color: theme.accentPink }]}>
-            🌸 SRS · интервалы
+            {t('flashcards.brand')}
           </Text>
           <Text style={[styles.title, { color: theme.text }]}>
-            {phase === 'session'
-              ? 'Сессия'
-              : phase === 'done'
-                ? 'Готово'
-                : 'Карточки'}
+            {t(titleKey)}
           </Text>
         </View>
 
@@ -236,24 +265,27 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             showsVerticalScrollIndicator={false}
           >
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-              К повторению: {stats.due} · Всего: {stats.total}
+              {t('flashcards.dueTotal', {
+                due: stats.due,
+                total: stats.total,
+              })}
             </Text>
 
             <View style={styles.statRow}>
               <StatChip
-                label="Новые"
+                label={t('flashcards.stat.new')}
                 value={stats.new}
                 color={theme.accentPink}
                 theme={theme}
               />
               <StatChip
-                label="На грани"
+                label={t('flashcards.stat.learning')}
                 value={stats.learning}
                 color={theme.accent}
                 theme={theme}
               />
               <StatChip
-                label="Выученные"
+                label={t('flashcards.stat.learned')}
                 value={stats.learned}
                 color={theme.success}
                 theme={theme}
@@ -261,7 +293,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             </View>
 
             <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-              Язык
+              {t('flashcards.langLabel')}
             </Text>
             <View style={styles.filterRow}>
               {(
@@ -269,7 +301,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   { id: 'zh' as const, label: '中文' },
                   { id: 'ru' as const, label: 'RU' },
                   { id: 'en' as const, label: 'EN' },
-                  { id: 'all' as const, label: 'Все' },
+                  { id: 'all' as const, label: t('flashcards.langAll') },
                 ] as const
               ).map((opt) => {
                 const active = filter === opt.id;
@@ -310,7 +342,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             {sources.length > 0 ? (
               <>
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-                  Книга / фанфик
+                  {t('flashcards.sourceLabel')}
                 </Text>
                 <View style={styles.filterRow}>
                   <Pressable
@@ -340,7 +372,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                         },
                       ]}
                     >
-                      Все книги
+                      {t('flashcards.allBooks')}
                     </Text>
                   </Pressable>
                   {sources.map((s) => {
@@ -399,23 +431,20 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
             >
               <Text style={styles.sessionButtonText}>
                 {stats.due > 0
-                  ? `Начать сессию · ${Math.min(DEFAULT_SESSION_SIZE, stats.due)} карточек`
-                  : 'Нечего повторять'}
+                  ? t('flashcards.startSession', {
+                      n: Math.min(DEFAULT_SESSION_SIZE, stats.due),
+                    })
+                  : t('flashcards.nothingToReview')}
               </Text>
             </Pressable>
 
             {stats.due <= 0 ? (
               <Text style={[styles.emptyHint, { color: theme.textMuted }]}>
-                {filter === 'en'
-                  ? 'Добавьте английские слова из ридера (клик → «В карточки»).'
-                  : filter === 'zh'
-                    ? 'Добавьте слова из ридера — колода пока пуста.'
-                    : 'Добавьте слова из ридера или смените фильтр.'}
+                {t(emptyHintKey)}
               </Text>
             ) : (
               <Text style={[styles.emptyHint, { color: theme.textDim }]}>
-                Сначала карточки «на грани», затем новые. После ответа
-                интервал обновляется (SM-2).
+                {t('flashcards.sessionHint')}
               </Text>
             )}
           </ScrollView>
@@ -425,13 +454,16 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyEmoji}>✨</Text>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>
-              Сессия завершена
+              {t('flashcards.sessionDone')}
             </Text>
             <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              Повторено: {sessionDone}
-              {'\n'}
-              Снова {gradeCounts.again} · Трудно {gradeCounts.hard} · Хорошо{' '}
-              {gradeCounts.good} · Легко {gradeCounts.easy}
+              {t('flashcards.reviewedSummary', {
+                done: sessionDone,
+                again: gradeCounts.again,
+                hard: gradeCounts.hard,
+                good: gradeCounts.good,
+                easy: gradeCounts.easy,
+              })}
             </Text>
             <Pressable
               style={[styles.sessionButton, { backgroundColor: theme.accent }]}
@@ -440,7 +472,9 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 void reloadHub();
               }}
             >
-              <Text style={styles.sessionButtonText}>К колоде</Text>
+              <Text style={styles.sessionButtonText}>
+                {t('flashcards.backToDeck')}
+              </Text>
             </Pressable>
             <Pressable
               style={[
@@ -450,7 +484,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               onPress={() => void startSession()}
             >
               <Text style={[styles.refreshButtonText, { color: theme.accent }]}>
-                Ещё сессия
+                {t('flashcards.anotherSession')}
               </Text>
             </Pressable>
           </View>
@@ -459,8 +493,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
         {phase === 'session' && current ? (
           <View style={styles.cardArea}>
             <Text style={[styles.progress, { color: theme.textDim }]}>
-              {index + 1} / {queue.length}
-              {sessionDone > 0 ? ` · ответов ${sessionDone}` : ''}
+              {t('flashcards.progress', {
+                i: index + 1,
+                total: queue.length,
+              })}
+              {sessionDone > 0
+                ? t('flashcards.progressWithAnswers', { n: sessionDone })
+                : ''}
             </Text>
 
             <Pressable
@@ -562,7 +601,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                   ]}
                 >
                   <Text style={[styles.contextLabel, { color: theme.accent }]}>
-                    📖 из фанфика
+                    📖 {t('flashcards.fromFanfic')}
                     {current.sourceTitle ? ` · ${current.sourceTitle}` : ''}
                   </Text>
                   <Text style={[styles.contextQuote, { color: theme.text }]}>
@@ -571,7 +610,7 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 </View>
               ) : (
                 <Text style={[styles.noContext, { color: theme.textDim }]}>
-                  Цитата появится у новых карточек из ридера
+                  {t('flashcards.noContextYet')}
                 </Text>
               )}
 
@@ -593,12 +632,12 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                     </Text>
                   ) : null}
                   <Text style={[styles.translation, { color: theme.text }]}>
-                    {current.translation || 'Перевод не указан'}
+                    {current.translation || t('flashcards.noTranslation')}
                   </Text>
                 </View>
               ) : (
                 <Text style={[styles.hiddenHint, { color: theme.textDim }]}>
-                  Нажмите, чтобы увидеть ответ
+                  {t('flashcards.tapToReveal')}
                 </Text>
               )}
             </Pressable>
@@ -608,11 +647,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
                 style={[styles.revealButton, { backgroundColor: theme.accent }]}
                 onPress={() => setRevealed(true)}
               >
-                <Text style={styles.revealButtonText}>Показать ответ</Text>
+                <Text style={styles.revealButtonText}>
+                  {t('flashcards.showAnswer')}
+                </Text>
               </Pressable>
             ) : (
               <View style={styles.gradeRow}>
-                {GRADE_BUTTONS.map((btn) => {
+                {gradeButtons.map((btn) => {
                   const isAgain = btn.id === 'again';
                   const isHard = btn.id === 'hard';
                   const isEasy = btn.id === 'easy';

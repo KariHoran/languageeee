@@ -300,6 +300,141 @@ export type UiMessageKey =
   | 'action.open'
   | 'action.edit'
   | 'action.delete'
+  | 'flashcards.brand'
+  | 'flashcards.title.hub'
+  | 'flashcards.title.session'
+  | 'flashcards.title.done'
+  | 'flashcards.back'
+  | 'flashcards.backToDeck'
+  | 'flashcards.dueTotal'
+  | 'flashcards.stat.new'
+  | 'flashcards.stat.learning'
+  | 'flashcards.stat.learned'
+  | 'flashcards.langLabel'
+  | 'flashcards.langAll'
+  | 'flashcards.sourceLabel'
+  | 'flashcards.allBooks'
+  | 'flashcards.startSession'
+  | 'flashcards.nothingToReview'
+  | 'flashcards.emptyHint.en'
+  | 'flashcards.emptyHint.zh'
+  | 'flashcards.emptyHint.other'
+  | 'flashcards.sessionHint'
+  | 'flashcards.sessionDone'
+  | 'flashcards.reviewedSummary'
+  | 'flashcards.anotherSession'
+  | 'flashcards.progress'
+  | 'flashcards.progressWithAnswers'
+  | 'flashcards.fromFanfic'
+  | 'flashcards.noContextYet'
+  | 'flashcards.noTranslation'
+  | 'flashcards.tapToReveal'
+  | 'flashcards.showAnswer'
+  | 'flashcards.grade.again'
+  | 'flashcards.grade.hard'
+  | 'flashcards.grade.good'
+  | 'flashcards.grade.easy'
+  | 'flashcards.grade.againHint'
+  | 'flashcards.grade.hardHint'
+  | 'flashcards.grade.goodHint'
+  | 'flashcards.grade.easyHint'
+  | 'addBook.screenSubtitle.en'
+  | 'addBook.screenSubtitle.zh'
+  | 'addBook.screenSubtitle.ru'
+  | 'addBook.sourceLang'
+  | 'addBook.fanficTitle'
+  | 'addBook.titlePlaceholder'
+  | 'addBook.fanficText'
+  | 'addBook.uploadTxt'
+  | 'addBook.placeholder.en'
+  | 'addBook.placeholder.zh'
+  | 'addBook.placeholder.ru'
+  | 'addBook.translateFromTo'
+  | 'addBook.hskLevel'
+  | 'addBook.collection'
+  | 'addBook.createCollection'
+  | 'addBook.analyzeEn'
+  | 'addBook.saveLangText'
+  | 'addBook.analyzeText'
+  | 'addBook.saveAndRead'
+  | 'addBook.enPreviewTitle'
+  | 'addBook.enPreviewMeta'
+  | 'addBook.parallelLabel'
+  | 'addBook.parallelEmpty'
+  | 'addBook.parallelError'
+  | 'addBook.moreItems'
+  | 'addBook.grammarTitle'
+  | 'addBook.defaultTitle'
+  | 'addBook.newCollection'
+  | 'addBook.collectionNamePlaceholder'
+  | 'addBook.color'
+  | 'addBook.create'
+  | 'addBook.a11y.back'
+  | 'addBook.a11y.theme'
+  | 'addBook.a11y.translate'
+  | 'addBook.a11y.analyze'
+  | 'addBook.alert.attention'
+  | 'addBook.alert.error'
+  | 'addBook.alert.translateError'
+  | 'addBook.alert.analyzeError'
+  | 'addBook.alert.saveError'
+  | 'addBook.alert.enterCollection'
+  | 'addBook.alert.pasteForTranslate'
+  | 'addBook.alert.notLikely'
+  | 'addBook.alert.enterTitle'
+  | 'addBook.alert.enterText'
+  | 'addBook.alert.parallelTitle'
+  | 'addBook.alert.parallelBody'
+  | 'addBook.alert.translateUnavailableTitle'
+  | 'addBook.alert.translateUnavailableSave'
+  | 'addBook.alert.translateUnavailableRetry'
+  | 'addBook.alert.unsupportedPair'
+  | 'addBook.loading.translatePrep'
+  | 'addBook.loading.analyzeEn'
+  | 'addBook.loading.analyzeHsk'
+  | 'addBook.loading.prepareContent'
+  | 'addBook.loading.translateParallel'
+  | 'addBook.unknownError'
+  | 'reader.peekHint'
+  | 'reader.showParagraphTranslation'
+  | 'reader.hideParagraphTranslation'
+  | 'reader.peekedSuffix'
+  | 'reader.hiddenSuffix'
+  | 'reader.ttsWord'
+  | 'reader.ttsParagraph'
+  | 'reader.grammarBadge'
+  | 'reader.grammarToggle'
+  | 'reader.targetHskNotebook'
+  | 'reader.sourceParallel'
+  | 'reader.showNativeTranslation'
+  | 'reader.parsing'
+  | 'reader.translatingParagraphs'
+  | 'reader.translateTextFail'
+  | 'word.addToDict'
+  | 'word.markKnown'
+  | 'word.inDict'
+  | 'word.markedKnown'
+  | 'auth.enterEmail'
+  | 'auth.enterPassword'
+  | 'auth.passwordTooShort'
+  | 'auth.redirectingGoogle'
+  | 'auth.signOutTimeout'
+  | 'auth.syncTimeout'
+  | 'auth.signIn'
+  | 'auth.signUp'
+  | 'auth.signInSubtitle'
+  | 'auth.signUpSubtitle'
+  | 'auth.passwordPlaceholder'
+  | 'auth.noAccount'
+  | 'auth.hasAccount'
+  | 'auth.continueGuest'
+  | 'auth.syncDevicesHint'
+  | 'auth.signOut'
+  | 'auth.syncNow'
+  | 'auth.submitSignIn'
+  | 'auth.submitSignUp'
+  | 'auth.googleSignIn'
+  | 'auth.syncError'
 
 type Dictionary = Record<UiMessageKey, string>;
 
@@ -620,6 +755,159 @@ const ru: Dictionary = {
   'action.edit': 'Редактировать',
   'action.delete': 'Удалить',
   'library.loading': 'Загрузка…',
+  'flashcards.brand': '🌸 SRS · интервалы',
+  'flashcards.title.hub': 'Карточки',
+  'flashcards.title.session': 'Сессия',
+  'flashcards.title.done': 'Готово',
+  'flashcards.back': 'Назад',
+  'flashcards.backToDeck': 'К колоде',
+  'flashcards.dueTotal': 'К повторению: {due} · Всего: {total}',
+  'flashcards.stat.new': 'Новые',
+  'flashcards.stat.learning': 'На грани',
+  'flashcards.stat.learned': 'Выученные',
+  'flashcards.langLabel': 'Язык',
+  'flashcards.langAll': 'Все',
+  'flashcards.sourceLabel': 'Книга / фанфик',
+  'flashcards.allBooks': 'Все книги',
+  'flashcards.startSession': 'Начать сессию · {n} карточек',
+  'flashcards.nothingToReview': 'Нечего повторять',
+  'flashcards.emptyHint.en':
+    'Добавьте английские слова из ридера (клик → «В карточки»).',
+  'flashcards.emptyHint.zh': 'Добавьте слова из ридера — колода пока пуста.',
+  'flashcards.emptyHint.other': 'Добавьте слова из ридера или смените фильтр.',
+  'flashcards.sessionHint':
+    'Сначала карточки «на грани», затем новые. После ответа интервал обновляется (SM-2).',
+  'flashcards.sessionDone': 'Сессия завершена',
+  'flashcards.reviewedSummary':
+    'Повторено: {done}\nСнова {again} · Трудно {hard} · Хорошо {good} · Легко {easy}',
+  'flashcards.anotherSession': 'Ещё сессия',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · ответов {n}',
+  'flashcards.fromFanfic': 'из фанфика',
+  'flashcards.noContextYet': 'Цитата появится у новых карточек из ридера',
+  'flashcards.noTranslation': 'Перевод не указан',
+  'flashcards.tapToReveal': 'Нажмите, чтобы увидеть ответ',
+  'flashcards.showAnswer': 'Показать ответ',
+  'flashcards.grade.again': 'Снова',
+  'flashcards.grade.hard': 'Трудно',
+  'flashcards.grade.good': 'Хорошо',
+  'flashcards.grade.easy': 'Легко',
+  'flashcards.grade.againHint': '1д',
+  'flashcards.grade.hardHint': 'сложнее',
+  'flashcards.grade.goodHint': 'ок',
+  'flashcards.grade.easyHint': 'легко',
+  'addBook.screenSubtitle.en':
+    'Язык: English. Вставьте английский или переведите с родного — слова станут кликабельными, параллельный текст сохранится в книгу.',
+  'addBook.screenSubtitle.zh':
+    'Язык: 中文. Вставьте китайский или переведите с родного — HSK 3.0 подсветит сложные слова и пиньинь.',
+  'addBook.screenSubtitle.ru':
+    'Язык: русский. Вставьте русский текст для изучения — параллельный перевод на родной можно получить кнопкой ниже.',
+  'addBook.sourceLang': 'Язык исходного текста',
+  'addBook.fanficTitle': 'Название фанфика',
+  'addBook.titlePlaceholder': 'Например: Гарри Поттер и Тайная комната',
+  'addBook.fanficText': 'Текст фанфика',
+  'addBook.uploadTxt': 'Загрузить .txt',
+  'addBook.placeholder.en':
+    'Вставьте текст на родном языке (для перевода) или на английском…',
+  'addBook.placeholder.zh':
+    'Вставьте текст на родном языке или на китайском…',
+  'addBook.placeholder.ru':
+    'Вставьте текст на русском (изучаемый) или на родном для перевода…',
+  'addBook.translateFromTo': 'Перевести с {from} → {to}',
+  'addBook.hskLevel': 'Целевой уровень HSK',
+  'addBook.collection': 'Подборка',
+  'addBook.createCollection': '+ Создать новую подборку',
+  'addBook.analyzeEn': 'Разобрать английский текст',
+  'addBook.saveLangText': 'Сохранить текст ({lang})',
+  'addBook.analyzeText': 'Проанализировать текст',
+  'addBook.saveAndRead': 'Сохранить и начать чтение',
+  'addBook.enPreviewTitle': 'Разбор English · {n} слов',
+  'addBook.enPreviewMeta':
+    'Токенов: {n}. Пиньинь не используется. language: en.',
+  'addBook.parallelLabel': 'Параллельный текст ({lang})',
+  'addBook.parallelEmpty':
+    'Параллельный текст пока пуст — при сохранении попробуем перевести ещё раз.',
+  'addBook.parallelError': 'Перевод: {error}',
+  'addBook.moreItems': '…и ещё {n}',
+  'addBook.grammarTitle': 'Грамматика / Конструкции · {n}',
+  'addBook.defaultTitle': 'Новый фанфик',
+  'addBook.newCollection': 'Новая подборка',
+  'addBook.collectionNamePlaceholder': 'Название подборки',
+  'addBook.color': 'Цвет',
+  'addBook.create': 'Создать',
+  'addBook.a11y.back': 'Назад',
+  'addBook.a11y.theme': 'Переключить тему',
+  'addBook.a11y.translate': 'Перевести с родного языка',
+  'addBook.a11y.analyze': 'Проанализировать текст',
+  'addBook.alert.attention': 'Внимание',
+  'addBook.alert.error': 'Ошибка',
+  'addBook.alert.translateError': 'Ошибка перевода',
+  'addBook.alert.analyzeError': 'Ошибка анализа',
+  'addBook.alert.saveError': 'Ошибка сохранения',
+  'addBook.alert.enterCollection': 'Введите название подборки.',
+  'addBook.alert.pasteForTranslate':
+    'Вставьте текст на {lang} для перевода.',
+  'addBook.alert.notLikely':
+    'Текст не похож на {lang}. Вставьте оригинал на родном языке или смените язык контента.',
+  'addBook.alert.enterTitle': 'Введите название фанфика.',
+  'addBook.alert.enterText': 'Вставьте текст фанфика.',
+  'addBook.alert.parallelTitle': 'Параллельный перевод',
+  'addBook.alert.parallelBody':
+    'API перевода не ответил вовремя. Разбор слов готов — можно сохранить без перевода или попробовать снова.',
+  'addBook.alert.translateUnavailableTitle': 'Перевод недоступен',
+  'addBook.alert.translateUnavailableSave':
+    'Сохраняем текст без параллельного перевода. Попробуйте перевести позже.',
+  'addBook.alert.translateUnavailableRetry':
+    'Не удалось получить параллельный перевод. Книга сохранится без него.',
+  'addBook.alert.unsupportedPair':
+    'Пара перевода {from} → {to} пока не поддерживается.',
+  'addBook.loading.translatePrep': 'Переводим: подготовка…',
+  'addBook.loading.analyzeEn': 'Разбираем английские слова…',
+  'addBook.loading.analyzeHsk': 'Анализируем текст по словарю HSK…',
+  'addBook.loading.prepareContent': 'Готовим текст…',
+  'addBook.loading.translateParallel': 'Переводим параллельный текст…',
+  'addBook.unknownError': 'Неизвестная ошибка',
+  'reader.peekHint': 'Нажмите, чтобы подсмотреть',
+  'reader.showParagraphTranslation': 'Показать перевод абзаца',
+  'reader.hideParagraphTranslation': 'Скрыть перевод абзаца',
+  'reader.peekedSuffix': ' · подсмотр',
+  'reader.hiddenSuffix': ' · скрыт',
+  'reader.ttsWord': 'Озвучить {word}',
+  'reader.ttsParagraph': 'Озвучить абзац',
+  'reader.grammarBadge': 'Грамматика',
+  'reader.grammarToggle': 'Грамматика ({n})',
+  'reader.targetHskNotebook': 'Целевой HSK {n} · notebook mode',
+  'reader.sourceParallel': 'Источник: оригинальный параллельный текст',
+  'reader.showNativeTranslation': 'Показать / скрыть перевод',
+  'reader.parsing': 'Разбираем текст и грамматику…',
+  'reader.translatingParagraphs': 'Переводим абзацы…',
+  'reader.translateTextFail': 'Не удалось перевести текст',
+  'word.addToDict': 'Добавить в словарик',
+  'word.markKnown': 'Уже знаю',
+  'word.inDict': 'В словарике',
+  'word.markedKnown': 'Отмечено как известное',
+  'auth.enterEmail': 'Введите Email.',
+  'auth.enterPassword': 'Введите пароль.',
+  'auth.passwordTooShort': 'Пароль должен быть не короче 6 символов.',
+  'auth.redirectingGoogle': 'Перенаправление на Google…',
+  'auth.signOutTimeout': 'Выход занял слишком много времени',
+  'auth.syncTimeout': 'Синхронизация заняла слишком много времени',
+  'auth.signIn': 'Вход',
+  'auth.signUp': 'Регистрация',
+  'auth.signInSubtitle': 'Войдите в существующий аккаунт.',
+  'auth.signUpSubtitle': 'Создайте новый аккаунт для синхронизации.',
+  'auth.passwordPlaceholder': 'Пароль (минимум 6 символов)',
+  'auth.noAccount': 'Ещё нет аккаунта? Перейти к регистрации',
+  'auth.hasAccount': 'Уже есть аккаунт? Перейти ко входу',
+  'auth.continueGuest': 'Продолжить без входа',
+  'auth.syncDevicesHint':
+    'Ваши фанфики и карточки синхронизируются между устройствами.',
+  'auth.signOut': 'Выйти',
+  'auth.syncNow': 'Синхронизировать сейчас',
+  'auth.submitSignIn': 'Войти',
+  'auth.submitSignUp': 'Зарегистрироваться',
+  'auth.googleSignIn': '🔵 Войти через Google',
+  'auth.syncError': 'Ошибка синхронизации',
 };
 
 const en: Dictionary = {
@@ -936,6 +1224,161 @@ const en: Dictionary = {
   'action.edit': 'Edit',
   'action.delete': 'Delete',
   'library.loading': 'Loading…',
+  'flashcards.brand': '🌸 SRS · spaced',
+  'flashcards.title.hub': 'Cards',
+  'flashcards.title.session': 'Session',
+  'flashcards.title.done': 'Done',
+  'flashcards.back': 'Back',
+  'flashcards.backToDeck': 'To deck',
+  'flashcards.dueTotal': 'Due: {due} · Total: {total}',
+  'flashcards.stat.new': 'New',
+  'flashcards.stat.learning': 'Learning',
+  'flashcards.stat.learned': 'Learned',
+  'flashcards.langLabel': 'Language',
+  'flashcards.langAll': 'All',
+  'flashcards.sourceLabel': 'Book / fanfic',
+  'flashcards.allBooks': 'All books',
+  'flashcards.startSession': 'Start session · {n} cards',
+  'flashcards.nothingToReview': 'Nothing to review',
+  'flashcards.emptyHint.en':
+    'Add English words from the reader (tap → “Add to cards”).',
+  'flashcards.emptyHint.zh':
+    'Add words from the reader — the deck is empty for now.',
+  'flashcards.emptyHint.other':
+    'Add words from the reader or change the filter.',
+  'flashcards.sessionHint':
+    'Learning cards first, then new ones. After each answer the interval updates (SM-2).',
+  'flashcards.sessionDone': 'Session complete',
+  'flashcards.reviewedSummary':
+    'Reviewed: {done}\nAgain {again} · Hard {hard} · Good {good} · Easy {easy}',
+  'flashcards.anotherSession': 'Another session',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · answers {n}',
+  'flashcards.fromFanfic': 'from fanfic',
+  'flashcards.noContextYet': 'Quotes appear on new cards from the reader',
+  'flashcards.noTranslation': 'No translation yet',
+  'flashcards.tapToReveal': 'Tap to reveal the answer',
+  'flashcards.showAnswer': 'Show answer',
+  'flashcards.grade.again': 'Again',
+  'flashcards.grade.hard': 'Hard',
+  'flashcards.grade.good': 'Good',
+  'flashcards.grade.easy': 'Easy',
+  'flashcards.grade.againHint': '1d',
+  'flashcards.grade.hardHint': 'harder',
+  'flashcards.grade.goodHint': 'ok',
+  'flashcards.grade.easyHint': 'easy',
+  'addBook.screenSubtitle.en':
+    'Language: English. Paste English or translate from your native language — words become tappable and the parallel text is saved with the book.',
+  'addBook.screenSubtitle.zh':
+    'Language: 中文. Paste Chinese or translate from your native language — HSK 3.0 highlights hard words and pinyin.',
+  'addBook.screenSubtitle.ru':
+    'Language: Russian. Paste Russian study text — use the button below to get a parallel translation into your native language.',
+  'addBook.sourceLang': 'Source text language',
+  'addBook.fanficTitle': 'Fanfic title',
+  'addBook.titlePlaceholder': 'e.g. Harry Potter and the Chamber of Secrets',
+  'addBook.fanficText': 'Fanfic text',
+  'addBook.uploadTxt': 'Upload .txt',
+  'addBook.placeholder.en':
+    'Paste text in your native language (to translate) or in English…',
+  'addBook.placeholder.zh':
+    'Paste text in your native language or in Chinese…',
+  'addBook.placeholder.ru':
+    'Paste Russian study text, or native text to translate…',
+  'addBook.translateFromTo': 'Translate from {from} → {to}',
+  'addBook.hskLevel': 'Target HSK level',
+  'addBook.collection': 'Collection',
+  'addBook.createCollection': '+ Create new collection',
+  'addBook.analyzeEn': 'Analyze English text',
+  'addBook.saveLangText': 'Save {lang} text',
+  'addBook.analyzeText': 'Analyze text',
+  'addBook.saveAndRead': 'Save and start reading',
+  'addBook.enPreviewTitle': 'English breakdown · {n} words',
+  'addBook.enPreviewMeta':
+    'Tokens: {n}. No pinyin. language: en.',
+  'addBook.parallelLabel': 'Parallel text ({lang})',
+  'addBook.parallelEmpty':
+    'Parallel text is empty for now — we will try again on save.',
+  'addBook.parallelError': 'Translation: {error}',
+  'addBook.moreItems': '…and {n} more',
+  'addBook.grammarTitle': 'Grammar / Patterns · {n}',
+  'addBook.defaultTitle': 'New fanfic',
+  'addBook.newCollection': 'New collection',
+  'addBook.collectionNamePlaceholder': 'Collection name',
+  'addBook.color': 'Color',
+  'addBook.create': 'Create',
+  'addBook.a11y.back': 'Back',
+  'addBook.a11y.theme': 'Toggle theme',
+  'addBook.a11y.translate': 'Translate from native language',
+  'addBook.a11y.analyze': 'Analyze text',
+  'addBook.alert.attention': 'Notice',
+  'addBook.alert.error': 'Error',
+  'addBook.alert.translateError': 'Translation error',
+  'addBook.alert.analyzeError': 'Analysis error',
+  'addBook.alert.saveError': 'Save error',
+  'addBook.alert.enterCollection': 'Enter a collection name.',
+  'addBook.alert.pasteForTranslate':
+    'Paste text in {lang} to translate.',
+  'addBook.alert.notLikely':
+    'This does not look like {lang}. Paste native-language text or change the content language.',
+  'addBook.alert.enterTitle': 'Enter a fanfic title.',
+  'addBook.alert.enterText': 'Paste the fanfic text.',
+  'addBook.alert.parallelTitle': 'Parallel translation',
+  'addBook.alert.parallelBody':
+    'The translation API timed out. Word breakdown is ready — you can save without a parallel text or try again.',
+  'addBook.alert.translateUnavailableTitle': 'Translation unavailable',
+  'addBook.alert.translateUnavailableSave':
+    'Saving without a parallel translation. Try translating later.',
+  'addBook.alert.translateUnavailableRetry':
+    'Could not get a parallel translation. The book will be saved without it.',
+  'addBook.alert.unsupportedPair':
+    'Translation pair {from} → {to} is not supported yet.',
+  'addBook.loading.translatePrep': 'Translating: preparing…',
+  'addBook.loading.analyzeEn': 'Tokenizing English…',
+  'addBook.loading.analyzeHsk': 'Analyzing with the HSK dictionary…',
+  'addBook.loading.prepareContent': 'Preparing text…',
+  'addBook.loading.translateParallel': 'Translating parallel text…',
+  'addBook.unknownError': 'Unknown error',
+  'reader.peekHint': 'Tap to peek translation',
+  'reader.showParagraphTranslation': 'Show paragraph translation',
+  'reader.hideParagraphTranslation': 'Hide paragraph translation',
+  'reader.peekedSuffix': ' · peeked',
+  'reader.hiddenSuffix': ' · hidden',
+  'reader.ttsWord': 'Speak {word}',
+  'reader.ttsParagraph': 'Speak paragraph',
+  'reader.grammarBadge': 'Grammar',
+  'reader.grammarToggle': 'Grammar ({n})',
+  'reader.targetHskNotebook': 'Target HSK {n} · notebook mode',
+  'reader.sourceParallel': 'Source: original parallel text',
+  'reader.showNativeTranslation': 'Show / hide translation',
+  'reader.parsing': 'Parsing text and grammar…',
+  'reader.translatingParagraphs': 'Translating paragraphs…',
+  'reader.translateTextFail': 'Could not translate the text',
+  'word.addToDict': 'Add to dictionary',
+  'word.markKnown': 'I already know this',
+  'word.inDict': 'In dictionary',
+  'word.markedKnown': 'Marked as known',
+  'auth.enterEmail': 'Enter your email.',
+  'auth.enterPassword': 'Enter your password.',
+  'auth.passwordTooShort': 'Password must be at least 6 characters.',
+  'auth.redirectingGoogle': 'Redirecting to Google…',
+  'auth.signOutTimeout': 'Sign-out took too long',
+  'auth.syncTimeout': 'Sync took too long',
+  'auth.signIn': 'Sign in',
+  'auth.signUp': 'Sign up',
+  'auth.signInSubtitle': 'Sign in to your existing account.',
+  'auth.signUpSubtitle': 'Create a new account to sync.',
+  'auth.passwordPlaceholder': 'Password (min. 6 characters)',
+  'auth.noAccount': 'No account yet? Go to sign up',
+  'auth.hasAccount': 'Already have an account? Go to sign in',
+  'auth.continueGuest': 'Continue without signing in',
+  'auth.syncDevicesHint':
+    'Your fanfics and cards sync across devices.',
+  'auth.signOut': 'Sign out',
+  'auth.syncNow': 'Sync now',
+  'auth.submitSignIn': 'Sign in',
+  'auth.submitSignUp': 'Create account',
+  'auth.googleSignIn': '🔵 Sign in with Google',
+  'auth.syncError': 'Sync error',
 };
 
 const zh: Dictionary = {
@@ -1246,6 +1689,158 @@ const zh: Dictionary = {
   'action.edit': '编辑',
   'action.delete': '删除',
   'library.loading': '加载中…',
+  'flashcards.brand': '🌸 SRS · 间隔复习',
+  'flashcards.title.hub': '卡片',
+  'flashcards.title.session': '练习',
+  'flashcards.title.done': '完成',
+  'flashcards.back': '返回',
+  'flashcards.backToDeck': '返回卡组',
+  'flashcards.dueTotal': '待复习：{due} · 总计：{total}',
+  'flashcards.stat.new': '新卡',
+  'flashcards.stat.learning': '学习中',
+  'flashcards.stat.learned': '已掌握',
+  'flashcards.langLabel': '语言',
+  'flashcards.langAll': '全部',
+  'flashcards.sourceLabel': '书籍 / 小说',
+  'flashcards.allBooks': '全部书籍',
+  'flashcards.startSession': '开始练习 · {n} 张卡片',
+  'flashcards.nothingToReview': '暂无待复习',
+  'flashcards.emptyHint.en':
+    '请从阅读器添加英语单词（点击 →「加入卡片」）。',
+  'flashcards.emptyHint.zh': '请从阅读器添加单词 — 卡组目前为空。',
+  'flashcards.emptyHint.other': '请从阅读器添加单词，或更换筛选条件。',
+  'flashcards.sessionHint':
+    '先复习「学习中」的卡片，再学新卡。作答后间隔会更新（SM-2）。',
+  'flashcards.sessionDone': '练习完成',
+  'flashcards.reviewedSummary':
+    '已复习：{done}\n重来 {again} · 较难 {hard} · 良好 {good} · 简单 {easy}',
+  'flashcards.anotherSession': '再来一轮',
+  'flashcards.progress': '{i} / {total}',
+  'flashcards.progressWithAnswers': ' · 已答 {n}',
+  'flashcards.fromFanfic': '来自小说',
+  'flashcards.noContextYet': '新卡片的例句会在阅读器中添加后出现',
+  'flashcards.noTranslation': '暂无翻译',
+  'flashcards.tapToReveal': '点击查看答案',
+  'flashcards.showAnswer': '显示答案',
+  'flashcards.grade.again': '重来',
+  'flashcards.grade.hard': '较难',
+  'flashcards.grade.good': '良好',
+  'flashcards.grade.easy': '简单',
+  'flashcards.grade.againHint': '1天',
+  'flashcards.grade.hardHint': '更难',
+  'flashcards.grade.goodHint': '还行',
+  'flashcards.grade.easyHint': '轻松',
+  'addBook.screenSubtitle.en':
+    '语言：English。粘贴英语，或从母语翻译 — 单词可点击，平行译文会随书籍保存。',
+  'addBook.screenSubtitle.zh':
+    '语言：中文。粘贴中文，或从母语翻译 — HSK 3.0 会高亮难词与拼音。',
+  'addBook.screenSubtitle.ru':
+    '语言：俄语。粘贴俄语学习文本 — 可用下方按钮生成母语平行译文。',
+  'addBook.sourceLang': '原文语言',
+  'addBook.fanficTitle': '小说标题',
+  'addBook.titlePlaceholder': '例如：哈利·波特与密室',
+  'addBook.fanficText': '小说正文',
+  'addBook.uploadTxt': '上传 .txt',
+  'addBook.placeholder.en':
+    '粘贴母语文本（用于翻译）或英语文本…',
+  'addBook.placeholder.zh':
+    '粘贴母语文本或中文文本…',
+  'addBook.placeholder.ru':
+    '粘贴俄语学习文本，或母语文本以便翻译…',
+  'addBook.translateFromTo': '从 {from} 翻译 → {to}',
+  'addBook.hskLevel': '目标 HSK 等级',
+  'addBook.collection': '合集',
+  'addBook.createCollection': '+ 新建合集',
+  'addBook.analyzeEn': '分析英语文本',
+  'addBook.saveLangText': '保存{lang}文本',
+  'addBook.analyzeText': '分析文本',
+  'addBook.saveAndRead': '保存并开始阅读',
+  'addBook.enPreviewTitle': '英语解析 · {n} 个词',
+  'addBook.enPreviewMeta':
+    '词元：{n}。不使用拼音。language: en。',
+  'addBook.parallelLabel': '平行文本（{lang}）',
+  'addBook.parallelEmpty':
+    '平行文本暂为空 — 保存时会再试一次翻译。',
+  'addBook.parallelError': '翻译：{error}',
+  'addBook.moreItems': '…还有 {n} 项',
+  'addBook.grammarTitle': '语法 / 句式 · {n}',
+  'addBook.defaultTitle': '新小说',
+  'addBook.newCollection': '新建合集',
+  'addBook.collectionNamePlaceholder': '合集名称',
+  'addBook.color': '颜色',
+  'addBook.create': '创建',
+  'addBook.a11y.back': '返回',
+  'addBook.a11y.theme': '切换主题',
+  'addBook.a11y.translate': '从母语翻译',
+  'addBook.a11y.analyze': '分析文本',
+  'addBook.alert.attention': '注意',
+  'addBook.alert.error': '错误',
+  'addBook.alert.translateError': '翻译错误',
+  'addBook.alert.analyzeError': '分析错误',
+  'addBook.alert.saveError': '保存错误',
+  'addBook.alert.enterCollection': '请输入合集名称。',
+  'addBook.alert.pasteForTranslate':
+    '请粘贴{lang}文本以便翻译。',
+  'addBook.alert.notLikely':
+    '文本不像{lang}。请粘贴母语原文，或更换内容语言。',
+  'addBook.alert.enterTitle': '请输入小说标题。',
+  'addBook.alert.enterText': '请粘贴小说正文。',
+  'addBook.alert.parallelTitle': '平行翻译',
+  'addBook.alert.parallelBody':
+    '翻译接口超时。分词已完成 — 可先无译文保存，或稍后重试。',
+  'addBook.alert.translateUnavailableTitle': '无法翻译',
+  'addBook.alert.translateUnavailableSave':
+    '将保存为无平行译文。可稍后再译。',
+  'addBook.alert.translateUnavailableRetry':
+    '未能获得平行译文。书籍将不含译文保存。',
+  'addBook.alert.unsupportedPair':
+    '暂不支持翻译方向 {from} → {to}。',
+  'addBook.loading.translatePrep': '翻译中：准备…',
+  'addBook.loading.analyzeEn': '正在分词英语…',
+  'addBook.loading.analyzeHsk': '正在按 HSK 词典分析…',
+  'addBook.loading.prepareContent': '正在准备文本…',
+  'addBook.loading.translateParallel': '正在翻译平行文本…',
+  'addBook.unknownError': '未知错误',
+  'reader.peekHint': '点击查看翻译',
+  'reader.showParagraphTranslation': '显示段落翻译',
+  'reader.hideParagraphTranslation': '隐藏段落翻译',
+  'reader.peekedSuffix': ' · 已查看',
+  'reader.hiddenSuffix': ' · 已隐藏',
+  'reader.ttsWord': '朗读 {word}',
+  'reader.ttsParagraph': '朗读段落',
+  'reader.grammarBadge': '语法',
+  'reader.grammarToggle': '语法 ({n})',
+  'reader.targetHskNotebook': '目标 HSK {n} · notebook mode',
+  'reader.sourceParallel': '来源：原始平行译文',
+  'reader.showNativeTranslation': '显示 / 隐藏译文',
+  'reader.parsing': '正在解析文本与语法…',
+  'reader.translatingParagraphs': '正在翻译段落…',
+  'reader.translateTextFail': '无法翻译文本',
+  'word.addToDict': '加入生词本',
+  'word.markKnown': '已认识',
+  'word.inDict': '已在生词本',
+  'word.markedKnown': '已标为认识',
+  'auth.enterEmail': '请输入邮箱。',
+  'auth.enterPassword': '请输入密码。',
+  'auth.passwordTooShort': '密码至少需要 6 个字符。',
+  'auth.redirectingGoogle': '正在跳转到 Google…',
+  'auth.signOutTimeout': '退出超时',
+  'auth.syncTimeout': '同步超时',
+  'auth.signIn': '登录',
+  'auth.signUp': '注册',
+  'auth.signInSubtitle': '登录已有账户。',
+  'auth.signUpSubtitle': '创建新账户以同步数据。',
+  'auth.passwordPlaceholder': '密码（至少 6 个字符）',
+  'auth.noAccount': '还没有账户？去注册',
+  'auth.hasAccount': '已有账户？去登录',
+  'auth.continueGuest': '暂不登录，继续使用',
+  'auth.syncDevicesHint': '你的小说与卡片会在各设备间同步。',
+  'auth.signOut': '退出登录',
+  'auth.syncNow': '立即同步',
+  'auth.submitSignIn': '登录',
+  'auth.submitSignUp': '注册',
+  'auth.googleSignIn': '🔵 使用 Google 登录',
+  'auth.syncError': '同步错误',
 };
 
 const TABLES: Record<NativeLanguage, Dictionary> = { ru, en, zh };
