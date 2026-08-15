@@ -1,16 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../i18n/useI18n';
+import { formatUnitCount } from '../i18n/pluralI18n';
 import {
   fetchPublicDeck,
   importPublicDeck,
   type PublicDeckDoc,
 } from '../services/publicDecksService';
 import { showAlert } from '../utils/alert';
+import type { PublicCollectionAuthStatus } from './PublicCollectionPanel';
 import { Button, Div, Span } from './dom';
 import { useWebTheme } from './webTheme';
 
 interface PublicDeckPanelProps {
   slug: string;
+  authStatus: PublicCollectionAuthStatus;
   onClose: () => void;
   onImported?: () => void;
 }
@@ -18,40 +21,61 @@ interface PublicDeckPanelProps {
 /** Публичная колода по ссылке `/d/{slug}`. */
 export function PublicDeckPanel({
   slug,
+  authStatus,
   onClose,
   onImported,
 }: PublicDeckPanelProps) {
   const theme = useWebTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [deck, setDeck] = useState<PublicDeckDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const doc = await fetchPublicDeck(slug);
-      if (!doc) {
-        setError(t('flashcards.shareNotFound'));
-        setDeck(null);
-      } else {
-        setDeck(doc);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('flashcards.shareNotFound'));
-      setDeck(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, t]);
+  const [errorKind, setErrorKind] = useState<'notFound' | 'auth' | null>(null);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
 
-  const handleImport = async () => {
+    async function load() {
+      setLoading(true);
+      setErrorKind(null);
+      setDeck(null);
+
+      if (authStatus === 'pending') return;
+
+      if (authStatus === 'fail') {
+        if (!cancelled) {
+          setErrorKind('auth');
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const doc = await fetchPublicDeck(slug);
+        if (cancelled) return;
+        if (!doc) {
+          setErrorKind('notFound');
+          setDeck(null);
+        } else {
+          setDeck(doc);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('[PublicDeckPanel] load failed:', e);
+        setErrorKind('notFound');
+        setDeck(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, authStatus]);
+
+  const handleImport = useCallback(async () => {
     if (!deck || busy) return;
     setBusy(true);
     try {
@@ -72,7 +96,13 @@ export function PublicDeckPanel({
     } finally {
       setBusy(false);
     }
-  };
+  }, [deck, busy, onImported, t]);
+
+  const showLoading = authStatus === 'pending' || loading;
+  const errorText =
+    errorKind === 'auth'
+      ? t('public.loadFailAuthDisabled')
+      : t('flashcards.shareNotFound');
 
   return (
     <Div
@@ -100,15 +130,19 @@ export function PublicDeckPanel({
         </Button>
       </Div>
 
-      {loading ? (
+      {showLoading ? (
         <Div className={`text-sm ${theme.textMuted}`}>…</Div>
-      ) : error ? (
-        <Div className="text-sm text-rose-400 font-semibold">{error}</Div>
+      ) : errorKind ? (
+        <Div className="text-sm text-rose-400 font-semibold">{errorText}</Div>
       ) : deck ? (
         <>
           <Div className={`text-sm ${theme.textMuted} mb-4`}>
             {t('flashcards.shareMeta', {
-              n: deck.cardCount || deck.cards.length,
+              n: formatUnitCount(
+                deck.cardCount || deck.cards.length,
+                'card',
+                lang
+              ),
               lang: String(deck.language || 'all').toUpperCase(),
             })}
           </Div>

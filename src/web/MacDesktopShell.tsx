@@ -144,8 +144,8 @@ export default function MacDesktopShell() {
   const [shareSlug, setShareSlug] = useState<string | null>(() =>
     parseShareSlugFromPath()
   );
-  /** Auth для /c/{slug}: pending → ensureAnonymous, ok/fail до fetch. */
-  const [shareAuth, setShareAuth] = useState<'pending' | 'ok' | 'fail'>(
+  /** Auth для /c|/d|/u: pending → ensureAnonymous, ok/fail до fetch. */
+  const [publicAuth, setPublicAuth] = useState<'pending' | 'ok' | 'fail'>(
     'pending'
   );
   const [deckSlug, setDeckSlug] = useState<string | null>(() =>
@@ -325,21 +325,22 @@ export default function MacDesktopShell() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // Публичная подборка /c/{slug}: анонимный Firebase Auth до любого getDoc
+  // Публичные /c|/d|/u: анонимный Firebase Auth до любого getDoc
+  const publicLinkSlug = shareSlug || deckSlug || profileSlug;
   useEffect(() => {
-    if (!shareSlug) {
-      setShareAuth('pending');
+    if (!publicLinkSlug) {
+      setPublicAuth('pending');
       return;
     }
     let cancelled = false;
-    setShareAuth('pending');
+    setPublicAuth('pending');
     void ensureAnonymousAuthForPublicView().then((ok) => {
-      if (!cancelled) setShareAuth(ok ? 'ok' : 'fail');
+      if (!cancelled) setPublicAuth(ok ? 'ok' : 'fail');
     });
     return () => {
       cancelled = true;
     };
-  }, [shareSlug]);
+  }, [publicLinkSlug]);
 
   const refreshCardsDue = useCallback(async () => {
     try {
@@ -676,7 +677,7 @@ export default function MacDesktopShell() {
           <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
             <PublicCollectionPanel
               slug={shareSlug}
-              authStatus={shareAuth}
+              authStatus={publicAuth}
               onOpenBook={handleOpenPublicBook}
               onClose={closePublicShare}
               onAddedToLibrary={() => void reloadLibrary()}
@@ -686,6 +687,7 @@ export default function MacDesktopShell() {
           <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
             <PublicDeckPanel
               slug={deckSlug}
+              authStatus={publicAuth}
               onClose={closePublicShare}
               onImported={() => {
                 void refreshCardsDue();
@@ -695,7 +697,11 @@ export default function MacDesktopShell() {
           </Div>
         ) : profileSlug ? (
           <Div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            <PublicProfilePanel slug={profileSlug} onClose={closePublicShare} />
+            <PublicProfilePanel
+              slug={profileSlug}
+              authStatus={publicAuth}
+              onClose={closePublicShare}
+            />
           </Div>
         ) : tab === 'home' || tab === 'explore' || tab === 'library' ? (
           <>

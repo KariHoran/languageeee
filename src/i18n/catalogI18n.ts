@@ -6,6 +6,7 @@ import type {
   NativeLanguage,
 } from '../types';
 import { translateUi, type UiMessageKey } from './uiMessages';
+import { formatUnitCount } from './pluralI18n';
 
 /** Стабильные id тегов в данных каталога (не локализованные строки). */
 export type CatalogTagId =
@@ -120,9 +121,7 @@ export function catalogTextsCountLabel(
   count: number,
   lang: NativeLanguage
 ): string {
-  const key =
-    count === 1 ? 'catalog.textsCountOne' : 'catalog.textsCount';
-  return translateUi(key, lang, { n: count });
+  return formatUnitCount(count, 'text', lang);
 }
 
 /**

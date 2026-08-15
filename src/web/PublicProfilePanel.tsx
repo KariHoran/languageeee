@@ -1,47 +1,80 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useI18n } from '../i18n/useI18n';
+import { formatUnitCount } from '../i18n/pluralI18n';
 import {
   fetchPublicProfile,
   type PublicProfileDoc,
 } from '../services/publicProfilesService';
+import type { PublicCollectionAuthStatus } from './PublicCollectionPanel';
 import { Button, Div, Span } from './dom';
 import { useWebTheme } from './webTheme';
 
 interface PublicProfilePanelProps {
   slug: string;
+  authStatus: PublicCollectionAuthStatus;
   onClose: () => void;
 }
 
 /** Публичный профиль по ссылке `/u/{slug}`. */
-export function PublicProfilePanel({ slug, onClose }: PublicProfilePanelProps) {
+export function PublicProfilePanel({
+  slug,
+  authStatus,
+  onClose,
+}: PublicProfilePanelProps) {
   const theme = useWebTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [profile, setProfile] = useState<PublicProfileDoc | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const doc = await fetchPublicProfile(slug);
-      if (!doc) {
-        setError(t('profile.notFound'));
-        setProfile(null);
-      } else {
-        setProfile(doc);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('profile.notFound'));
-      setProfile(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [slug, t]);
+  const [errorKind, setErrorKind] = useState<'notFound' | 'auth' | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setErrorKind(null);
+      setProfile(null);
+
+      if (authStatus === 'pending') return;
+
+      if (authStatus === 'fail') {
+        if (!cancelled) {
+          setErrorKind('auth');
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const doc = await fetchPublicProfile(slug);
+        if (cancelled) return;
+        if (!doc) {
+          setErrorKind('notFound');
+          setProfile(null);
+        } else {
+          setProfile(doc);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('[PublicProfilePanel] load failed:', e);
+        setErrorKind('notFound');
+        setProfile(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     void load();
-  }, [load]);
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, authStatus]);
+
+  const showLoading = authStatus === 'pending' || loading;
+  const errorText =
+    errorKind === 'auth'
+      ? t('public.loadFailAuthDisabled')
+      : t('profile.notFound');
 
   return (
     <Div
@@ -69,11 +102,11 @@ export function PublicProfilePanel({ slug, onClose }: PublicProfilePanelProps) {
         </Button>
       </Div>
 
-      {loading ? (
+      {showLoading ? (
         <Div className={`text-sm ${theme.textMuted}`}>{t('profile.loading')}</Div>
-      ) : error ? (
+      ) : errorKind ? (
         <Div>
-          <Div className={`text-sm ${theme.textMuted}`}>{error}</Div>
+          <Div className={`text-sm ${theme.textMuted}`}>{errorText}</Div>
           <Button
             type="button"
             className={`mt-4 rounded-xl px-4 py-2 text-xs font-bold ${theme.cta}`}
@@ -123,12 +156,14 @@ export function PublicProfilePanel({ slug, onClose }: PublicProfilePanelProps) {
             </Div>
             <Div className={`mt-1 text-sm ${theme.text}`}>
               {t('profile.weekLine', {
-                words: profile.weekWords,
-                cards: profile.weekCards,
+                words: formatUnitCount(profile.weekWords, 'word', lang),
+                cards: formatUnitCount(profile.weekCards, 'card', lang),
               })}
             </Div>
             <Div className={`mt-2 text-xs ${theme.textMuted}`}>
-              {t('profile.cardsInDeck', { n: profile.cardsCount })}
+              {t('profile.cardsInDeck', {
+                n: formatUnitCount(profile.cardsCount, 'card', lang),
+              })}
             </Div>
           </Div>
           {profile.recentActivity && profile.recentActivity.length > 0 ? (
@@ -149,8 +184,8 @@ export function PublicProfilePanel({ slug, onClose }: PublicProfilePanelProps) {
                     <Span className={theme.textMuted}>{day.date}</Span>
                     <Span className={theme.text}>
                       {t('profile.activityDay', {
-                        words: day.wordsRead,
-                        cards: day.cardsReviewed,
+                        words: formatUnitCount(day.wordsRead, 'word', lang),
+                        cards: formatUnitCount(day.cardsReviewed, 'card', lang),
                       })}
                     </Span>
                   </Div>

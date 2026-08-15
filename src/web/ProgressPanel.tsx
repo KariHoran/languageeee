@@ -23,6 +23,7 @@ import {
 import { computeWeeklyQuest } from '../services/weeklyQuestService';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../i18n/useI18n';
+import { formatUnitCount } from '../i18n/pluralI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
 import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
@@ -81,7 +82,7 @@ export function ProgressPanel({
   widthClass = 'w-[250px] shrink-0',
 }: ProgressPanelProps) {
   const theme = useWebTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const streakCurrent = useAppStore((s) => s.streakCurrent);
   const streakLastActiveDate = useAppStore((s) => s.streakLastActiveDate);
   const activityByDay = useAppStore((s) => s.activityByDay);
@@ -263,9 +264,9 @@ export function ProgressPanel({
       <Div className={`${glassCard} px-3 py-2.5 mb-3`}>
         <Div className={`text-xs font-semibold ${theme.text}`}>
           {t('progress.weekStats', {
-            words: week.wordsRead,
-            cards: week.cardsReviewed,
-            min: week.minutes,
+            words: formatUnitCount(week.wordsRead, 'word', lang),
+            cards: formatUnitCount(week.cardsReviewed, 'card', lang),
+            min: formatUnitCount(week.minutes, 'minute', lang),
           })}
         </Div>
       </Div>
@@ -536,7 +537,7 @@ export function ProgressPanel({
               }}
               title={t('progress.activityDay', {
                 date: cell.date,
-                n: cell.wordsRead,
+                n: formatUnitCount(cell.wordsRead, 'word', lang),
               })}
             />
           ))}
@@ -564,7 +565,7 @@ export function ProgressPanel({
           <Div className={`mt-1 text-sm font-bold ${theme.text}`}>
             {t('progress.readingWords', {
               pct: Math.round(readPct),
-              n: readingProgress.wordsSeen,
+              n: formatUnitCount(readingProgress.wordsSeen, 'word', lang),
             })}
           </Div>
           <Div

@@ -11,6 +11,7 @@ import {
   catalogTextsCountLabel,
 } from '../i18n/catalogI18n';
 import { useI18n } from '../i18n/useI18n';
+import { formatUnitCount } from '../i18n/pluralI18n';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import {
   findImportedCatalogBook,
@@ -113,7 +114,7 @@ export function StoriesPage({
   onOpenPublicDeck,
 }: StoriesPageProps) {
   const theme = useWebTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   // Прямая подписка — UI каталога следует за nativeLanguage без залипания
   const uiLang = useAppStore((s) => s.nativeLanguage);
   const [shelfTab, setShelfTab] = useState<StoryShelfTab>('new');
@@ -525,7 +526,11 @@ export function StoriesPage({
                         className={`text-[10px] font-semibold ${theme.textMuted}`}
                       >
                         {t('catalog.deckCardsCount', {
-                          n: deck.cardCount || deck.cards.length,
+                          n: formatUnitCount(
+                            deck.cardCount || deck.cards.length,
+                            'card',
+                            lang
+                          ),
                         })}
                         {' · '}
                         {String(deck.language || 'all').toUpperCase()}

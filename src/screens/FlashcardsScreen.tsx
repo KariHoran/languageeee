@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StarfieldBackground from '../components/StarfieldBackground';
 import { useI18n } from '../i18n/useI18n';
+import { formatUnitCount } from '../i18n/pluralI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
 import {
   DEFAULT_SESSION_SIZE,
@@ -118,7 +119,7 @@ function ttsLangForCard(card: Flashcard): 'zh-CN' | 'en-US' | 'ru-RU' {
 /** SRS · сессия из 10 карточек + фильтры языка / книги */
 export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const gradeButtons = useMemo(() => buildGradeButtons(t), [t]);
   const [phase, setPhase] = useState<Phase>('hub');
   const [queue, setQueue] = useState<Flashcard[]>([]);
@@ -1012,7 +1013,11 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
               <Text style={styles.sessionButtonText}>
                 {stats.due > 0
                   ? t('flashcards.startSession', {
-                      n: Math.min(DEFAULT_SESSION_SIZE, stats.due),
+                      n: formatUnitCount(
+                        Math.min(DEFAULT_SESSION_SIZE, stats.due),
+                        'card',
+                        lang
+                      ),
                     })
                   : t('flashcards.nothingToReview')}
               </Text>

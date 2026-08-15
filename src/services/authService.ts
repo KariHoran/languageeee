@@ -152,7 +152,7 @@ export function isCloudUser(state: AuthState = currentState): boolean {
 }
 
 /**
- * Анонимный Firebase Auth только для чтения публичных ссылок (/c/{slug}).
+ * Анонимный Firebase Auth только для чтения публичных ссылок (/c|/d|/u).
  * Не трогает уже залогиненного пользователя и не делает isCloudUser() true
  * (anonymous → status guest, без email).
  */
