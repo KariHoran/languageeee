@@ -104,6 +104,10 @@ export type UiMessageKey =
   | 'notebook.addToParagraph'
   | 'notebook.export'
   | 'notebook.fromSelection'
+  | 'notebook.toCards'
+  | 'notebook.toCardsOk'
+  | 'notebook.toCardsBatch'
+  | 'notebook.toCardsBatchBody'
   | 'settings.installTitle'
   | 'settings.installHint'
   | 'settings.installUnavailable'
@@ -120,6 +124,8 @@ export type UiMessageKey =
   | 'install.manualBody'
   | 'install.alreadyTitle'
   | 'install.alreadyBody'
+  | 'install.apkCta'
+  | 'install.apkSoon'
   | 'catalog.importFail'
   | 'reader.pageLight'
   | 'reader.pageDark'
@@ -266,6 +272,8 @@ export type UiMessageKey =
   | 'profile.goHome'
   | 'profile.cardsInDeck'
   | 'profile.weekLine'
+  | 'profile.activityTitle'
+  | 'profile.activityDay'
   | 'progress.easy'
   | 'progress.medium'
   | 'progress.hard'
@@ -445,6 +453,14 @@ export type UiMessageKey =
   | 'progress.shareProfileOk'
   | 'progress.shareProfileCopied'
   | 'progress.shareProfileFail'
+  | 'progress.shareImage'
+  | 'progress.shareImageBusy'
+  | 'progress.weeklyQuest'
+  | 'progress.weeklyQuestStats'
+  | 'progress.weeklyQuestDone'
+  | 'progress.darkSpots'
+  | 'progress.darkSpotsHint'
+  | 'progress.darkSpotStat'
   | 'catalog.publicDecks'
   | 'catalog.noPublicDecks'
   | 'catalog.deckCardsCount'
@@ -658,6 +674,10 @@ const ru: Dictionary = {
   'notebook.addToParagraph': '+ заметка',
   'notebook.export': 'Экспорт',
   'notebook.fromSelection': '📝 В блокнот',
+  'notebook.toCards': 'В карточки',
+  'notebook.toCardsOk': 'Заметка добавлена в SRS-колоду',
+  'notebook.toCardsBatch': 'Все заметки → карточки',
+  'notebook.toCardsBatchBody': 'Добавлено: {added} · пропущено: {skipped}',
   'reader.pageLight': 'Светлый',
   'reader.pageDark': 'Тёмный',
   'reader.pageSepia': 'Сепия',
@@ -803,6 +823,8 @@ const ru: Dictionary = {
   'profile.goHome': 'На главную',
   'profile.cardsInDeck': 'Карточек в колоде: {n}',
   'profile.weekLine': '{words} слов · {cards} карточек за неделю',
+  'profile.activityTitle': 'Активность',
+  'profile.activityDay': '{words} слов · {cards} карточек',
   'progress.easy': 'Базовые',
   'progress.medium': 'Средние',
   'progress.hard': 'Сложные',
@@ -903,6 +925,9 @@ const ru: Dictionary = {
   'install.alreadyTitle': 'Приложение уже установлено',
   'install.alreadyBody':
     'Вы открыли Languageeee с домашнего экрана. Обновления приходят автоматически с сайта.',
+  'install.apkCta': 'Скачать APK',
+  'install.apkSoon':
+    'Файл APK появится здесь после сборки. Пока ставьте через Chrome (кнопка выше).',
   'catalog.importFail': 'Не удалось добавить текст в библиотеку',
   'library.newCategory': 'Новая категория',
   'library.newCategoryPlaceholder': 'Например: Избранное',
@@ -1028,6 +1053,15 @@ const ru: Dictionary = {
   'progress.shareProfileOk': 'Профиль опубликован',
   'progress.shareProfileCopied': 'Ссылка скопирована:\n{url}',
   'progress.shareProfileFail': 'Не удалось опубликовать профиль',
+  'progress.shareImage': 'Скачать картинку прогресса',
+  'progress.shareImageBusy': 'Рисуем…',
+  'progress.weeklyQuest': 'Квест недели',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} дн. с ≥{goal} карточками · серия {streak}',
+  'progress.weeklyQuestDone': 'Квест закрыт!',
+  'progress.darkSpots': 'Слабые места',
+  'progress.darkSpotsHint': 'Книги с частыми Again — стоит повторить',
+  'progress.darkSpotStat': 'weak {weak} · again {again}',
   'catalog.publicDecks': "Публичные колоды",
   'catalog.noPublicDecks': "Пока нет публичных колод",
   'catalog.deckCardsCount': "{n} карточек",
@@ -1255,6 +1289,10 @@ const en: Dictionary = {
   'notebook.addToParagraph': '+ note',
   'notebook.export': 'Export',
   'notebook.fromSelection': '📝 Notebook',
+  'notebook.toCards': 'To cards',
+  'notebook.toCardsOk': 'Note added to your SRS deck',
+  'notebook.toCardsBatch': 'All notes → cards',
+  'notebook.toCardsBatchBody': 'Added: {added} · skipped: {skipped}',
   'reader.pageLight': 'Light',
   'reader.pageDark': 'Dark',
   'reader.pageSepia': 'Sepia',
@@ -1398,6 +1436,8 @@ const en: Dictionary = {
   'profile.goHome': 'Go home',
   'profile.cardsInDeck': 'Cards in deck: {n}',
   'profile.weekLine': '{words} words · {cards} cards this week',
+  'profile.activityTitle': 'Activity',
+  'profile.activityDay': '{words} words · {cards} cards',
   'progress.easy': 'Basic',
   'progress.medium': 'Medium',
   'progress.hard': 'Hard',
@@ -1497,6 +1537,8 @@ const en: Dictionary = {
   'install.alreadyTitle': 'App already installed',
   'install.alreadyBody':
     'You opened Languageeee from the home screen. Updates come automatically from the site.',
+  'install.apkCta': 'Download APK',
+  'install.apkSoon': 'APK will appear here after the next build',
   'catalog.importFail': 'Could not add this text to your library',
   'library.newCategory': 'New category',
   'library.newCategoryPlaceholder': 'e.g. Favorites',
@@ -1624,6 +1666,15 @@ const en: Dictionary = {
   'progress.shareProfileOk': 'Profile published',
   'progress.shareProfileCopied': 'Link copied:\n{url}',
   'progress.shareProfileFail': 'Could not publish profile',
+  'progress.shareImage': 'Download progress image',
+  'progress.shareImageBusy': 'Rendering…',
+  'progress.weeklyQuest': 'Weekly quest',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} days with ≥{goal} cards · streak {streak}',
+  'progress.weeklyQuestDone': 'Quest complete!',
+  'progress.darkSpots': 'Weak spots',
+  'progress.darkSpotsHint': 'Books with frequent Again — worth reviewing',
+  'progress.darkSpotStat': 'weak {weak} · again {again}',
   'catalog.publicDecks': "Public decks",
   'catalog.noPublicDecks': "No public decks yet",
   'catalog.deckCardsCount': "{n} cards",
@@ -1846,6 +1897,10 @@ const zh: Dictionary = {
   'notebook.addToParagraph': '+ 笔记',
   'notebook.export': '导出',
   'notebook.fromSelection': '📝 笔记本',
+  'notebook.toCards': '加入卡片',
+  'notebook.toCardsOk': '笔记已加入 SRS 卡组',
+  'notebook.toCardsBatch': '全部笔记 → 卡片',
+  'notebook.toCardsBatchBody': '已添加：{added} · 跳过：{skipped}',
   'reader.pageLight': '浅色',
   'reader.pageDark': '深色',
   'reader.pageSepia': '羊皮纸',
@@ -1988,6 +2043,8 @@ const zh: Dictionary = {
   'profile.goHome': '返回首页',
   'profile.cardsInDeck': '卡组卡片：{n}',
   'profile.weekLine': '本周 {words} 词 · {cards} 卡',
+  'profile.activityTitle': '活动',
+  'profile.activityDay': '{words} 词 · {cards} 卡',
   'progress.easy': '基础',
   'progress.medium': '中等',
   'progress.hard': '较难',
@@ -2085,6 +2142,8 @@ const zh: Dictionary = {
   'install.alreadyTitle': '应用已安装',
   'install.alreadyBody':
     '你正从主屏幕打开 Languageeee。更新会从网站自动获取。',
+  'install.apkCta': '下载 APK',
+  'install.apkSoon': '下次构建后 APK 会出现在这里',
   'catalog.importFail': '无法将文本加入图书馆',
   'library.newCategory': '新建分类',
   'library.newCategoryPlaceholder': '例如：收藏',
@@ -2209,6 +2268,15 @@ const zh: Dictionary = {
   'progress.shareProfileOk': '主页已发布',
   'progress.shareProfileCopied': '链接已复制：\n{url}',
   'progress.shareProfileFail': '无法发布主页',
+  'progress.shareImage': '下载进度图',
+  'progress.shareImageBusy': '生成中…',
+  'progress.weeklyQuest': '本周任务',
+  'progress.weeklyQuestStats':
+    '{hit}/{target} 天达到 ≥{goal} 张卡 · 连续 {streak} 天',
+  'progress.weeklyQuestDone': '任务完成！',
+  'progress.darkSpots': '薄弱点',
+  'progress.darkSpotsHint': '经常点 Again 的书 — 值得再读',
+  'progress.darkSpotStat': '薄弱 {weak} · again {again}',
   'catalog.publicDecks': "公开卡组",
   'catalog.noPublicDecks': "暂无公开卡组",
   'catalog.deckCardsCount': "{n} 张卡片",

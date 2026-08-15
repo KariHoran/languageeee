@@ -7,6 +7,12 @@ import { getCloudUid } from './authService';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import { generateShareSlug } from './publicCollectionsService';
 
+export interface PublicProfileActivityDay {
+  date: string;
+  wordsRead: number;
+  cardsReviewed: number;
+}
+
 export interface PublicProfileDoc {
   slug: string;
   userId: string;
@@ -19,6 +25,7 @@ export interface PublicProfileDoc {
   cardsCount: number;
   weekWords: number;
   weekCards: number;
+  recentActivity?: PublicProfileActivityDay[];
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +48,7 @@ export async function publishPublicProfile(options: {
   cardsCount: number;
   weekWords: number;
   weekCards: number;
+  recentActivity?: PublicProfileActivityDay[];
 }): Promise<{ slug: string; url: string }> {
   if (!isFirebaseConfigured()) {
     throw new Error('Cloud is not configured');
@@ -72,6 +80,9 @@ export async function publishPublicProfile(options: {
     cardsCount: Math.max(0, Math.round(options.cardsCount)),
     weekWords: Math.max(0, Math.round(options.weekWords)),
     weekCards: Math.max(0, Math.round(options.weekCards)),
+    recentActivity: Array.isArray(options.recentActivity)
+      ? options.recentActivity.slice(0, 7)
+      : prev?.recentActivity,
     createdAt: prev?.createdAt || now,
     updatedAt: now,
   };

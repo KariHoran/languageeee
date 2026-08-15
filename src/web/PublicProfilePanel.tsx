@@ -131,6 +131,33 @@ export function PublicProfilePanel({ slug, onClose }: PublicProfilePanelProps) {
               {t('profile.cardsInDeck', { n: profile.cardsCount })}
             </Div>
           </Div>
+          {profile.recentActivity && profile.recentActivity.length > 0 ? (
+            <Div
+              className={`col-span-2 rounded-2xl px-3 py-3 border ${
+                theme.isDark ? 'border-[#2A2A3A] bg-[#16161f]' : 'border-gray-100 bg-gray-50'
+              }`}
+            >
+              <Div className={`text-[11px] font-bold uppercase ${theme.accent}`}>
+                {t('profile.activityTitle')}
+              </Div>
+              <Div className="mt-2 space-y-1.5">
+                {profile.recentActivity.map((day) => (
+                  <Div
+                    key={day.date}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <Span className={theme.textMuted}>{day.date}</Span>
+                    <Span className={theme.text}>
+                      {t('profile.activityDay', {
+                        words: day.wordsRead,
+                        cards: day.cardsReviewed,
+                      })}
+                    </Span>
+                  </Div>
+                ))}
+              </Div>
+            </Div>
+          ) : null}
         </Div>
       ) : null}
     </Div>

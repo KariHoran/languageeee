@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../i18n/useI18n';
 import { downloadTextFile } from '../services/flashcardsExport';
+import { addFlashcard, hasFlashcard } from '../services/flashcardsStore';
 import { useAppStore } from '../store/useAppStore';
 import type { StickyNote } from '../types/stickyNote';
+import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
 import { useWebTheme } from './webTheme';
 
@@ -291,7 +293,54 @@ export function ReaderNotebookPanel({
               {t('notebook.empty')}
             </Div>
           ) : (
-            notes.map((note) => (
+            <>
+              <Button
+                type="button"
+                className={`w-full mb-2 rounded-xl px-3 py-2 text-xs font-bold ${theme.cta}`}
+                onClick={() => {
+                  void (async () => {
+                    const learning = useAppStore.getState().learningLanguage;
+                    let added = 0;
+                    let skipped = 0;
+                    for (const note of notes) {
+                      const hanzi = (note.selectedText || note.note)
+                        .trim()
+                        .slice(0, 40);
+                      if (!hanzi) {
+                        skipped += 1;
+                        continue;
+                      }
+                      try {
+                        if (await hasFlashcard(hanzi, learning)) {
+                          skipped += 1;
+                          continue;
+                        }
+                        await addFlashcard({
+                          hanzi,
+                          translation: note.note.trim(),
+                          language: learning,
+                          contextSentence: note.selectedText || undefined,
+                          sourceBookId: bookId,
+                          sourceTitle: bookTitle || undefined,
+                        });
+                        added += 1;
+                      } catch {
+                        skipped += 1;
+                      }
+                    }
+                    showAlert(
+                      t('notebook.toCardsBatch'),
+                      t('notebook.toCardsBatchBody', {
+                        added,
+                        skipped,
+                      })
+                    );
+                  })();
+                }}
+              >
+                {t('notebook.toCardsBatch')}
+              </Button>
+              {notes.map((note) => (
               <Div
                 key={note.id}
                 className="rounded-2xl px-3 py-2.5 shadow-sm"
@@ -316,7 +365,7 @@ export function ReaderNotebookPanel({
                 <Div className="text-sm text-black/90 whitespace-pre-wrap leading-snug">
                   {note.note}
                 </Div>
-                <Div className="mt-2 flex items-center gap-2">
+                <Div className="mt-2 flex items-center gap-2 flex-wrap">
                   {note.paragraphIndex >= 0 && onJumpToParagraph ? (
                     <Button
                       type="button"
@@ -329,6 +378,54 @@ export function ReaderNotebookPanel({
                       {t('notebook.jump')}
                     </Button>
                   ) : null}
+                  <Button
+                    type="button"
+                    className="text-[10px] font-bold text-black/55 hover:text-black"
+                    onClick={() => {
+                      void (async () => {
+                        const surface = (note.selectedText || note.note)
+                          .trim()
+                          .split(/\s|—|-/)[0]
+                          ?.trim();
+                        const hanzi =
+                          (note.selectedText || '').trim() ||
+                          surface ||
+                          note.note.trim().slice(0, 40);
+                        if (!hanzi) return;
+                        const learning =
+                          useAppStore.getState().learningLanguage;
+                        try {
+                          const exists = await hasFlashcard(hanzi, learning);
+                          if (exists) {
+                            showAlert(
+                              t('notebook.toCards'),
+                              t('word.alreadyInCard')
+                            );
+                            return;
+                          }
+                          await addFlashcard({
+                            hanzi,
+                            translation: note.note.trim(),
+                            language: learning,
+                            contextSentence: note.selectedText || undefined,
+                            sourceBookId: bookId,
+                            sourceTitle: bookTitle || undefined,
+                          });
+                          showAlert(
+                            t('notebook.toCards'),
+                            t('notebook.toCardsOk')
+                          );
+                        } catch (e) {
+                          showAlert(
+                            t('alert.error'),
+                            e instanceof Error ? e.message : t('alert.error')
+                          );
+                        }
+                      })();
+                    }}
+                  >
+                    {t('notebook.toCards')}
+                  </Button>
                   <Button
                     type="button"
                     className="text-[10px] font-bold text-black/55 hover:text-black"
@@ -345,7 +442,8 @@ export function ReaderNotebookPanel({
                   </Button>
                 </Div>
               </Div>
-            ))
+            ))}
+            </>
           )}
         </Div>
       </Div>

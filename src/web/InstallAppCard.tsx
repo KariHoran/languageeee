@@ -10,8 +10,10 @@ import {
 } from './registerPwa';
 import { useWebTheme } from './webTheme';
 
+const APK_URL = '/downloads/languageeee.apk';
+
 /**
- * Скачать / установить приложение прямо с сайта (PWA, без Play Store).
+ * Скачать / установить приложение прямо с сайта (PWA + опциональный APK).
  */
 export function InstallAppCard() {
   const theme = useWebTheme();
@@ -19,6 +21,7 @@ export function InstallAppCard() {
   const [canInstall, setCanInstall] = useState(() => canPromptPwaInstall());
   const [installed, setInstalled] = useState(() => isPwaInstalled());
   const [busy, setBusy] = useState(false);
+  const [apkAvailable, setApkAvailable] = useState(false);
 
   useEffect(() => {
     return subscribePwaInstallAvailability(() => {
@@ -33,6 +36,20 @@ export function InstallAppCard() {
     const onChange = () => setInstalled(isPwaInstalled());
     mq.addEventListener?.('change', onChange);
     return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(APK_URL, { method: 'HEAD' })
+      .then((res) => {
+        if (!cancelled) setApkAvailable(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setApkAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleDownload = () => {
@@ -61,13 +78,22 @@ export function InstallAppCard() {
 
   if (installed) {
     return (
-      <Div className={`rounded-2xl ${theme.card} px-4 py-3`}>
+      <Div className={`rounded-2xl ${theme.card} px-4 py-3 space-y-2`}>
         <Div className={`font-bold ${theme.accent} text-sm`}>
           {t('install.alreadyTitle')}
         </Div>
         <Div className={`text-xs ${theme.textMuted} mt-0.5`}>
           {t('install.alreadyBody')}
         </Div>
+        {apkAvailable ? (
+          <a
+            href={APK_URL}
+            download
+            className={`inline-flex w-full justify-center rounded-xl px-3 py-2 text-xs font-bold no-underline ${theme.cta}`}
+          >
+            {t('install.apkCta')}
+          </a>
+        ) : null}
       </Div>
     );
   }
@@ -95,6 +121,24 @@ export function InstallAppCard() {
             ? t('install.downloadCta')
             : t('install.showHow')}
       </Button>
+
+      {apkAvailable ? (
+        <a
+          href={APK_URL}
+          download
+          className={`inline-flex w-full justify-center rounded-xl px-3 py-2 text-xs font-bold border no-underline ${
+            theme.isDark
+              ? 'border-[#2A2A3A] text-white/80'
+              : 'border-gray-200 text-gray-800'
+          }`}
+        >
+          {t('install.apkCta')}
+        </a>
+      ) : (
+        <Div className={`text-[10px] leading-snug ${theme.textMuted}`}>
+          {t('install.apkSoon')}
+        </Div>
+      )}
 
       <Div className={`text-[11px] leading-relaxed ${theme.textMuted}`}>
         <Div className={`font-bold mb-1 ${theme.text}`}>{t('install.androidTitle')}</Div>

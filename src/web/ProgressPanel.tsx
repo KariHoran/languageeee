@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   buildActivityHeatmap,
   displayStreak,
@@ -8,8 +8,19 @@ import {
   sumActivityRange,
 } from '../services/activityAnalytics';
 import type { BookCoverage } from '../services/bookCoverageService';
+import { getDarkSpots, type DarkSpot } from '../services/darkSpotsService';
+import {
+  maybeNotifyDueCards,
+  notificationPermission,
+  requestNotificationPermission,
+} from '../services/dueReminderService';
 import { publishPublicProfile } from '../services/publicProfilesService';
 import type { ReadingProgress } from '../services/readingProgressStore';
+import {
+  downloadProgressShareImage,
+  downloadProgressShareText,
+} from '../services/shareProgressImage';
+import { computeWeeklyQuest } from '../services/weeklyQuestService';
 import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../i18n/useI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
@@ -78,6 +89,9 @@ export function ProgressPanel({
   const dailyCardsGoal = useAppStore((s) => s.dailyCardsGoal);
   const setDailyGoals = useAppStore((s) => s.setDailyGoals);
   const [shareBusy, setShareBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [darkSpots, setDarkSpots] = useState<DarkSpot[]>([]);
+  const learningLanguage = useAppStore((s) => s.learningLanguage);
   const streak = useMemo(
     () => displayStreak(streakCurrent, streakLastActiveDate),
     [streakCurrent, streakLastActiveDate]
@@ -92,6 +106,51 @@ export function ProgressPanel({
     () => sumActivityRange(activityByDay, 7),
     [activityByDay]
   );
+
+  const weeklyQuest = useMemo(
+    () => computeWeeklyQuest(activityByDay, dailyCardsGoal),
+    [activityByDay, dailyCardsGoal]
+  );
+
+  const recentActivity = useMemo(() => {
+    const keys: string[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      keys.push(localDayKey(d));
+    }
+    return keys.map((date) => ({
+      date,
+      wordsRead: activityByDay[date]?.wordsRead ?? 0,
+      cardsReviewed: activityByDay[date]?.cardsReviewed ?? 0,
+    }));
+  }, [activityByDay]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getDarkSpots(learningLanguage, 4).then((spots) => {
+      if (!cancelled) setDarkSpots(spots);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [learningLanguage, wordsLearned]);
+
+  useEffect(() => {
+    if (dueCards <= 0) return;
+    if (notificationPermission() === 'denied') return;
+    void (async () => {
+      if (notificationPermission() === 'default') {
+        await requestNotificationPermission();
+      }
+      await maybeNotifyDueCards(
+        dueCards,
+        t('progress.dueBannerTitle', { n: dueCards }),
+        t('progress.dueBannerHint')
+      );
+    })();
+  }, [dueCards, t]);
 
   const wordsGoalPct = Math.min(
     100,
@@ -226,6 +285,7 @@ export function ProgressPanel({
                 cardsCount: wordsLearned,
                 weekWords: week.wordsRead,
                 weekCards: week.cardsReviewed,
+                recentActivity,
               });
               try {
                 await navigator.clipboard.writeText(url);
@@ -249,6 +309,67 @@ export function ProgressPanel({
       >
         {shareBusy ? t('progress.shareProfileBusy') : t('progress.shareProfile')}
       </Button>
+
+      <Button
+        type="button"
+        disabled={imageBusy}
+        className={`w-full mb-3 rounded-xl px-3 py-2 text-xs font-bold transition border ${
+          theme.isDark
+            ? 'border-[#2A2A3A] text-white/80 hover:bg-white/5'
+            : 'border-gray-200 text-gray-800 hover:bg-gray-50'
+        } disabled:opacity-50`}
+        onClick={() => {
+          if (imageBusy) return;
+          setImageBusy(true);
+          void (async () => {
+            try {
+              const payload = {
+                streak,
+                wordsLearned,
+                weekWords: week.wordsRead,
+                weekCards: week.cardsReviewed,
+              };
+              const ok = await downloadProgressShareImage(payload);
+              if (!ok) await downloadProgressShareText(payload);
+            } finally {
+              setImageBusy(false);
+            }
+          })();
+        }}
+      >
+        {imageBusy ? t('progress.shareImageBusy') : t('progress.shareImage')}
+      </Button>
+
+      <Div className={`${glassCard} px-3 py-2.5 mb-3`}>
+        <Div className="flex items-center justify-between gap-2 mb-1">
+          <Span className={`text-[11px] font-bold uppercase ${theme.accent}`}>
+            {t('progress.weeklyQuest')}
+          </Span>
+          {weeklyQuest.completed ? (
+            <Span className="text-[10px] font-bold text-[#D0FF00]">
+              {t('progress.weeklyQuestDone')}
+            </Span>
+          ) : null}
+        </Div>
+        <Div className={`text-xs font-semibold ${theme.text}`}>
+          {t('progress.weeklyQuestStats', {
+            hit: weeklyQuest.daysHit,
+            target: weeklyQuest.targetDays,
+            goal: weeklyQuest.dailyCardsGoal,
+            streak: weeklyQuest.streakDays,
+          })}
+        </Div>
+        <Div
+          className={`mt-2 h-1.5 rounded-full overflow-hidden ${
+            theme.isDark ? 'bg-[#2A2A3A]' : 'bg-gray-100'
+          }`}
+        >
+          <Div
+            className="h-full rounded-full bg-[#8B5CF6] transition-all"
+            style={{ width: `${weeklyQuest.percent}%` }}
+          />
+        </Div>
+      </Div>
 
       <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
         {t('progress.dailyGoal')}
@@ -333,6 +454,35 @@ export function ProgressPanel({
           </Div>
         ) : null}
       </Div>
+
+      {darkSpots.length > 0 ? (
+        <>
+          <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
+            {t('progress.darkSpots')}
+          </Div>
+          <Div className={`${glassCard} px-3 py-2.5 mb-3 space-y-2`}>
+            <Div className={`text-[10px] ${theme.textMuted}`}>
+              {t('progress.darkSpotsHint')}
+            </Div>
+            {darkSpots.map((spot) => (
+              <Div
+                key={spot.key}
+                className="flex items-start justify-between gap-2"
+              >
+                <Span className={`text-[11px] font-semibold line-clamp-2 ${theme.text}`}>
+                  {spot.title}
+                </Span>
+                <Span className="shrink-0 text-[10px] font-bold text-[#FF6584]">
+                  {t('progress.darkSpotStat', {
+                    weak: spot.weakCount,
+                    again: spot.againSum,
+                  })}
+                </Span>
+              </Div>
+            ))}
+          </Div>
+        </>
+      ) : null}
 
       <Div className={`text-[10px] font-bold uppercase tracking-wider ${theme.accent} mb-1.5`}>
         {t('progress.today')}

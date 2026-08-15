@@ -72,21 +72,32 @@
 
 ### 🃏 Карточки и прогресс
 
-- Flashcards с интервалами **SuperMemo-2** (`srsService.ts`).
-- Автосохранение позиции чтения: локально → Firestore с **debounce 800 ms** (`scheduleReadingProgressSync`).
-- Streak-трекер и аналитика активности по дням.
+- Flashcards с интервалами **SuperMemo-2** (`srsService.ts`): режимы recognition / recall / cloze / listen, weak-queue.
+- Ежедневные цели, due-tomorrow, streak и heatmap активности.
+- **Квест недели** — N дней с достижением цели по карточкам.
+- **Слабые места** — книги с частыми Again.
+- Покрытие словаря книги (`known%` + HSK / EN-бары).
+- Локальное **напоминание о due** (Notification API, раз в день).
+- Скачивание **картинки прогресса** (PNG) и публичный профиль `/u/{slug}` с лентой активности.
+- Автосохранение позиции чтения: локально → Firestore с **debounce 800 ms**.
+
+### 📓 Блокнот и офлайн
+
+- Заметки к абзацам / выделению; экспорт; **заметки → SRS-карточки**.
+- Offline-очередь синка и pin книг для чтения без сети.
 
 ### ☁️ Облако и auth
 
 - **Firebase Auth**: Email/Password + Google (redirect на web).
-- **Firestore sync**: книги, подборки, карточки, прогресс, sticky notes — merge с tombstones и conflict resolution (`cloudSyncService.ts`).
+- **Cloud sync**: книги, подборки, карточки, прогресс, sticky notes — merge с tombstones и conflict resolution (`cloudSyncService.ts`).
 - **Security Rules** + клиентский **RBAC** (`firestore.rules`, `rbac.ts`).
+- Публичные коллекции `/c/{slug}` и публичные колоды.
 
-### 📱 PWA (web)
+### 📱 Установка с сайта (без Play Store)
 
-- Service Worker (`public/sw.js`) — precache shell, offline-first.
-- Web Manifest, иконки 192/512, установка на домашний экран.
-- Cache-заголовки настроены в `vercel.json`.
+- **PWA**: Service Worker (`public/sw.js`), manifest, кнопка «Скачать / установить» в настройках.
+- Опциональный **APK**: `public/downloads/languageeee.apk` после `eas build -p android --profile preview` (`eas.json`). Пока файла нет — только PWA.
+- Cache-заголовки в `vercel.json`.
 
 ### 🖥 Web-only extras
 
