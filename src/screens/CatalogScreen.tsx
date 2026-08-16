@@ -31,6 +31,7 @@ import {
 import {
   importPublicCollection,
   listPublicCollections,
+  getImportedPublicSlugs,
 } from '../services/publicCollectionsService';
 import { isPublicCollectionOwner } from '../services/rbac';
 import { getBooks } from '../services/storageService';
@@ -90,6 +91,7 @@ export default function CatalogScreen({
   const [publicCols, setPublicCols] = useState<PublicCollectionDoc[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
   const [importSlug, setImportSlug] = useState<string | null>(null);
+  const [importedSlugs, setImportedSlugs] = useState<Set<string>>(new Set());
 
   const tagOptions = useMemo(() => getCatalogTagOptions(), []);
   const languageOptions = useMemo(() => catalogLanguageOptions(uiLang), [uiLang]);
@@ -121,8 +123,14 @@ export default function CatalogScreen({
           if (!cancelled) setPublicCols([]);
           return;
         }
-        const cols = await listPublicCollections(debouncedQuery);
-        if (!cancelled) setPublicCols(cols);
+        const [cols, imported] = await Promise.all([
+          listPublicCollections(debouncedQuery),
+          getImportedPublicSlugs(),
+        ]);
+        if (!cancelled) {
+          setPublicCols(cols);
+          setImportedSlugs(imported);
+        }
       } catch (err) {
         console.warn('[CatalogScreen] public collections failed', err);
         if (!cancelled) setPublicCols([]);
@@ -150,13 +158,20 @@ export default function CatalogScreen({
           return;
         }
         const result = await importPublicCollection(col);
+        const wasImported = importedSlugs.has(col.slug);
         showAlert(
-          t('public.imported'),
-          t('public.importedBody', {
-            added: result.added,
-            skipped: result.skipped,
-          })
+          wasImported ? t('public.updated') : t('public.imported'),
+          wasImported
+            ? t('public.updatedBody', {
+                added: result.added,
+                skipped: result.skipped,
+              })
+            : t('public.importedBody', {
+                added: result.added,
+                skipped: result.skipped,
+              })
         );
+        setImportedSlugs((prev) => new Set(prev).add(col.slug));
         onLibraryChanged?.(result.collectionId);
       } catch (err) {
         const empty =
@@ -173,7 +188,7 @@ export default function CatalogScreen({
         setImportSlug(null);
       }
     },
-    [importSlug, busyId, onLibraryChanged, t]
+    [importSlug, busyId, importedSlugs, onLibraryChanged, t]
   );
   const stories = useMemo(
     () =>
@@ -376,6 +391,7 @@ export default function CatalogScreen({
             {publicCols.map((col) => {
               const isMine = isPublicCollectionOwner(col);
               const importing = importSlug === col.slug;
+              const alreadyIn = importedSlugs.has(col.slug);
               return (
                 <View
                   key={col.slug}
@@ -399,7 +415,9 @@ export default function CatalogScreen({
                       {' · '}
                       {isMine
                         ? t('catalog.youAreAuthor')
-                        : t('catalog.readOnly')}
+                        : alreadyIn
+                          ? t('catalog.inLibrary')
+                          : t('catalog.readOnly')}
                     </Text>
                     <Pressable
                       disabled={!onOpenPublicCollection || importing}
@@ -428,8 +446,12 @@ export default function CatalogScreen({
                       >
                         <Text style={[styles.secondaryBtnText, { color: theme.text }]}>
                           {importing
-                            ? t('public.importBusy')
-                            : t('public.importAll')}
+                            ? alreadyIn
+                              ? t('public.updateBusy')
+                              : t('public.importBusy')
+                            : alreadyIn
+                              ? t('public.importUpdate')
+                              : t('public.importAll')}
                         </Text>
                       </Pressable>
                     ) : null}

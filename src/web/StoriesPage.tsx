@@ -18,7 +18,7 @@ import {
   getCatalogStories,
   importCatalogStory,
 } from '../services/catalogService';
-import { listPublicCollections, importPublicCollection } from '../services/publicCollectionsService';
+import { listPublicCollections, importPublicCollection, getImportedPublicSlugs } from '../services/publicCollectionsService';
 import {
   listPublicDecks,
   type PublicDeckDoc,
@@ -135,6 +135,7 @@ export function StoriesPage({
   const [publicLoading, setPublicLoading] = useState(true);
   const [publicError, setPublicError] = useState(false);
   const [importSlug, setImportSlug] = useState<string | null>(null);
+  const [importedSlugs, setImportedSlugs] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [progressByCatalogId, setProgressByCatalogId] = useState<
     Record<string, { percent: number }>
@@ -195,13 +196,15 @@ export function StoriesPage({
           }
           return;
         }
-        const [cols, decks] = await Promise.all([
+        const [cols, decks, imported] = await Promise.all([
           listPublicCollections(debouncedQuery),
           listPublicDecks(debouncedQuery),
+          getImportedPublicSlugs(),
         ]);
         if (!cancelled) {
           setPublicCols(cols);
           setPublicDecks(decks);
+          setImportedSlugs(imported);
         }
       } catch (err) {
         console.warn('[StoriesPage] public collections failed', err);
@@ -233,13 +236,20 @@ export function StoriesPage({
           return;
         }
         const result = await importPublicCollection(col);
+        const wasImported = importedSlugs.has(col.slug);
         showAlert(
-          t('public.imported'),
-          t('public.importedBody', {
-            added: result.added,
-            skipped: result.skipped,
-          })
+          wasImported ? t('public.updated') : t('public.imported'),
+          wasImported
+            ? t('public.updatedBody', {
+                added: result.added,
+                skipped: result.skipped,
+              })
+            : t('public.importedBody', {
+                added: result.added,
+                skipped: result.skipped,
+              })
         );
+        setImportedSlugs((prev) => new Set(prev).add(col.slug));
         onOpenMyLibrary?.(result.collectionId);
       } catch (err) {
         const empty =
@@ -256,7 +266,7 @@ export function StoriesPage({
         setImportSlug(null);
       }
     },
-    [importSlug, busyId, onOpenMyLibrary, t]
+    [importSlug, busyId, importedSlugs, onOpenMyLibrary, t]
   );
   const stories = useMemo(
     () =>
@@ -498,6 +508,7 @@ export function StoriesPage({
               {publicCols.map((col) => {
                 const isMine = isPublicCollectionOwner(col);
                 const importing = importSlug === col.slug;
+                const alreadyIn = importedSlugs.has(col.slug);
                 return (
                   <Div
                     key={col.slug}
@@ -522,6 +533,11 @@ export function StoriesPage({
                             {isMine ? (
                               <Span className={BADGE_OWNER}>
                                 {t('catalog.badgeOwner')}
+                              </Span>
+                            ) : null}
+                            {alreadyIn ? (
+                              <Span className={BADGE_PUBLIC}>
+                                {t('catalog.inLibrary')}
                               </Span>
                             ) : null}
                           </Div>
@@ -550,8 +566,12 @@ export function StoriesPage({
                         onClick={() => void handleImportPublicCollection(col)}
                       >
                         {importing
-                          ? t('public.importBusy')
-                          : t('public.importAll')}
+                          ? alreadyIn
+                            ? t('public.updateBusy')
+                            : t('public.importBusy')
+                          : alreadyIn
+                            ? t('public.importUpdate')
+                            : t('public.importAll')}
                       </Button>
                     ) : null}
                   </Div>

@@ -445,6 +445,17 @@ export function syncPublicCollectionMirror(
   mirrorSyncTimers.set(id, timer);
 }
 
+/** Slug'и публичных подборок, уже импортированных в локальную библиотеку. */
+export async function getImportedPublicSlugs(): Promise<Set<string>> {
+  const cols = await getCollections();
+  const set = new Set<string>();
+  for (const c of cols) {
+    const slug = c.importedFromSlug?.trim();
+    if (slug) set.add(slug);
+  }
+  return set;
+}
+
 /**
  * Импорт всей публичной подборки в «Мою библиотеку»:
  * новая локальная категория + копии всех текстов.

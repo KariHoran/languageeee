@@ -6,6 +6,7 @@ import { useWebTheme } from './webTheme';
 export type TourStepId =
   | 'welcome'
   | 'library'
+  | 'share'
   | 'click-word'
   | 'cards'
   | 'goals'
@@ -52,6 +53,12 @@ export function OnboardingTour({
         emoji: '📚',
         title: t('tour.libraryTitle'),
         body: t('tour.libraryBody'),
+      },
+      {
+        id: 'share',
+        emoji: '🔗',
+        title: t('tour.shareTitle'),
+        body: t('tour.shareBody'),
       },
       {
         id: 'click-word',

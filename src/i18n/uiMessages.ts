@@ -189,6 +189,8 @@ export type UiMessageKey =
   | 'tour.welcomeBody'
   | 'tour.libraryTitle'
   | 'tour.libraryBody'
+  | 'tour.shareTitle'
+  | 'tour.shareBody'
   | 'tour.clickWordTitle'
   | 'tour.clickWordBody'
   | 'tour.addBookTitle'
@@ -269,9 +271,13 @@ export type UiMessageKey =
   | 'public.texts'
   | 'public.emptyBooks'
   | 'public.importAll'
+  | 'public.importUpdate'
   | 'public.importBusy'
+  | 'public.updateBusy'
   | 'public.imported'
   | 'public.importedBody'
+  | 'public.updated'
+  | 'public.updatedBody'
   | 'public.importFail'
   | 'public.importEmpty'
   | 'unit.word.one'
@@ -771,6 +777,9 @@ const ru: Dictionary = {
   'tour.libraryTitle': 'Библиотека и подборки',
   'tour.libraryBody':
     'В Библиотеке лежат ваши тексты. Группируйте их по подборкам — по автору, теме или уровню.',
+  'tour.shareTitle': 'Поделиться подборкой',
+  'tour.shareBody':
+    'В «Моей библиотеке» откройте ✎ у категории и включите «Публичная подборка» — появится ссылка /c/… для друзей без аккаунта.',
   'tour.clickWordTitle': 'Клик по слову',
   'tour.clickWordBody':
     'Нажмите на слово в тексте — откроется карточка с переводом. Можно добавить в флэшкарточки.',
@@ -861,9 +870,13 @@ const ru: Dictionary = {
   'public.texts': 'Тексты',
   'public.emptyBooks': 'В подборке пока нет текстов.',
   'public.importAll': 'Добавить всю подборку в библиотеку',
+  'public.importUpdate': 'Обновить подборку в библиотеке',
   'public.importBusy': 'Добавляем…',
+  'public.updateBusy': 'Обновляем…',
   'public.imported': 'Подборка добавлена',
   'public.importedBody': 'Добавлено текстов: {added}. Пропущено: {skipped}.',
+  'public.updated': 'Подборка обновлена',
+  'public.updatedBody': 'Новых текстов: {added}. Уже было: {skipped}.',
   'public.importFail': 'Не удалось добавить подборку',
   'public.importEmpty': 'В подборке нет текстов для добавления',
   'unit.word.one': 'слово',
@@ -1427,6 +1440,9 @@ const en: Dictionary = {
   'tour.libraryTitle': 'Library and collections',
   'tour.libraryBody':
     'Your texts live in Library. Group them by author, topic, or level.',
+  'tour.shareTitle': 'Share a collection',
+  'tour.shareBody':
+    'In My Library tap ✎ on a folder and turn on “Public collection” — you’ll get a /c/… link friends can open without an account.',
   'tour.clickWordTitle': 'Click a word',
   'tour.clickWordBody':
     'Tap a word in the text — a translation card opens. You can add it to flashcards.',
@@ -1516,9 +1532,13 @@ const en: Dictionary = {
   'public.texts': 'Texts',
   'public.emptyBooks': 'This collection has no texts yet.',
   'public.importAll': 'Add entire collection to library',
+  'public.importUpdate': 'Update collection in library',
   'public.importBusy': 'Adding…',
+  'public.updateBusy': 'Updating…',
   'public.imported': 'Collection added',
   'public.importedBody': 'Added: {added}. Skipped: {skipped}.',
+  'public.updated': 'Collection updated',
+  'public.updatedBody': 'New texts: {added}. Already had: {skipped}.',
   'public.importFail': 'Could not add the collection',
   'public.importEmpty': 'This collection has no texts to add',
   'unit.word.one': 'word',
@@ -2076,6 +2096,9 @@ const zh: Dictionary = {
   'tour.libraryTitle': '图书馆与合集',
   'tour.libraryBody':
     '你的文本在图书馆里。可按作者、主题或等级分组。',
+  'tour.shareTitle': '分享合集',
+  'tour.shareBody':
+    '在「我的图书馆」点合集旁的 ✎，打开「公开合集」——会得到 /c/… 链接，好友无需账号即可打开。',
   'tour.clickWordTitle': '点击单词',
   'tour.clickWordBody':
     '点击文中的词会打开翻译卡片，也可以加入闪卡。',
@@ -2164,9 +2187,13 @@ const zh: Dictionary = {
   'public.texts': '文本',
   'public.emptyBooks': '合集中还没有文本。',
   'public.importAll': '将整个合集加入图书馆',
+  'public.importUpdate': '更新图书馆中的合集',
   'public.importBusy': '正在添加…',
+  'public.updateBusy': '正在更新…',
   'public.imported': '合集已添加',
   'public.importedBody': '已添加：{added}。跳过：{skipped}。',
+  'public.updated': '合集已更新',
+  'public.updatedBody': '新增：{added}。已有：{skipped}。',
   'public.importFail': '无法添加合集',
   'public.importEmpty': '合集中没有可添加的文本',
   'unit.word.one': '词',

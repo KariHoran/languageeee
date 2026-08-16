@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/useI18n';
 import {
   fetchPublicCollection,
   fetchPublicCollectionBook,
+  getImportedPublicSlugs,
   importPublicCollection,
 } from '../services/publicCollectionsService';
 import { saveBook } from '../services/storageService';
@@ -53,6 +54,17 @@ export function PublicCollectionPanel({
   const [errorKind, setErrorKind] = useState<LoadErrorKind | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
+  const [alreadyImported, setAlreadyImported] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getImportedPublicSlugs().then((slugs) => {
+      if (!cancelled) setAlreadyImported(slugs.has(slug));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,12 +162,18 @@ export function PublicCollectionPanel({
     try {
       const result = await importPublicCollection(doc);
       showAlert(
-        t('public.imported'),
-        t('public.importedBody', {
-          added: result.added,
-          skipped: result.skipped,
-        })
+        alreadyImported ? t('public.updated') : t('public.imported'),
+        alreadyImported
+          ? t('public.updatedBody', {
+              added: result.added,
+              skipped: result.skipped,
+            })
+          : t('public.importedBody', {
+              added: result.added,
+              skipped: result.skipped,
+            })
       );
+      setAlreadyImported(true);
       onAddedToLibrary?.(result.collectionId);
     } catch (err) {
       const empty =
@@ -171,7 +189,7 @@ export function PublicCollectionPanel({
     } finally {
       setImportBusy(false);
     }
-  }, [doc, importBusy, busyId, onAddedToLibrary, t]);
+  }, [doc, importBusy, busyId, alreadyImported, onAddedToLibrary, t]);
 
   const glass =
     theme.isDark
@@ -250,6 +268,11 @@ export function PublicCollectionPanel({
                 <Span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/25">
                   {t('catalog.badgePublic')}
                 </Span>
+                {alreadyImported ? (
+                  <Span className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#D0FF00]/15 text-[#D0FF00] border border-[#D0FF00]/25">
+                    {t('catalog.inLibrary')}
+                  </Span>
+                ) : null}
                 <Span>
                   {catalogTextsCountLabel(doc.books?.length ?? 0, lang)}
                   {' · '}
@@ -266,7 +289,13 @@ export function PublicCollectionPanel({
                   className={`w-full mt-2 rounded-xl py-2.5 text-sm font-bold ${theme.cta} disabled:opacity-50`}
                   onClick={() => void handleImportAll()}
                 >
-                  {importBusy ? t('public.importBusy') : t('public.importAll')}
+                  {importBusy
+                    ? alreadyImported
+                      ? t('public.updateBusy')
+                      : t('public.importBusy')
+                    : alreadyImported
+                      ? t('public.importUpdate')
+                      : t('public.importAll')}
                 </Button>
               ) : null}
             </Div>

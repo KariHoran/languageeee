@@ -17,6 +17,7 @@ import { ensureAnonymousAuthForPublicView } from '../services/authService';
 import {
   fetchPublicCollection,
   fetchPublicCollectionBook,
+  getImportedPublicSlugs,
   importPublicCollection,
 } from '../services/publicCollectionsService';
 import { saveBook } from '../services/storageService';
@@ -46,6 +47,17 @@ export default function PublicCollectionScreen({
   const [errorKind, setErrorKind] = useState<'notFound' | 'auth' | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
+  const [alreadyImported, setAlreadyImported] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getImportedPublicSlugs().then((slugs) => {
+      if (!cancelled) setAlreadyImported(slugs.has(slug));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,12 +145,18 @@ export default function PublicCollectionScreen({
     try {
       const result = await importPublicCollection(doc);
       showAlert(
-        t('public.imported'),
-        t('public.importedBody', {
-          added: result.added,
-          skipped: result.skipped,
-        })
+        alreadyImported ? t('public.updated') : t('public.imported'),
+        alreadyImported
+          ? t('public.updatedBody', {
+              added: result.added,
+              skipped: result.skipped,
+            })
+          : t('public.importedBody', {
+              added: result.added,
+              skipped: result.skipped,
+            })
       );
+      setAlreadyImported(true);
       onImported?.(result.collectionId);
     } catch (err) {
       const empty =
@@ -154,7 +172,7 @@ export default function PublicCollectionScreen({
     } finally {
       setImportBusy(false);
     }
-  }, [doc, importBusy, busyId, onImported, t]);
+  }, [doc, importBusy, busyId, alreadyImported, onImported, t]);
 
   const errorTitle =
     errorKind === 'auth'
@@ -224,7 +242,7 @@ export default function PublicCollectionScreen({
             <Text style={[styles.meta, { color: theme.textMuted }]}>
               {catalogTextsCountLabel(doc.books?.length ?? 0, lang)}
               {' · '}
-              {t('catalog.readOnly')}
+              {alreadyImported ? t('catalog.inLibrary') : t('catalog.readOnly')}
             </Text>
             {(doc.books?.length ?? 0) > 0 ? (
               <Pressable
@@ -240,7 +258,13 @@ export default function PublicCollectionScreen({
                 ]}
               >
                 <Text style={styles.ctaText}>
-                  {importBusy ? t('public.importBusy') : t('public.importAll')}
+                  {importBusy
+                    ? alreadyImported
+                      ? t('public.updateBusy')
+                      : t('public.importBusy')
+                    : alreadyImported
+                      ? t('public.importUpdate')
+                      : t('public.importAll')}
                 </Text>
               </Pressable>
             ) : null}
