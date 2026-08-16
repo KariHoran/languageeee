@@ -4,10 +4,11 @@
  */
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { Flashcard, LearningLanguage } from '../types';
-import { getCloudUid } from './authService';
+import { getCloudUid, resolveFirestoreUid } from './authService';
 import { addFlashcard, hasFlashcard, normalizeCard } from './flashcardsStore';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import { generateShareSlug } from './publicCollectionsService';
+import { stripUndefinedDeep } from '../utils/stripUndefined';
 
 const MAX_PUBLIC_CARDS = 300;
 
@@ -45,16 +46,16 @@ export function publicDeckUrl(slug: string): string {
 
 function slimCard(card: Flashcard): PublicDeckCard {
   const c = normalizeCard(card);
-  return {
+  return stripUndefinedDeep({
     hanzi: c.hanzi,
     pinyin: c.pinyin || undefined,
     translation: c.translation || undefined,
     language: c.language,
-    kind: c.kind === 'grammar' ? 'grammar' : 'word',
+    kind: c.kind === 'grammar' ? ('grammar' as const) : ('word' as const),
     hskLevel: c.hskLevel,
-    contextSentence: c.contextSentence,
-    sourceTitle: c.sourceTitle,
-  };
+    contextSentence: c.contextSentence || undefined,
+    sourceTitle: c.sourceTitle || undefined,
+  });
 }
 
 /** Опубликовать колоду; возвращает slug + url. */
@@ -66,7 +67,7 @@ export async function publishPublicDeck(options: {
   if (!isFirebaseConfigured()) {
     throw new Error('Firebase is not configured');
   }
-  const uid = getCloudUid();
+  const uid = await resolveFirestoreUid();
   if (!uid) {
     throw new Error('Sign in to share a deck');
   }
@@ -81,22 +82,25 @@ export async function publishPublicDeck(options: {
   const slug = generateShareSlug(options.title || 'deck');
   const now = new Date().toISOString();
   const cards = active.slice(0, MAX_PUBLIC_CARDS).map(slimCard);
-  const payload: PublicDeckDoc = {
+  const payload = stripUndefinedDeep({
     slug,
     title: (options.title || 'Deck').trim().slice(0, 80),
     userId: uid,
     ownerUserId: uid,
     authorId: uid,
-    isPublic: true,
+    isPublic: true as const,
     language: options.language,
     cardCount: cards.length,
     cards,
     createdAt: now,
     updatedAt: now,
-  };
+  }) as PublicDeckDoc;
 
   const firebase = await getFirebase();
   if (!firebase) throw new Error('Firebase is not configured');
+  if (firebase.auth.currentUser?.uid !== uid) {
+    throw new Error('Sign in to share a deck');
+  }
   await setDoc(doc(firebase.db, 'publicDecks', slug), payload);
   return { slug, url: publicDeckUrl(slug) };
 }

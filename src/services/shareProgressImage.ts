@@ -1,5 +1,6 @@
 /**
  * PNG-карточка прогресса для Stories / портфолио (canvas, без внешних libs).
+ * Скачивание синхронное (toDataURL), чтобы не терять user gesture в Safari.
  */
 import { Platform } from 'react-native';
 import { downloadTextFile } from './flashcardsExport';
@@ -10,6 +11,13 @@ export interface ProgressSharePayload {
   weekWords: number;
   weekCards: number;
   displayName?: string;
+}
+
+function hostLabel(): string {
+  if (typeof window !== 'undefined' && window.location?.host) {
+    return window.location.host;
+  }
+  return 'languageeee.app';
 }
 
 export async function downloadProgressShareImage(
@@ -72,22 +80,23 @@ export async function downloadProgressShareImage(
 
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '22px system-ui, sans-serif';
-  ctx.fillText('dist-gray-nine-49.vercel.app', 80, h - 60);
+  ctx.fillText(hostLabel(), 80, h - 60);
 
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/png')
-  );
-  if (!blob) return false;
+  let dataUrl: string;
+  try {
+    dataUrl = canvas.toDataURL('image/png');
+  } catch {
+    return false;
+  }
+  if (!dataUrl || dataUrl === 'data:,') return false;
 
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
+  a.href = dataUrl;
   a.download = `languageeee-progress-${new Date().toISOString().slice(0, 10)}.png`;
   a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
   return true;
 }
 

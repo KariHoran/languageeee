@@ -1000,7 +1000,7 @@ export default function ReaderScreen({
 
   const PROGRESS_SAVE_DEBOUNCE_MS = 700;
   /** Сколько держать абзац в фокусе, прежде чем засчитать слова в активность */
-  const WORD_CREDIT_DWELL_MS = 2500;
+  const WORD_CREDIT_DWELL_MS = 900;
 
   const persistProgress = useCallback(
     (index: number, creditWords = false) => {
@@ -1055,6 +1055,9 @@ export default function ReaderScreen({
       restoreDone.current = book.id;
       if (!saved) {
         persistProgress(0);
+        // Kick dwell for paragraph 0
+        dwellTargetRef.current = null;
+        handleScrollProgress(0);
         return;
       }
       lastSavedIndex.current = saved.paragraphIndex;
@@ -1063,10 +1066,16 @@ export default function ReaderScreen({
         const layout = paraLayouts.current[saved.paragraphIndex];
         if (layout && scrollRef.current) {
           scrollRef.current.scrollTo({ y: Math.max(0, layout.y - 12), animated: false });
+          // После восстановления позиции — старт учёта слов
+          dwellTargetRef.current = null;
+          handleScrollProgress(Math.max(0, layout.y - 12));
           return;
         }
         if (attempt < 12) {
           setTimeout(() => tryScroll(attempt + 1), 50);
+        } else {
+          dwellTargetRef.current = null;
+          handleScrollProgress(0);
         }
       };
       tryScroll(0);
@@ -1074,7 +1083,7 @@ export default function ReaderScreen({
     return () => {
       cancelled = true;
     };
-  }, [book.id, book.paragraphs.length, storeHydrated, persistProgress]);
+  }, [book.id, book.paragraphs.length, storeHydrated, persistProgress, handleScrollProgress]);
 
   useEffect(() => {
     return () => {

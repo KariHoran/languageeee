@@ -497,6 +497,8 @@ export type UiMessageKey =
   | 'progress.shareProfileOk'
   | 'progress.shareProfileCopied'
   | 'progress.shareProfileFail'
+  | 'progress.shareLoginRequired'
+  | 'progress.shareOffline'
   | 'progress.shareImage'
   | 'progress.shareImageBusy'
   | 'progress.weeklyQuest'
@@ -1145,6 +1147,9 @@ const ru: Dictionary = {
   'progress.shareProfileOk': 'Профиль опубликован',
   'progress.shareProfileCopied': 'Ссылка скопирована:\n{url}',
   'progress.shareProfileFail': 'Не удалось опубликовать профиль',
+  'progress.shareLoginRequired': 'Войдите в аккаунт, чтобы поделиться прогрессом.',
+  'progress.shareOffline':
+    'Нет связи с облаком. Проверьте интернет и нажмите ещё раз.',
   'progress.shareImage': 'Скачать картинку прогресса',
   'progress.shareImageBusy': 'Рисуем…',
   'progress.weeklyQuest': 'Квест недели',
@@ -1807,6 +1812,9 @@ const en: Dictionary = {
   'progress.shareProfileOk': 'Profile published',
   'progress.shareProfileCopied': 'Link copied:\n{url}',
   'progress.shareProfileFail': 'Could not publish profile',
+  'progress.shareLoginRequired': 'Sign in to share your progress.',
+  'progress.shareOffline':
+    'No cloud connection. Check your internet and try again.',
   'progress.shareImage': 'Download progress image',
   'progress.shareImageBusy': 'Rendering…',
   'progress.weeklyQuest': 'Weekly quest',
@@ -2457,6 +2465,8 @@ const zh: Dictionary = {
   'progress.shareProfileOk': '主页已发布',
   'progress.shareProfileCopied': '链接已复制：\n{url}',
   'progress.shareProfileFail': '无法发布主页',
+  'progress.shareLoginRequired': '请登录后再分享进度。',
+  'progress.shareOffline': '无法连接云端。请检查网络后重试。',
   'progress.shareImage': '下载进度图',
   'progress.shareImageBusy': '生成中…',
   'progress.weeklyQuest': '本周任务',

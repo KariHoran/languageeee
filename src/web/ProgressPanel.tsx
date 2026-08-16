@@ -14,7 +14,6 @@ import {
   notificationPermission,
   requestNotificationPermission,
 } from '../services/dueReminderService';
-import { publishPublicProfile } from '../services/publicProfilesService';
 import type { ReadingProgress } from '../services/readingProgressStore';
 import {
   downloadProgressShareImage,
@@ -25,7 +24,6 @@ import { useAppStore } from '../store/useAppStore';
 import { useI18n } from '../i18n/useI18n';
 import { formatUnitCount } from '../i18n/pluralI18n';
 import type { UiMessageKey } from '../i18n/uiMessages';
-import { showAlert } from '../utils/alert';
 import { Button, Div, Span } from './dom';
 import { GlassWindow } from './GlassWindow';
 import { useWebTheme } from './webTheme';
@@ -89,7 +87,6 @@ export function ProgressPanel({
   const dailyWordsGoal = useAppStore((s) => s.dailyWordsGoal);
   const dailyCardsGoal = useAppStore((s) => s.dailyCardsGoal);
   const setDailyGoals = useAppStore((s) => s.setDailyGoals);
-  const [shareBusy, setShareBusy] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [darkSpots, setDarkSpots] = useState<DarkSpot[]>([]);
   const learningLanguage = useAppStore((s) => s.learningLanguage);
@@ -112,21 +109,6 @@ export function ProgressPanel({
     () => computeWeeklyQuest(activityByDay, dailyCardsGoal),
     [activityByDay, dailyCardsGoal]
   );
-
-  const recentActivity = useMemo(() => {
-    const keys: string[] = [];
-    for (let i = 0; i < 7; i += 1) {
-      const d = new Date();
-      d.setHours(12, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      keys.push(localDayKey(d));
-    }
-    return keys.map((date) => ({
-      date,
-      wordsRead: activityByDay[date]?.wordsRead ?? 0,
-      cardsReviewed: activityByDay[date]?.cardsReviewed ?? 0,
-    }));
-  }, [activityByDay]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,46 +255,6 @@ export function ProgressPanel({
 
       <Button
         type="button"
-        disabled={shareBusy}
-        className={`w-full mb-3 rounded-xl px-3 py-2 text-xs font-bold transition ${theme.cta} disabled:opacity-50`}
-        onClick={() => {
-          if (shareBusy) return;
-          setShareBusy(true);
-          void (async () => {
-            try {
-              const { url } = await publishPublicProfile({
-                streak,
-                wordsLearned,
-                cardsCount: wordsLearned,
-                weekWords: week.wordsRead,
-                weekCards: week.cardsReviewed,
-                recentActivity,
-              });
-              try {
-                await navigator.clipboard.writeText(url);
-                showAlert(
-                  t('progress.shareProfileOk'),
-                  t('progress.shareProfileCopied', { url })
-                );
-              } catch {
-                showAlert(t('progress.shareProfileOk'), url);
-              }
-            } catch (e) {
-              showAlert(
-                t('alert.error'),
-                e instanceof Error ? e.message : t('progress.shareProfileFail')
-              );
-            } finally {
-              setShareBusy(false);
-            }
-          })();
-        }}
-      >
-        {shareBusy ? t('progress.shareProfileBusy') : t('progress.shareProfile')}
-      </Button>
-
-      <Button
-        type="button"
         disabled={imageBusy}
         className={`w-full mb-3 rounded-xl px-3 py-2 text-xs font-bold transition border ${
           theme.isDark
@@ -322,14 +264,15 @@ export function ProgressPanel({
         onClick={() => {
           if (imageBusy) return;
           setImageBusy(true);
+          const payload = {
+            streak,
+            wordsLearned,
+            weekWords: week.wordsRead,
+            weekCards: week.cardsReviewed,
+          };
+          // Синхронный canvas→download в том же click gesture (Safari)
           void (async () => {
             try {
-              const payload = {
-                streak,
-                wordsLearned,
-                weekWords: week.wordsRead,
-                weekCards: week.cardsReviewed,
-              };
               const ok = await downloadProgressShareImage(payload);
               if (!ok) await downloadProgressShareText(payload);
             } finally {

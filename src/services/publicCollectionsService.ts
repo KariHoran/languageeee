@@ -20,7 +20,7 @@ import type {
   PublicCollectionBookSummary,
   PublicCollectionDoc,
 } from '../types';
-import { getCloudUid } from './authService';
+import { getCloudUid, resolveFirestoreUid } from './authService';
 import { getFirebase, isFirebaseConfigured } from './firebaseClient';
 import {
   createUserCollection,
@@ -32,6 +32,7 @@ import {
   updateCollection,
 } from './storageService';
 import { getDataOwnerId } from './dataOwner';
+import { stripUndefinedDeep } from '../utils/stripUndefined';
 
 const PUBLIC_FETCH_TIMEOUT_MS = 12_000;
 
@@ -103,9 +104,9 @@ export function generateShareSlug(title: string): string {
 
 export function publicCollectionUrl(slug: string): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/c/${slug}`;
+    return `${window.location.origin}/c/${encodeURIComponent(slug)}`;
   }
-  return `/c/${slug}`;
+  return `/c/${encodeURIComponent(slug)}`;
 }
 
 function bookSummary(book: Book): PublicCollectionBookSummary {
@@ -115,22 +116,23 @@ function bookSummary(book: Book): PublicCollectionBookSummary {
     book.paragraphs?.[0]?.originalText ||
     '';
   const excerpt = first.trim().slice(0, 180);
-  return {
+  return stripUndefinedDeep({
     id: book.id,
     title: book.title,
-    russianTitle: book.russianTitle,
-    language: book.language === 'en' ? 'en' : 'zh',
+    russianTitle: book.russianTitle?.trim() || undefined,
+    language:
+      book.language === 'en' ? 'en' : book.language === 'ru' ? 'ru' : 'zh',
     targetHskLevel: book.targetHskLevel ?? 2,
     excerpt: excerpt || undefined,
-  };
+  });
 }
 
 function slimBookForPublic(book: Book): Record<string, unknown> {
-  return {
+  return stripUndefinedDeep({
     id: book.id,
     title: book.title,
     russianTitle: book.russianTitle ?? null,
-    language: book.language === 'en' ? 'en' : 'zh',
+    language: book.language === 'en' ? 'en' : book.language === 'ru' ? 'ru' : 'zh',
     targetHskLevel: book.targetHskLevel ?? 2,
     paragraphs: (book.paragraphs ?? []).map((p) => ({
       originalText: p.originalText ?? '',
@@ -143,7 +145,7 @@ function slimBookForPublic(book: Book): Record<string, unknown> {
     sourceText: (book.sourceText || '').slice(0, 100_000) || null,
     catalogId: book.catalogId ?? null,
     updatedAt: book.updatedAt ?? new Date().toISOString(),
-  };
+  });
 }
 
 /**
@@ -153,12 +155,12 @@ function slimBookForPublic(book: Book): Record<string, unknown> {
 export async function publishCollection(
   collectionId: string
 ): Promise<Collection> {
-  const uid = getCloudUid();
-  if (!uid) {
-    throw new Error('Войдите в аккаунт, чтобы сделать подборку публичной');
-  }
   if (!isFirebaseConfigured()) {
     throw new Error('Firebase не настроен — публикация недоступна');
+  }
+  const uid = await resolveFirestoreUid();
+  if (!uid) {
+    throw new Error('Войдите в аккаунт, чтобы сделать подборку публичной');
   }
 
   const { getCollection } = await import('./storageService');
@@ -182,8 +184,11 @@ export async function publishCollection(
 
   const firebase = await getFirebase();
   if (!firebase) throw new Error('Firebase недоступен');
+  if (firebase.auth.currentUser?.uid !== uid) {
+    throw new Error('Войдите в аккаунт, чтобы сделать подборку публичной');
+  }
 
-  const publicDoc: PublicCollectionDoc = {
+  const publicDoc = stripUndefinedDeep({
     slug,
     collectionId,
     userId: uid,
@@ -192,11 +197,11 @@ export async function publishCollection(
     title: updated.title,
     description: updated.description ?? null,
     color: updated.color ?? null,
-    isPublic: true,
+    isPublic: true as const,
     books: summaries,
     publishedAt: updated.publishedAt || now,
     updatedAt: now,
-  };
+  }) as PublicCollectionDoc;
 
   const rootRef = doc(firebase.db, 'publicCollections', slug);
   await setDoc(rootRef, publicDoc, { merge: true });

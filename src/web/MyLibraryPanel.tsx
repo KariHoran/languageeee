@@ -29,6 +29,7 @@ import { subscribeLocalDataReset } from '../services/localDataResetService';
 import { subscribeSyncState } from '../services/syncService';
 import type { Book, Collection, LearningLanguage } from '../types';
 import { showAlert, showConfirm } from '../utils/alert';
+import { shareOrCopyUrl } from '../utils/shareUrl';
 import { bookMatchesQuery } from '../utils/bookSearch';
 import {
   formatBookTitleLine,
@@ -258,10 +259,13 @@ export function MyLibraryPanel({
 
       if (wantPublic && published.shareSlug) {
         const url = publicCollectionUrl(published.shareSlug);
-        try {
-          await navigator.clipboard.writeText(url);
+        const mode = await shareOrCopyUrl(url, {
+          title: published.title || 'languageeee',
+          text: t('alert.published'),
+        });
+        if (mode === 'copied') {
           showAlert(t('alert.published'), t('alert.linkCopied', { url }));
-        } catch {
+        } else if (mode === 'shown') {
           showAlert(t('alert.published'), url);
         }
       }
@@ -286,11 +290,13 @@ export function MyLibraryPanel({
       return;
     }
     const url = publicCollectionUrl(slug);
-    try {
-      await navigator.clipboard.writeText(url);
+    const mode = await shareOrCopyUrl(url, {
+      title: renameCat?.title || 'languageeee',
+    });
+    if (mode === 'copied' || mode === 'shared') {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
-    } catch {
+    } else {
       showAlert(t('alert.linkTitle'), url);
     }
   };

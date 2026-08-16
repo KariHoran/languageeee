@@ -39,6 +39,7 @@ import { ttsService } from '../services/ttsService';
 import { useTheme } from '../theme/ThemeContext';
 import type { Flashcard, FlashcardGrade, LearningLanguage } from '../types';
 import { showAlert, showConfirm } from '../utils/alert';
+import { shareOrCopyUrl } from '../utils/shareUrl';
 import { getHskBadgeColors } from '../utils/hskColors';
 import { softShadow } from '../utils/shadow';
 
@@ -289,10 +290,13 @@ export default function FlashcardsScreen({ onBack }: FlashcardsScreenProps) {
         language: filter,
         cards,
       });
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
+      const mode = await shareOrCopyUrl(url, {
+        title,
+        text: t('flashcards.shareCopied'),
+      });
+      if (mode !== 'shared') {
+        showAlert(t('flashcards.shareCopied'), url);
       }
-      showAlert(t('flashcards.shareCopied'), url);
     } catch (e) {
       showAlert(
         t('alert.error'),

@@ -63,7 +63,7 @@ import { useWebTheme, type WebThemeClasses } from './webTheme';
 
 const PROGRESS_SAVE_DEBOUNCE_MS = 700;
 /** Сколько держать абзац в фокусе, прежде чем засчитать слова в «Эту неделю» */
-const WORD_CREDIT_DWELL_MS = 2500;
+const WORD_CREDIT_DWELL_MS = 900;
 /** Медленная автопрокрутка: px в секунду */
 const AUTO_SCROLL_PX_PER_SEC = 28;
 
@@ -667,12 +667,21 @@ export function ReaderPanel({
         if (el) {
           el.scrollIntoView({ behavior: 'auto', block: 'start' });
         }
+        // Старт dwell даже без жеста скролла (иначе слова = 0 при чтении на месте)
+        requestAnimationFrame(() => detectVisibleParagraph());
       });
     });
     return () => {
       cancelled = true;
     };
-  }, [book?.id, rendered.length, persistProgress, onProgressChange]);
+  }, [book?.id, rendered.length, persistProgress, onProgressChange, detectVisibleParagraph]);
+
+  // Первый кадр после монтирования / смены книги — запустить учёт слов
+  useEffect(() => {
+    if (!book?.id || rendered.length === 0) return;
+    const id = window.setTimeout(() => detectVisibleParagraph(), 300);
+    return () => window.clearTimeout(id);
+  }, [book?.id, rendered.length, detectVisibleParagraph]);
 
   // Flush отложенного save при размонтировании / смене книги (только закладка, без слов)
   useEffect(() => {
@@ -1102,6 +1111,8 @@ export function ReaderPanel({
                         stopPropagation?: () => void;
                       }) => {
                         e.stopPropagation?.();
+                        // Клик по слову = реальное чтение → засчитать абзац
+                        persistProgress(para.index, true);
                         // Пиньинь для модалки — целое слово, из кэша / pinyin-pro
                         const py =
                           tok.pinyin?.trim() ||

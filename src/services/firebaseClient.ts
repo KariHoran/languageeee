@@ -20,7 +20,13 @@ import {
   initializeAuth,
   type Auth,
 } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore';
 import { Platform } from 'react-native';
 
 export type FirebasePublicConfig = {
@@ -151,6 +157,33 @@ export function resetFirebaseClientCache(): void {
   lastInitError = null;
 }
 
+/** Web: persistent IndexedDB cache — getDoc не падает сразу при кратком offline. */
+function createFirestore(app: FirebaseApp): Firestore {
+  if (Platform.OS === 'web') {
+    try {
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : '';
+      // Уже инициализирован (HMR) или persistence недоступна
+      if (
+        code === 'failed-precondition' ||
+        /already been called|already initialized/i.test(String(err))
+      ) {
+        return getFirestore(app);
+      }
+      console.warn('[firebaseClient] persistent cache skipped:', err);
+    }
+  }
+  return getFirestore(app);
+}
+
 function createAuth(app: FirebaseApp): Auth {
   if (Platform.OS === 'web') {
     return getAuth(app);
@@ -210,7 +243,7 @@ export async function getFirebase(): Promise<FirebaseBundle | null> {
             : {}),
         });
     const auth = createAuth(app);
-    const db = getFirestore(app);
+    const db = createFirestore(app);
 
     cached = { app, auth, db };
     lastInitError = null;

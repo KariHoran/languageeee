@@ -1,7 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAppStore } from '../store/useAppStore';
 import type { Book, Paragraph } from '../types';
 
 const PROGRESS_KEY = '@languageeee/reading_progress_v1';
+
+/** Сериализация записей: bookmark и dwell не должны затирать друг друга. */
+let saveQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueSave<T>(fn: () => Promise<T>): Promise<T> {
+  const next = saveQueue.then(fn, fn);
+  saveQueue = next.then(
+    () => undefined,
+    () => undefined
+  );
+  return next;
+}
+
+function totalActivityWordsRead(): number {
+  try {
+    const map = useAppStore.getState().activityByDay;
+    let n = 0;
+    for (const row of Object.values(map || {})) {
+      n += row?.wordsRead || 0;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
 
 /**
  * Счётчик «слов» в абзаце для геймификации.
@@ -177,20 +203,20 @@ export type SaveReadingProgressOptions = {
   creditWords?: boolean;
 };
 
+/**
+ * Какие абзацы уже засчитаны в дневную активность.
+ * Важно: НЕ путать с bookmark `paragraphIndex` — иначе после сохранения
+ * позиции все пролистанные абзацы считаются «уже учтёнными» и слова = 0.
+ *
+ * Если в activity всё ещё 0 слов, индексы игнорируем (legacy fill / сброс
+ * накрутки) — иначе dwell никогда не засчитает чтение.
+ */
 function creditedParagraphSet(prev: ReadingProgress | undefined): Set<number> {
-  if (prev?.activityCreditedIndices?.length) {
-    return new Set(
-      prev.activityCreditedIndices.filter((n) => Number.isFinite(n) && n >= 0)
-    );
-  }
-  // Legacy: всё до старого фронтира считаем уже учтённым (не раздуваем неделю при апдейте)
-  const through =
-    typeof prev?.activityThroughIndex === 'number'
-      ? prev.activityThroughIndex
-      : (prev?.paragraphIndex ?? -1);
-  const set = new Set<number>();
-  for (let i = 0; i <= through; i++) set.add(i);
-  return set;
+  if (!prev?.activityCreditedIndices?.length) return new Set();
+  if (totalActivityWordsRead() === 0) return new Set();
+  return new Set(
+    prev.activityCreditedIndices.filter((n) => Number.isFinite(n) && n >= 0)
+  );
 }
 
 export async function saveReadingProgress(
@@ -198,56 +224,68 @@ export async function saveReadingProgress(
   paragraphIndex: number,
   opts?: SaveReadingProgressOptions
 ): Promise<ReadingProgress> {
-  const creditWords = opts?.creditWords === true;
-  const progress = buildReadingProgress(book, paragraphIndex);
-  const map = await loadMap();
-  const prev = map[book.id];
+  return enqueueSave(async () => {
+    const creditWords = opts?.creditWords === true;
+    const progress = buildReadingProgress(book, paragraphIndex);
+    const map = await loadMap();
+    const prev = map[book.id];
 
-  let activityCreditedIndices = prev?.activityCreditedIndices;
-  let activityThroughIndex =
-    typeof prev?.activityThroughIndex === 'number'
-      ? prev.activityThroughIndex
-      : prev
-        ? prev.paragraphIndex
+    let activityCreditedIndices = prev?.activityCreditedIndices
+      ? [...prev.activityCreditedIndices]
+      : undefined;
+    // Закладка ≠ засчитанные слова: без явного списка индексов high-water = -1
+    let activityThroughIndex =
+      typeof prev?.activityThroughIndex === 'number'
+        ? prev.activityThroughIndex
         : -1;
-  let wordsDelta = 0;
+    let wordsDelta = 0;
 
-  if (creditWords) {
-    const credited = creditedParagraphSet(prev);
-    const i = progress.paragraphIndex;
-    if (!credited.has(i)) {
-      credited.add(i);
-      wordsDelta = paragraphActivityWordCount(
-        book.paragraphs[i],
-        book.language
-      );
+    if (creditWords) {
+      const credited = creditedParagraphSet(prev);
+      // Сбрасываем «залипший» legacy-fill в сохранённых данных
+      if (
+        (prev?.activityCreditedIndices?.length ?? 0) > 0 &&
+        credited.size === 0
+      ) {
+        activityCreditedIndices = undefined;
+        activityThroughIndex = -1;
+      }
+      const i = progress.paragraphIndex;
+      if (!credited.has(i)) {
+        credited.add(i);
+        wordsDelta = paragraphActivityWordCount(
+          book.paragraphs[i],
+          book.language
+        );
+      }
+      activityCreditedIndices = [...credited].sort((a, b) => a - b);
+      activityThroughIndex =
+        activityCreditedIndices.length > 0
+          ? Math.max(...activityCreditedIndices)
+          : -1;
     }
-    activityCreditedIndices = [...credited].sort((a, b) => a - b);
-    activityThroughIndex =
-      activityCreditedIndices.length > 0
-        ? activityCreditedIndices[activityCreditedIndices.length - 1]!
-        : -1;
-  }
 
-  const next: ReadingProgress = {
-    ...progress,
-    activityThroughIndex,
-    ...(activityCreditedIndices ? { activityCreditedIndices } : {}),
-  };
-  map[book.id] = next;
-  await saveMap(map);
-  queueCloudSync();
+    const next: ReadingProgress = {
+      ...progress,
+      activityThroughIndex,
+      ...(activityCreditedIndices && activityCreditedIndices.length > 0
+        ? { activityCreditedIndices }
+        : {}),
+    };
+    map[book.id] = next;
+    await saveMap(map);
+    queueCloudSync();
 
-  if (wordsDelta > 0) {
-    try {
-      const { useAppStore } = await import('../store/useAppStore');
-      useAppStore.getState().trackActivity({ wordsRead: wordsDelta });
-    } catch {
-      /* ignore */
+    if (wordsDelta > 0) {
+      try {
+        useAppStore.getState().trackActivity({ wordsRead: wordsDelta });
+      } catch {
+        /* ignore */
+      }
     }
-  }
 
-  return next;
+    return next;
+  });
 }
 
 export async function clearReadingProgress(bookId: string): Promise<void> {
