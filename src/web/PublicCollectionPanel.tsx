@@ -30,7 +30,7 @@ interface PublicCollectionPanelProps {
   authStatus: PublicCollectionAuthStatus;
   onOpenBook: (book: Book) => void;
   onClose: () => void;
-  onAddedToLibrary?: () => void;
+  onAddedToLibrary?: (collectionId?: string) => void;
 }
 
 type LoadErrorKind = 'notFound' | 'auth';
@@ -156,7 +156,7 @@ export function PublicCollectionPanel({
           skipped: result.skipped,
         })
       );
-      onAddedToLibrary?.();
+      onAddedToLibrary?.(result.collectionId);
     } catch (err) {
       const empty =
         err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';

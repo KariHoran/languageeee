@@ -364,6 +364,7 @@ function collectionPayloadForCloud(
     authorId: col.authorId || col.userId || uid,
     isPublic: !!col.isPublic,
     shareSlug: col.shareSlug ?? null,
+    importedFromSlug: col.importedFromSlug ?? null,
     publishedAt: col.publishedAt ?? null,
     createdAt: col.createdAt ?? null,
     updatedAt: col.updatedAt ?? null,

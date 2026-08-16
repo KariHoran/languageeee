@@ -54,7 +54,7 @@ interface CatalogScreenProps {
   onBack: () => void;
   onOpenBook: (book: Book) => void;
   onOpenPublicCollection?: (slug: string) => void;
-  onLibraryChanged?: () => void;
+  onLibraryChanged?: (collectionId?: string) => void;
 }
 
 const TONE: Record<CatalogStory['coverTone'], string> = {
@@ -157,7 +157,7 @@ export default function CatalogScreen({
             skipped: result.skipped,
           })
         );
-        onLibraryChanged?.();
+        onLibraryChanged?.(result.collectionId);
       } catch (err) {
         const empty =
           err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';

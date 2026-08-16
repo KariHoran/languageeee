@@ -55,6 +55,9 @@ type CategoryFilter = 'all' | string;
 interface MyLibraryPanelProps {
   preferredLanguage?: LearningLanguage;
   activeBookId?: string | null;
+  /** После импорта публичной подборки — сразу открыть эту категорию */
+  focusCollectionId?: string | null;
+  onFocusCollectionConsumed?: () => void;
   onBack?: () => void;
   onOpenBook: (book: Book) => void;
   onAddBook: (collectionId?: string) => void;
@@ -72,6 +75,8 @@ function bookLang(book: Book): LearningLanguage {
 export function MyLibraryPanel({
   preferredLanguage = 'zh',
   activeBookId,
+  focusCollectionId = null,
+  onFocusCollectionConsumed,
   onBack,
   onOpenBook,
   onAddBook,
@@ -160,6 +165,18 @@ export function MyLibraryPanel({
   useEffect(() => {
     setLangFilter(preferredLanguage);
   }, [preferredLanguage]);
+
+  useEffect(() => {
+    if (!focusCollectionId) return;
+    if (!collections.some((c) => c.id === focusCollectionId)) {
+      void reload();
+      // Не крутим reload бесконечно, если id так и не появился
+      const t = setTimeout(() => onFocusCollectionConsumed?.(), 2500);
+      return () => clearTimeout(t);
+    }
+    setCategoryId(focusCollectionId);
+    onFocusCollectionConsumed?.();
+  }, [focusCollectionId, collections, reload, onFocusCollectionConsumed]);
 
   const collectionById = useMemo(() => {
     const map = new Map<string, Collection>();

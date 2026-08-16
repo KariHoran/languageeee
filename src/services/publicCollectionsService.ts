@@ -26,6 +26,7 @@ import {
   createUserCollection,
   getBook,
   getBooksByCollection,
+  getCollection,
   getCollections,
   saveBook,
   updateCollection,
@@ -413,11 +414,42 @@ export async function fetchPublicCollectionBook(
   }
 }
 
+const mirrorSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Если подборка публичная — перезаписать зеркало publicCollections/{slug}.
+ * Debounce: при пакетном saveBook/move не долбим Firestore на каждую книгу.
+ */
+export function syncPublicCollectionMirror(
+  collectionId: string | undefined | null
+): void {
+  const id = collectionId?.trim();
+  if (!id) return;
+  const prev = mirrorSyncTimers.get(id);
+  if (prev) clearTimeout(prev);
+  const timer = setTimeout(() => {
+    mirrorSyncTimers.delete(id);
+    void (async () => {
+      try {
+        const col = await getCollection(id);
+        if (!col?.isPublic || !col.shareSlug) return;
+        await publishCollection(id);
+      } catch (err) {
+        console.warn(
+          '[publicCollections] syncPublicCollectionMirror failed:',
+          err
+        );
+      }
+    })();
+  }, 700);
+  mirrorSyncTimers.set(id, timer);
+}
+
 /**
  * Импорт всей публичной подборки в «Мою библиотеку»:
  * новая локальная категория + копии всех текстов.
  * Уже сохранённые книги (тот же public-{slug}-{id}) пропускаются;
- * если книга была без категории — привязываем к новой.
+ * повторный импорт того же slug обновляет ту же категорию (importedFromSlug).
  */
 export async function importPublicCollection(
   pub: PublicCollectionDoc
@@ -437,21 +469,16 @@ export async function importPublicCollection(
     local = await createUserCollection(
       pub.title?.trim() || slug,
       pub.color || '#8B5CF6',
-      pub.description ?? undefined
+      pub.description ?? undefined,
+      { importedFromSlug: slug }
     );
-    const tagged = await updateCollection(local.id, {
-      importedFromSlug: slug,
-      title: pub.title?.trim() || local.title,
-      description: pub.description ?? local.description,
-      color: pub.color || local.color,
-    });
-    if (tagged) local = tagged;
   } else {
     // Обновим метаданные при повторном импорте (название/описание могли измениться)
     const tagged = await updateCollection(local.id, {
       title: pub.title?.trim() || local.title,
       description: pub.description ?? local.description,
       color: pub.color || local.color,
+      importedFromSlug: slug,
     });
     if (tagged) local = tagged;
   }

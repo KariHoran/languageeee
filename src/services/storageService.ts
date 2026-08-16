@@ -118,6 +118,11 @@ export async function saveBook(book: Book): Promise<void> {
   scheduleSyncDebounced();
   // Не ждём — но сразу ставим выгрузку в users/{uid}/books
   void flushSyncNow();
+  void import('./publicCollectionsService')
+    .then((m) => {
+      m.syncPublicCollectionMirror(book.collectionId);
+    })
+    .catch(() => undefined);
 }
 
 export async function getBooks(): Promise<Book[]> {
@@ -186,6 +191,14 @@ export async function updateBookMeta(
   const { scheduleSyncDebounced, flushSyncNow } = await import('./syncService');
   scheduleSyncDebounced();
   void flushSyncNow();
+  const prevCid = migrateBook(existing).collectionId;
+  const nextCid = updated.collectionId;
+  void import('./publicCollectionsService')
+    .then((m) => {
+      m.syncPublicCollectionMirror(prevCid);
+      if (nextCid !== prevCid) m.syncPublicCollectionMirror(nextCid);
+    })
+    .catch(() => undefined);
   return updated;
 }
 
@@ -202,7 +215,8 @@ export async function moveBookToCollection(
 export async function createUserCollection(
   title: string,
   color = DEFAULT_COLLECTION_COLOR,
-  description?: string
+  description?: string,
+  options?: { importedFromSlug?: string | null }
 ): Promise<Collection> {
   const trimmed = title.trim();
   if (!trimmed) throw new Error('Введите название категории');
@@ -219,7 +233,7 @@ export async function createUserCollection(
     authorId: userId,
     isPublic: false,
     shareSlug: null,
-    importedFromSlug: null,
+    importedFromSlug: options?.importedFromSlug ?? null,
     publishedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -244,6 +258,8 @@ export async function deleteBook(bookId: string): Promise<void> {
 
   delete books[bookId];
   await saveBooksMap(books);
+
+  const mirrorCollectionId = migrateBook(book).collectionId;
 
   // Убираем из словаря слова, которые больше ни в одной книге не встречаются
   if (wordIds.size > 0) {
@@ -271,6 +287,11 @@ export async function deleteBook(bookId: string): Promise<void> {
   const { recordTombstone, scheduleSyncDebounced } = await import('./syncService');
   await recordTombstone('book', bookId);
   scheduleSyncDebounced();
+  void import('./publicCollectionsService')
+    .then((m) => {
+      m.syncPublicCollectionMirror(mirrorCollectionId);
+    })
+    .catch(() => undefined);
 }
 
 export async function getBooksByCollection(collectionId: string): Promise<Book[]> {
@@ -460,6 +481,11 @@ export async function updateCollection(
   const { scheduleSyncDebounced, flushSyncNow } = await import('./syncService');
   scheduleSyncDebounced();
   void flushSyncNow();
+  if (updated.isPublic || base.isPublic) {
+    void import('./publicCollectionsService')
+      .then((m) => m.syncPublicCollectionMirror(id))
+      .catch(() => undefined);
+  }
   return updated;
 }
 

@@ -461,7 +461,13 @@ function AppRoot() {
           onOpenPublicCollection={(slug) =>
             setScreen({ name: 'publicCollection', slug })
           }
-          onLibraryChanged={() => setScreen({ name: 'myLibrary' })}
+          onLibraryChanged={(collectionId) => {
+            if (collectionId) {
+              setScreen({ name: 'collectionDetail', collectionId });
+            } else {
+              setScreen({ name: 'myLibrary' });
+            }
+          }}
         />
       )}
 
@@ -480,7 +486,13 @@ function AppRoot() {
             scheduleSyncDebounced();
             openBook(book);
           }}
-          onImported={() => setScreen({ name: 'myLibrary' })}
+          onImported={(collectionId) => {
+            if (collectionId) {
+              setScreen({ name: 'collectionDetail', collectionId });
+            } else {
+              setScreen({ name: 'myLibrary' });
+            }
+          }}
         />
       )}
 

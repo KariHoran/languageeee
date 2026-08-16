@@ -29,7 +29,7 @@ interface PublicCollectionScreenProps {
   slug: string;
   onBack: () => void;
   onOpenBook: (book: Book) => void;
-  onImported?: () => void;
+  onImported?: (collectionId?: string) => void;
 }
 
 /** Нативный экран публичной подборки `/c/{slug}`. */
@@ -139,7 +139,7 @@ export default function PublicCollectionScreen({
           skipped: result.skipped,
         })
       );
-      onImported?.();
+      onImported?.(result.collectionId);
     } catch (err) {
       const empty =
         err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';

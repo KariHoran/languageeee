@@ -71,7 +71,7 @@ interface StoriesPageProps {
   preferredLanguage?: LearningLanguage;
   ownedBookIds?: Set<string>;
   onBack?: () => void;
-  onOpenMyLibrary?: () => void;
+  onOpenMyLibrary?: (collectionId?: string) => void;
   onOpenBook: (book: Book) => void;
   onOpenPublicCollection?: (slug: string) => void;
   onOpenPublicDeck?: (slug: string) => void;
@@ -240,7 +240,7 @@ export function StoriesPage({
             skipped: result.skipped,
           })
         );
-        onOpenMyLibrary?.();
+        onOpenMyLibrary?.(result.collectionId);
       } catch (err) {
         const empty =
           err instanceof Error && err.message === 'EMPTY_PUBLIC_COLLECTION';
@@ -364,7 +364,7 @@ export function StoriesPage({
             <Button
               type="button"
               className={`shrink-0 text-[10px] font-bold ${theme.textMuted} ${theme.hover} px-1.5 py-1 rounded-lg`}
-              onClick={onOpenMyLibrary}
+              onClick={() => onOpenMyLibrary?.()}
             >
               → {t('catalog.myLibrary')}
             </Button>

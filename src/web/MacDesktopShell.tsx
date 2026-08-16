@@ -154,6 +154,9 @@ export default function MacDesktopShell() {
   const [profileSlug, setProfileSlug] = useState<string | null>(() =>
     parseProfileSlugFromPath()
   );
+  const [libraryFocusCollectionId, setLibraryFocusCollectionId] = useState<
+    string | null
+  >(null);
 
   const theme = useWebTheme();
   // Минуты только в ридере (открытая книга) или на экране карточек — не за простой вкладки.
@@ -208,6 +211,19 @@ export default function MacDesktopShell() {
       setBooks([]);
     }
   }, [refreshContinue]);
+
+  const openImportedCollection = useCallback(
+    (collectionId: string) => {
+      clearSharePath();
+      setShareSlug(null);
+      setDeckSlug(null);
+      setProfileSlug(null);
+      setLibraryFocusCollectionId(collectionId);
+      setTab('library');
+      void reloadLibrary();
+    },
+    [reloadLibrary]
+  );
 
   useEffect(() => {
     return subscribeSyncState((state) => {
@@ -680,7 +696,10 @@ export default function MacDesktopShell() {
               authStatus={publicAuth}
               onOpenBook={handleOpenPublicBook}
               onClose={closePublicShare}
-              onAddedToLibrary={() => void reloadLibrary()}
+              onAddedToLibrary={(collectionId) => {
+                void reloadLibrary();
+                if (collectionId) openImportedCollection(collectionId);
+              }}
             />
           </Div>
         ) : deckSlug ? (
@@ -736,7 +755,10 @@ export default function MacDesktopShell() {
                   preferredLanguage={learningLanguage}
                   ownedBookIds={ownedCatalogIds}
                   onBack={() => goBack('home')}
-                  onOpenMyLibrary={() => setTab('library')}
+                  onOpenMyLibrary={(collectionId) => {
+                    if (collectionId) openImportedCollection(collectionId);
+                    else setTab('library');
+                  }}
                   onOpenBook={(book) => void handleOpenCatalogBook(book)}
                   onOpenPublicCollection={openPublicShare}
                   onOpenPublicDeck={openPublicDeck}
@@ -746,6 +768,10 @@ export default function MacDesktopShell() {
                   key={`library-${nativeLanguage}`}
                   preferredLanguage={learningLanguage}
                   activeBookId={activeBook?.id}
+                  focusCollectionId={libraryFocusCollectionId}
+                  onFocusCollectionConsumed={() =>
+                    setLibraryFocusCollectionId(null)
+                  }
                   onBack={() => goBack('home')}
                   onOpenBook={(book) => void handleOpenLibraryBook(book)}
                   onAddBook={(collectionId) => openAddBook(collectionId)}
